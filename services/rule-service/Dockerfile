@@ -1,0 +1,32 @@
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM maven:3-eclipse-temurin-21 AS build
+
+WORKDIR /workspace
+
+# Copy root POM first so Maven can resolve the parent
+COPY pom.xml /workspace/pom.xml
+COPY services/rule-service/pom.xml /workspace/services/rule-service/pom.xml
+
+# Prefetch dependencies before copying source (layer cache optimisation)
+RUN mvn -pl services/rule-service -am dependency:go-offline -q
+
+COPY services/rule-service/src /workspace/services/rule-service/src
+
+RUN mvn -pl services/rule-service -am package -DskipTests -q
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-alpine
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+COPY --from=build /workspace/services/rule-service/target/*.jar app.jar
+
+RUN chown appuser:appgroup app.jar
+
+USER appuser
+
+EXPOSE 8082
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

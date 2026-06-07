@@ -56,29 +56,46 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 3 — rule-service (Spring Boot)
 
-- [ ] **[User]** Generate `rule-service` via Spring Initializr: same settings as auth-service but omit JJWT; dependencies: Spring Web, Spring Security, Spring Data JPA, PostgreSQL Driver, Lombok, Flyway Migration. Place under `services/rule-service/`.
-- [ ] Update `services/rule-service/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM using `<relativePath>../../pom.xml</relativePath>`
-- [ ] Write `Dockerfile` (multi-stage, non-root user)
-- [ ] Configure `application.yml` with DB connection from environment variables
-- [ ] Write Flyway migration `V1__create_categories_table.sql`
-- [ ] Write Flyway migration `V2__create_courses_table.sql`
-- [ ] Implement `Category` and `Course` JPA entities with repositories
-- [ ] Implement `CategoryService`: create, read all, read by id, update, delete
-- [ ] Implement `CourseService`: create under a category, read by category, update, delete
-- [ ] Implement REST endpoints:
-  - `POST   /api/v1/categories` — Admin only
-  - `GET    /api/v1/categories` — Admin only
-  - `GET    /api/v1/categories/{id}` — Admin only
-  - `PUT    /api/v1/categories/{id}` — Admin only
-  - `DELETE /api/v1/categories/{id}` — Admin only
-  - `POST   /api/v1/categories/{categoryId}/courses` — Admin only
-  - `GET    /api/v1/categories/{categoryId}/courses` — Admin only
+- [x] **[User]** Generate `rule-service` via Spring Initializr: same settings as auth-service but omit JJWT; dependencies: Spring Web, Spring Security, Spring Data JPA, PostgreSQL Driver, Lombok, Flyway Migration. Place under `services/rule-service/`.
+- [x] Update `services/rule-service/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM using `<relativePath>../../pom.xml</relativePath>`
+- [x] Write `Dockerfile` (multi-stage, non-root user)
+- [x] Configure `application.yml` with DB connection from environment variables
+- [x] Delete old V1/V2 migrations; write 5 new Flyway migrations:
+  - `V1__create_departments_table.sql`
+  - `V2__create_courses_table.sql` (global catalog, `course_code UNIQUE`)
+  - `V3__create_department_courses_table.sql` (junction: department ↔ course)
+  - `V4__create_categories_table.sql` (`department_id FK`, `min_course_count`)
+  - `V5__create_category_courses_table.sql` (junction: category ↔ course, `is_mandatory`)
+- [x] Implement JPA entities and repositories: `Department`, `Course`, `Category`; junction embeddables `DepartmentCourseId`, `CategoryCourseId` and their entities
+- [x] Implement `DepartmentService`: create, read all, read by id, update, delete; add/remove courses from department pool
+- [x] Implement `CourseService`: create, read all, read by id, update, delete (global catalog)
+- [x] Implement `CategoryService`: create under department, read by department, read by id, update, delete; add/remove courses from category
+- [x] Implement REST endpoints:
+  - `POST   /api/v1/departments` — Admin only
+  - `GET    /api/v1/departments` — Admin only
+  - `GET    /api/v1/departments/{id}` — Admin only
+  - `PUT    /api/v1/departments/{id}` — Admin only
+  - `DELETE /api/v1/departments/{id}` — Admin only
+  - `POST   /api/v1/departments/{id}/courses` — Admin only (add course to department pool)
+  - `GET    /api/v1/departments/{id}/courses` — Admin only
+  - `DELETE /api/v1/departments/{id}/courses/{courseId}` — Admin only
+  - `POST   /api/v1/courses` — Admin only
+  - `GET    /api/v1/courses` — Admin only
+  - `GET    /api/v1/courses/{id}` — Admin only
   - `PUT    /api/v1/courses/{id}` — Admin only
   - `DELETE /api/v1/courses/{id}` — Admin only
-  - `GET    /internal/rules` — internal only, returns full rule set for analysis-service
-- [ ] Configure Spring Security to enforce `ADMIN` role on all write endpoints; extract role from incoming JWT (shared secret with auth-service)
-- [ ] Write unit tests for `CategoryService` and `CourseService`
-- [ ] Write integration tests for category CRUD endpoints
+  - `POST   /api/v1/departments/{deptId}/categories` — Admin only
+  - `GET    /api/v1/departments/{deptId}/categories` — Admin only
+  - `GET    /api/v1/departments/{deptId}/categories/{catId}` — Admin only
+  - `PUT    /api/v1/departments/{deptId}/categories/{catId}` — Admin only
+  - `DELETE /api/v1/departments/{deptId}/categories/{catId}` — Admin only
+  - `POST   /api/v1/categories/{catId}/courses` — Admin only (add course to category)
+  - `GET    /api/v1/categories/{catId}/courses` — Admin only
+  - `DELETE /api/v1/categories/{catId}/courses/{courseId}` — Admin only
+  - `GET    /internal/rules/{departmentId}` — internal only, returns full rule set for analysis-service
+- [x] Configure Spring Security: JWT filter extracts role from shared-secret token; enforce `ADMIN` on all `/api/v1/**`; permit `/internal/**` and `/actuator/health` without auth
+- [x] Write unit tests for `DepartmentService`, `CourseService`, `CategoryService`
+- [x] Write integration tests for department and category CRUD endpoints
 - [ ] Add Swagger / OpenAPI 3.0 documentation
 
 ---
@@ -114,17 +131,17 @@ This checklist covers every step from an empty repository to a fully functional 
 - [ ] Update `services/analysis-service/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM; add `spring-boot-starter-webflux` for WebClient (or keep `spring-boot-starter-web` and use `RestTemplate`)
 - [ ] Write `Dockerfile` (multi-stage, non-root user)
 - [ ] Configure `application.yml` with DB, Kafka broker, and rule-service URL from environment variables
-- [ ] Write Flyway migrations for `analysis_results`, `deficiencies`, and `transcript_courses` tables
+- [ ] Write Flyway migrations for `analysis_results` (include `department_id UUID NOT NULL`), `deficiencies`, and `transcript_courses` tables
 - [ ] Implement JPA entities and repositories for all three tables
 - [ ] Implement `TranscriptUploadController`:
-  - `POST /api/v1/transcripts` — accept multipart PDF, store jobId, publish to `transcript.raw` Kafka topic, return `202 Accepted` with jobId
-- [ ] Implement Kafka producer: serialize PDF bytes + metadata to `transcript.raw`
+  - `POST /api/v1/transcripts` — accept multipart PDF + `departmentId` (UUID) request parameter; teacher selects which department's rules to apply; store jobId, publish to `transcript.raw` Kafka topic, return `202 Accepted` with jobId
+- [ ] Implement Kafka producer: serialize PDF bytes + metadata (jobId, teacherId, departmentId) to `transcript.raw`
 - [ ] Implement `TranscriptParsedConsumer`: consume from `transcript.parsed`, trigger the graduation engine
-- [ ] Implement `RuleServiceClient` (WebClient): fetch full rule set from `GET http://rule-service/internal/rules`
+- [ ] Implement `RuleServiceClient` (WebClient): fetch full rule set from `GET http://rule-service/internal/rules/{departmentId}`
 - [ ] Implement `GraduationEngine`:
-  - For each category in the rule set, sum up credits and ECTS of passed courses that match course codes
-  - Compare totals against `min_credit` and `min_ects` thresholds
-  - Identify missing mandatory courses
+  - For each category in the rule set, count how many courses from the pool the student passed (`min_course_count` check)
+  - Sum credits and ECTS of passed courses that match course codes (`min_credit` / `min_ects` check)
+  - Verify all `is_mandatory=true` courses are passed regardless of count/credit thresholds
   - Return `AnalysisResult` with overall eligibility flag and per-category deficiencies
 - [ ] Implement `ResultService`: persist `AnalysisResult` and all `Deficiency` rows to the database
 - [ ] Implement result query endpoints:
@@ -146,7 +163,7 @@ This checklist covers every step from an empty repository to a fully functional 
 - [ ] Write `Dockerfile` (multi-stage, non-root user)
 - [ ] Configure routes in `application.yml`:
   - `/api/v1/auth/**` → auth-service (no JWT required)
-  - `/api/v1/categories/**`, `/api/v1/courses/**` → rule-service
+  - `/api/v1/departments/**`, `/api/v1/courses/**`, `/api/v1/categories/**` → rule-service
   - `/api/v1/transcripts/**`, `/api/v1/results/**` → analysis-service
 - [ ] Implement `JwtAuthenticationFilter` as a `GlobalFilter`: validate JWT signature and expiry on all routes except `/api/v1/auth/**`; reject with `401` if invalid
 - [ ] Propagate user identity headers (`X-User-Id`, `X-User-Role`) to downstream services so they can enforce role checks without re-validating the JWT
@@ -168,11 +185,12 @@ This checklist covers every step from an empty repository to a fully functional 
 - [ ] Implement `ProtectedRoute` component that redirects to `/login` if no valid token; also checks role for role-gated pages
 - [ ] Implement login page (`/login`): email + password form, calls `POST /api/v1/auth/login`, stores token in `localStorage` or `sessionStorage`
 - [ ] Implement Admin dashboard (`/admin`):
-  - Category list table with add/edit/delete actions
-  - Course list table per category with add/edit/delete actions
+  - Department list table with add/edit/delete actions
+  - Course catalog management (add/edit/delete global courses; assign to departments)
+  - Category list per department with add/edit/delete actions; course pool management per category
   - Confirmation modals for destructive actions
 - [ ] Implement Teacher dashboard (`/teacher`):
-  - PDF file upload component with drag-and-drop support
+  - PDF file upload component with drag-and-drop support; department selector (dropdown from `/api/v1/departments`) to choose which rules apply
   - Job status polling after upload (show spinner until COMPLETED or FAILED)
   - Analysis result display: eligibility badge, category breakdown table, deficiency list
   - Student history table: paginated, searchable by student reference

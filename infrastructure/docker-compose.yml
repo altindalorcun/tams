@@ -65,8 +65,8 @@ services:
   # ─── rule-service ─────────────────────────────────────────────────────────
   rule-service:
     build:
-      context: ../services/rule-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/rule-service/Dockerfile
     container_name: tams-rule-service
     ports:
       - "${RULE_SERVICE_PORT:-8082}:8082"

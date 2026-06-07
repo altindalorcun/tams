@@ -389,30 +389,60 @@ CREATE TABLE teacher_student_map (
 ### 5.2 rule-service → `tams_rules`
 
 ```sql
--- Top-level graduation requirement group
--- e.g. "Out-of-Department Mandatory", "Technical Elective Group A"
-CREATE TABLE categories (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- University departments. Each department owns its own graduation rule set.
+CREATE TABLE departments (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
-    min_credit  NUMERIC(5,2) NOT NULL DEFAULT 0,
-    min_ects    NUMERIC(5,2) NOT NULL DEFAULT 0,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- Individual courses that belong to a category
+-- Institution-wide course catalog. course_code is unique across the university.
+-- The same course (e.g. MAT101) may be offered by multiple departments.
 CREATE TABLE courses (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    category_id  UUID         NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    course_code  VARCHAR(20)  NOT NULL,
+    id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_code  VARCHAR(20)  NOT NULL UNIQUE,
     course_name  VARCHAR(255) NOT NULL,
     credit       NUMERIC(4,2) NOT NULL,
     ects         NUMERIC(4,2) NOT NULL,
-    is_mandatory BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (category_id, course_code)
+    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Which courses are offered by which department (many-to-many).
+-- Admin first populates this pool before assigning courses to graduation categories.
+CREATE TABLE department_courses (
+    department_id  UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    course_id      UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    PRIMARY KEY (department_id, course_id)
+);
+
+-- Graduation requirement groups scoped to a department.
+-- e.g. "Out-of-Department Mandatory", "Technical Elective Group A".
+-- min_course_count: student must pass at least this many courses from the category pool.
+-- min_credit / min_ects: total credit/ECTS thresholds across passed courses in the pool.
+CREATE TABLE categories (
+    id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    department_id    UUID         NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    name             VARCHAR(255) NOT NULL,
+    description      TEXT,
+    min_credit       NUMERIC(5,2) NOT NULL DEFAULT 0,
+    min_ects         NUMERIC(5,2) NOT NULL DEFAULT 0,
+    min_course_count INTEGER      NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    UNIQUE (department_id, name)
+);
+
+-- Courses that belong to a graduation category (many-to-many).
+-- is_mandatory = true means the student must pass this specific course regardless
+-- of whether the min_course_count threshold is otherwise satisfied.
+CREATE TABLE category_courses (
+    category_id  UUID    NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    course_id    UUID    NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (category_id, course_id)
 );
 ```
 
@@ -424,6 +454,7 @@ CREATE TABLE analysis_results (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     masked_student_ref  VARCHAR(80)  NOT NULL,   -- SHA-256 hash from parser-service
     teacher_id          UUID         NOT NULL,   -- ID from auth-service
+    department_id       UUID         NOT NULL,   -- rule-service department UUID selected at upload
     is_eligible         BOOLEAN      NOT NULL,
     total_credit        NUMERIC(6,2) NOT NULL DEFAULT 0,
     total_ects          NUMERIC(6,2) NOT NULL DEFAULT 0,
@@ -466,9 +497,9 @@ CREATE TABLE transcript_courses (
 |----------------------|---------------|-------------------------------|--------------------------------------|
 | Client browser       | api-gateway   | All `/api/v1/*`               | All user-facing operations           |
 | api-gateway          | auth-service  | `POST /internal/auth/validate`| Token introspection / user info      |
-| api-gateway          | rule-service  | `/api/v1/categories`, `/api/v1/courses` | Admin CRUD, proxied      |
-| api-gateway          | analysis-service | `/api/v1/transcripts`, `/api/v1/results` | Upload + result query |
-| analysis-service     | rule-service  | `GET /internal/rules`         | Fetch full rule set before comparison|
+| api-gateway          | rule-service  | `/api/v1/departments/**`, `/api/v1/courses/**`, `/api/v1/categories/**` | Admin CRUD, proxied |
+| api-gateway          | analysis-service | `/api/v1/transcripts/**`, `/api/v1/results/**` | Upload + result query |
+| analysis-service     | rule-service  | `GET /internal/rules/{departmentId}` | Fetch full rule set for a specific department before comparison |
 
 Internal endpoints (prefixed `/internal/`) are **not** exposed through the api-gateway and are only reachable within the Kubernetes cluster network via `ClusterIP` services.
 
