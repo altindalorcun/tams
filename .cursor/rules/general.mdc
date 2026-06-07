@@ -1,0 +1,32 @@
+---
+alwaysApply: true
+---
+
+# TAMS — General Rules
+Microservices monorepo: Java (Spring Boot) + Python (FastAPI) + React (Vite).
+
+## Cross-Cutting Standards
+
+- All identifiers, comments, commit messages, and documentation must be written in **English**.
+  - Exception: user-visible strings in the frontend (Turkish UI text is acceptable).
+- Never leave commented-out code in the codebase. Delete dead code; use version control history instead.
+- Never use magic numbers or magic strings. Extract them into named constants or configuration values.
+- Every public function, class, and module must have a docstring or Javadoc block explaining its purpose and any non-obvious behavior.
+- Do not write comments that restate what the code does. Only comment on *why* — non-obvious intent, trade-offs, or constraints.
+- Every service must have a health check endpoint: `GET /actuator/health` (Spring Boot) or `GET /health` (FastAPI).
+- Never hardcode secrets, passwords, or API keys. All sensitive values must come from environment variables.
+- Every Dockerfile must use a multi-stage build and run the final image as a non-root user.
+
+## Service Naming Conventions
+
+| Layer            | Convention                | Example                               |
+|------------------|---------------------------|---------------------------------------|
+| Service folder   | `kebab-case`              | `auth-service`, `parser-service`      |
+| Java packages    | `lowercase`               | `com.tams.ruleservice`                |
+| Python modules   | `snake_case`              | `pdf_parser.py`, `pii_masker.py`      |
+| React components | `PascalCase`              | `GraduationResultCard`                |
+| React hooks      | `camelCase`               | `useAnalysisResult`                   |
+| REST endpoints   | `kebab-case` plural nouns | `/api/v1/graduation-categories`       |
+| Kafka topics     | `dot.separated.lowercase` | `transcript.raw`, `transcript.parsed` |
+| DB tables        | `snake_case` plural       | `analysis_results`, `transcript_courses` |
+| K8s resources    | `kebab-case`              | `parser-service-hpa`                  |

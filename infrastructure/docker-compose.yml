@@ -1,0 +1,167 @@
+include:
+  - path: docker-compose.infra.yml
+
+services:
+
+  # ─── api-gateway ─────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: Dockerfile
+    container_name: tams-api-gateway
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      RULE_SERVICE_URL: ${RULE_SERVICE_URL:-http://rule-service:8082}
+      ANALYSIS_SERVICE_URL: ${ANALYSIS_SERVICE_URL:-http://analysis-service:8083}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      rule-service:
+        condition: service_healthy
+      analysis-service:
+        condition: service_healthy
+    networks:
+      - tams-network
+    restart: unless-stopped
+
+  # ─── auth-service ─────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ..
+      dockerfile: services/auth-service/Dockerfile
+    container_name: tams-auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_AUTH_HOST:-postgres-auth}:${POSTGRES_AUTH_PORT:-5432}/${POSTGRES_AUTH_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_AUTH_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION_MS: ${JWT_ACCESS_EXPIRATION_MS:-900000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+      ADMIN_SEED_EMAIL: ${ADMIN_SEED_EMAIL}
+      ADMIN_SEED_USERNAME: ${ADMIN_SEED_USERNAME}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+
+  # ─── rule-service ─────────────────────────────────────────────────────────
+  rule-service:
+    build:
+      context: ../services/rule-service
+      dockerfile: Dockerfile
+    container_name: tams-rule-service
+    ports:
+      - "${RULE_SERVICE_PORT:-8082}:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_RULES_HOST:-postgres-rules}:${POSTGRES_RULES_PORT:-5432}/${POSTGRES_RULES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_RULES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_RULES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres-rules:
+        condition: service_healthy
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+
+  # ─── analysis-service ─────────────────────────────────────────────────────
+  analysis-service:
+    build:
+      context: ../services/analysis-service
+      dockerfile: Dockerfile
+    container_name: tams-analysis-service
+    ports:
+      - "${ANALYSIS_SERVICE_PORT:-8083}:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8083
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_ANALYSIS_HOST:-postgres-analysis}:${POSTGRES_ANALYSIS_PORT:-5432}/${POSTGRES_ANALYSIS_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_ANALYSIS_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ANALYSIS_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      RULE_SERVICE_URL: ${RULE_SERVICE_URL:-http://rule-service:8082}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres-analysis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rule-service:
+        condition: service_healthy
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+
+  # ─── parser-service ───────────────────────────────────────────────────────
+  parser-service:
+    build:
+      context: ../services/parser-service
+      dockerfile: Dockerfile
+    container_name: tams-parser-service
+    ports:
+      - "${PARSER_SERVICE_PORT:-8084}:8084"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      KAFKA_TOPIC_RAW: ${KAFKA_TOPIC_RAW:-transcript.raw}
+      KAFKA_TOPIC_PARSED: ${KAFKA_TOPIC_PARSED:-transcript.parsed}
+      PII_HASH_SALT: ${PII_HASH_SALT}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ─── frontend ─────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    container_name: tams-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - tams-network
+    restart: unless-stopped

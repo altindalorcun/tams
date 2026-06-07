@@ -1,0 +1,13 @@
+---
+globs: infrastructure/**/*.yaml, infrastructure/**/*.yml
+alwaysApply: false
+---
+
+# Kubernetes Rules
+
+- All resources must specify `namespace: tams`.
+- Every `Deployment` must define `resources.requests` and `resources.limits` for CPU and memory.
+- Every `Deployment` must define `livenessProbe` and `readinessProbe` pointing to the health check endpoint.
+- Sensitive values (passwords, JWT secrets, PII salt) must be stored in `Secret` objects, not `ConfigMap`.
+- Never commit real `Secret` values to the repository. Commit `.yaml.example` templates with placeholder values only.
+- Use `RollingUpdate` deployment strategy with `maxUnavailable: 0` to ensure zero-downtime deployments.

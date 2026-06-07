@@ -1,0 +1,26 @@
+# Overrides main application.yml for the test classpath.
+# @ServiceConnection in AbstractIntegrationTest replaces datasource properties
+# with the actual Testcontainers PostgreSQL URL, username and password.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test_placeholder
+    username: test_placeholder
+    password: test_placeholder
+
+  jpa:
+    show-sql: false
+
+app:
+  jwt:
+    secret: 6eBC12u4cG3WAfePlx21HNUfkGxCR/M39oqNtDfwzQs=
+    access-expiration-ms: 3600000
+    refresh-expiration-ms: 86400000
+  admin:
+    seed-email: test-admin@tams-test.com
+    seed-username: testadmin
+    seed-password: TestAdmin123!
+
+logging:
+  level:
+    root: WARN
+    tr.com.hacettepe.tams: INFO

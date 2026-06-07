@@ -1,0 +1,146 @@
+services:
+
+  # ─── Kafka (KRaft — no Zookeeper) ──────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka
+    container_name: tams-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Generate once with: docker run --rm confluentinc/cp-kafka:7.8.0 kafka-storage random-uuid
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # Creates the required topics after Kafka is healthy
+  kafka-init:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: tams-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Creating Kafka topics..."
+        kafka-topics --bootstrap-server kafka:9092 \
+          --create --if-not-exists \
+          --topic transcript.raw \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=300000 \
+          --config cleanup.policy=delete
+
+        kafka-topics --bootstrap-server kafka:9092 \
+          --create --if-not-exists \
+          --topic transcript.parsed \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=3600000 \
+          --config cleanup.policy=delete
+
+        echo "Topics created."
+        kafka-topics --bootstrap-server kafka:9092 --list
+    networks:
+      - tams-network
+    restart: on-failure
+
+  # ─── PostgreSQL — auth-service ─────────────────────────────────────────────
+  postgres-auth:
+    image: postgres:17-alpine
+    container_name: tams-postgres-auth
+    ports:
+      - "${POSTGRES_AUTH_HOST_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_AUTH_DB}
+      POSTGRES_USER: ${POSTGRES_AUTH_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── PostgreSQL — rule-service ─────────────────────────────────────────────
+  postgres-rules:
+    image: postgres:17-alpine
+    container_name: tams-postgres-rules
+    ports:
+      - "${POSTGRES_RULES_HOST_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_RULES_DB}
+      POSTGRES_USER: ${POSTGRES_RULES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_RULES_PASSWORD}
+    volumes:
+      - postgres-rules-data:/var/lib/postgresql/data
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── PostgreSQL — analysis-service ────────────────────────────────────────
+  postgres-analysis:
+    image: postgres:17-alpine
+    container_name: tams-postgres-analysis
+    ports:
+      - "${POSTGRES_ANALYSIS_HOST_PORT:-5434}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_ANALYSIS_DB}
+      POSTGRES_USER: ${POSTGRES_ANALYSIS_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ANALYSIS_PASSWORD}
+    volumes:
+      - postgres-analysis-data:/var/lib/postgresql/data
+    networks:
+      - tams-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  tams-network:
+    driver: bridge
+    name: tams-network
+
+volumes:
+  kafka-data:
+  postgres-auth-data:
+  postgres-rules-data:
+  postgres-analysis-data:

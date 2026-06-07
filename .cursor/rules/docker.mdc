@@ -1,0 +1,15 @@
+---
+globs: **/Dockerfile, **/Dockerfile.*
+alwaysApply: false
+---
+
+# Docker Rules
+
+- Every service must have a `Dockerfile` using a **multi-stage build**.
+- The final image stage must:
+  - Use a minimal base image (`eclipse-temurin:21-jre-alpine` for Java, `python:3.12-slim` for Python, `nginx:alpine` for frontend)
+  - Create and switch to a non-root user before the `ENTRYPOINT`/`CMD` instruction
+  - Not contain build tools, source code, or test files
+- Never `COPY` a `.env` file into a Docker image.
+- Never `ENV` secrets (passwords, keys) in a `Dockerfile`. Pass them at runtime via `--env-file` or Kubernetes Secrets.
+- Pin base image versions by digest or at least by minor version tag (e.g., `eclipse-temurin:21.0-jre-alpine`), not `:latest`.

@@ -1,0 +1,12 @@
+---
+description: After completing any task from docs/todo.md, mark it as done with [x]
+alwaysApply: true
+---
+
+# Todo Tracking
+
+`docs/todo.md` is the canonical MVP roadmap. After fully completing any item from this file, immediately update it by changing `- [ ]` to `- [x]` for that item.
+
+- Update only items that are **fully and verifiably done** — not partially complete ones.
+- If a phase is fully completed, tick all its items in one edit.
+- Never tick items the user hasn't confirmed (e.g. IntelliJ setup, manual verification steps).

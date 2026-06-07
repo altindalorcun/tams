@@ -1,0 +1,80 @@
+---
+globs: frontend/**/*.ts, frontend/**/*.tsx
+alwaysApply: false
+---
+
+# React / Vite (Frontend) Rules
+
+## Component Rules
+
+- Use functional components exclusively. Class components are forbidden.
+- Every component must be typed with TypeScript. Never use `any` for props or state.
+- Co-locate a component's styles, tests, and sub-components in the same `features/` subfolder.
+
+## Project Structure
+
+```
+src/
+├── api/        — Axios instance + one file per service domain (authApi.ts, ruleApi.ts, etc.)
+├── features/
+│   ├── auth/   — Login page, auth store/context, useAuth hook
+│   ├── admin/  — Category and course management pages and components
+│   ├── teacher/— Upload, result view, student history
+│   └── student/— Personal result page
+├── components/ — Truly shared, dumb UI components (Button, Modal, Table, Spinner, Badge)
+├── hooks/      — Custom hooks that do not belong to a single feature
+├── router/     — React Router setup, ProtectedRoute
+└── types/      — TypeScript interfaces and enums matching backend DTOs
+```
+
+## State Management
+
+- Server state (API data): use `@tanstack/react-query` (`useQuery`, `useMutation`). Do not store server state in `useState` or `useContext`.
+- Client/UI state: use `useState` or `useReducer` for local component state.
+- Global auth state (token, user role): use a single Zustand store or a React Context with `useReducer` — one approach, consistently applied.
+- Prop drilling is allowed for a maximum of **2 component levels**. Beyond that, use context or the global store.
+
+## API Layer
+
+- All API calls must go through the Axios instance defined in `src/api/axiosInstance.ts`.
+- The Axios instance must have a request interceptor that attaches the JWT `Authorization` header.
+- The Axios instance must have a response interceptor that handles `401` by clearing auth state and redirecting to `/login`.
+- Never call `axios.get(...)` directly in a component. Always call through a typed function in `src/api/`.
+
+## Routing and Auth Guards
+
+- Implement a `ProtectedRoute` component that:
+  - Redirects unauthenticated users to `/login`
+  - Redirects users lacking the required role to a `/forbidden` page
+- Every application route must declare its required role.
+
+## Loading and Error States
+
+- Every data-fetching operation must handle three states: loading, error, and success. A component that shows data without handling loading and error states is incomplete.
+- Use skeleton loaders for initial page load. Use spinners for user-triggered actions.
+- Display user-friendly error messages (not raw error objects or stack traces) using toast notifications or inline alert components.
+
+## Styling
+
+- Use Tailwind CSS utility classes exclusively. Never write inline styles (`style={{}}`).
+- Never import external `.css` files per component (global styles in `src/index.css` only).
+- The student result page and all student-facing components must be fully responsive (mobile-first breakpoints).
+
+## TypeScript
+
+- Enable `strict: true` in `tsconfig.json`. Never disable strict checks.
+- API response shapes must be defined as TypeScript interfaces in `src/types/`. These are the single source of truth for what the backend returns.
+- Use `unknown` rather than `any` when the type is genuinely unknown, then narrow it.
+
+## Testing
+
+- Use Vitest + React Testing Library.
+- Test files must be co-located with the component: `ComponentName.test.tsx`.
+- Test behavior, not implementation. Prefer queries like `getByRole`, `getByLabelText` over `getByTestId`.
+
+## Naming
+
+- Component files and component functions: `PascalCase` (e.g., `AnalysisResultCard.tsx`)
+- Hook files and hook functions: `camelCase` prefixed with `use` (e.g., `useCategories.ts`)
+- API files: `camelCase` suffixed with `Api` (e.g., `ruleApi.ts`)
+- Type/interface names: `PascalCase`; prefix with `I` only when needed to disambiguate from a class of the same name

@@ -1,0 +1,74 @@
+---
+globs: services/parser-service/**/*.py
+alwaysApply: false
+---
+
+# Python / FastAPI Rules (parser-service)
+
+## Project Layout
+
+```
+src/
+├── main.py       — FastAPI app instantiation and startup
+├── consumer.py   — Kafka consumer loop
+├── producer.py   — Kafka producer
+├── parser/
+│   ├── pdf_parser.py
+│   └── models.py — Pydantic models
+└── pii/
+    └── pii_masker.py
+tests/
+```
+
+## Type Hints
+
+- Type hints are **mandatory** on every function signature (parameters and return type).
+- Never use `Any` unless absolutely unavoidable; document why if used.
+- Use `Optional[T]` or `T | None` (Python 3.10+ union syntax) for nullable fields.
+
+## Pydantic Models
+
+- Every Kafka message payload and every API response body must be a Pydantic `BaseModel`.
+- Use `model_validator` and `field_validator` for cross-field and custom validation.
+- Never return raw `dict` objects from functions that cross module boundaries.
+
+## Async
+
+- All FastAPI endpoint handlers must be `async def`.
+- CPU-bound operations (PDF parsing) must be offloaded to `asyncio.get_event_loop().run_in_executor()` to avoid blocking the event loop.
+
+## PII Masking — Critical Rules
+
+- `pii/pii_masker.py` is the **only** place where raw PII values (TC Kimlik No, Öğrenci No) may exist, and only transiently.
+- No raw PII value may ever be:
+  - Logged (at any log level)
+  - Returned from `pii_masker.py`
+  - Assigned to a variable outside `pii_masker.py`
+  - Published to any Kafka topic or stored in any database
+- The masking salt must be loaded from the `PII_HASH_SALT` environment variable at startup. Never default to an empty string.
+
+## Configuration
+
+- All configuration (Kafka broker, topic names, secrets) must be read from environment variables using `pydantic-settings` `BaseSettings` class.
+- Never use `os.environ.get("KEY", "hardcoded-default")` for secrets.
+
+## Error Handling
+
+- Use structured logging (`python-json-logger`) everywhere. Never use `print()`.
+- All Kafka consumer callbacks must catch exceptions and log them with context (jobId, error type) — never crash the consumer loop on a single bad message.
+- Use `HTTPException` for FastAPI endpoint errors.
+
+## Testing
+
+- All tests go in `tests/` with filenames matching `test_{module}.py`.
+- Use `pytest` with `pytest-asyncio` for async tests.
+- `pii_masker` must have its own isolated test file (`test_pii_masker.py`) asserting raw PII never appears in output.
+- Use sample PDF fixture files in `tests/fixtures/` (anonymized, no real student data).
+
+## Naming
+
+- Modules and files: `snake_case`
+- Classes: `PascalCase`
+- Functions and variables: `snake_case`
+- Constants: `UPPER_SNAKE_CASE`
+- Pydantic models: `PascalCase` with descriptive names (e.g., `ParsedTranscriptMessage`, `CourseRecord`)
