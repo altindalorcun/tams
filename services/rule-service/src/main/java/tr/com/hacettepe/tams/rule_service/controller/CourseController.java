@@ -1,6 +1,7 @@
 package tr.com.hacettepe.tams.rule_service.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/courses")
 @RequiredArgsConstructor
 @Tag(name = "Courses", description = "Institution-wide course catalog management")
+@SecurityRequirement(name = "bearerAuth")
 public class CourseController {
 
     private final CourseService courseService;

@@ -1,6 +1,7 @@
 package tr.com.hacettepe.tams.rule_service.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/departments")
 @RequiredArgsConstructor
 @Tag(name = "Departments", description = "Department CRUD and course pool management")
+@SecurityRequirement(name = "bearerAuth")
 public class DepartmentController {
 
     private final DepartmentService departmentService;

@@ -96,7 +96,7 @@ This checklist covers every step from an empty repository to a fully functional 
 - [x] Configure Spring Security: JWT filter extracts role from shared-secret token; enforce `ADMIN` on all `/api/v1/**`; permit `/internal/**` and `/actuator/health` without auth
 - [x] Write unit tests for `DepartmentService`, `CourseService`, `CategoryService`
 - [x] Write integration tests for department and category CRUD endpoints
-- [ ] Add Swagger / OpenAPI 3.0 documentation
+- [x] Add Swagger / OpenAPI 3.0 documentation
 
 ---
 
