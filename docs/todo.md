@@ -102,26 +102,27 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 4 — parser-service (Python / FastAPI)
 
-- [ ] **[User]** Create the `services/parser-service/` directory.
-- [ ] **[AI]** Scaffold the full Python FastAPI project inside `services/parser-service/`: `requirements.txt` (fastapi, uvicorn, pdfplumber, PyPDF2, confluent-kafka, pydantic, python-dotenv), complete `src/` directory layout (`main.py`, `consumer.py`, `producer.py`, `parser/pdf_parser.py`, `parser/models.py`, `pii/pii_masker.py`), `Dockerfile` (multi-stage: `python:3.12-slim`, non-root user `appuser`), `.env.example`, and `tests/` with a `fixtures/` directory for sample PDFs
+- [x] **[User]** Create the `services/parser-service/` directory.
+- [x] **[AI]** Scaffold the full Python FastAPI project inside `services/parser-service/`: `requirements.txt` (fastapi, uvicorn, pdfplumber, pypdf, confluent-kafka, pydantic, pydantic-settings, python-dotenv; pytest for dev), complete `src/` directory layout (`main.py`, `config.py`, `consumer.py`, `producer.py`, `parser/pdf_parser.py`, `parser/models.py`, `parser/grades.py`, `pii/pii_masker.py`), `Dockerfile` (multi-stage: `python:3.12-slim`, non-root user `appuser`), `.env.example`, and `tests/` with a `fixtures/` directory for sample PDFs
 - [ ] In IntelliJ IDEA Ultimate: create a virtual environment (`python -m venv services/parser-service/.venv`); go to `File → Project Structure → SDKs → +` and add the `.venv/bin/python` interpreter; right-click `services/parser-service/src/` → **Mark Directory As → Sources Root**
-- [ ] Implement `pii_masker.py`:
+- [x] Implement `pii_masker.py`:
   - Detect TC Kimlik No (11-digit number pattern) and Öğrenci No from parsed text
   - Replace each with `sha256(PII_HASH_SALT + raw_value)` truncated to 16 hex chars
   - Unit-test this module in complete isolation — it must never log raw PII values
-- [ ] Implement `pdf_parser.py`:
+- [x] Implement `pdf_parser.py`:
   - Accept PDF as `bytes` (never as file path)
-  - Use `pdfplumber` to extract text and table data
-  - Parse course rows: code, name, credit, ECTS, grade, semester
-  - Call `pii_masker` before returning any data
+  - Use `pdfplumber` to extract text and table data (`pypdf` as fallback engine)
+  - Parse student & program metadata: full name, TC Kimlik No, Öğrenci No, faculty, program name + program code, study duration (years), program type (e.g. Lisans), graduation GPA, registration/graduation dates
+  - Parse course rows grouped by semester (`1. Sınıf Güz`, etc.): code, name, credit, grade, ECTS, academic year (`Başarı Yılı`), and a derived `is_passed` flag
+  - Call `pii_masker` before returning any data (TC + Öğrenci No collapsed into `student_ref`; raw name kept only in the in-memory full model, never published)
   - Return a `ParsedTranscript` Pydantic model
-- [ ] Implement `consumer.py`: subscribe to `transcript.raw`, deserialize message, call parser, call producer
-- [ ] Implement `producer.py`: publish `ParsedTranscript` JSON to `transcript.parsed`
-- [ ] Implement health check endpoint `GET /health` in `main.py`
-- [ ] Write unit tests for `pdf_parser.py` using sample transcript PDFs (anonymized test fixtures)
-- [ ] Write unit tests for `pii_masker.py` verifying no raw PII appears in output
-- [ ] Write integration test: send a message to `transcript.raw`, assert a correctly structured message appears on `transcript.parsed`
-- [ ] Configure all secrets and Kafka broker URL via environment variables (`.env` / K8s Secret)
+- [x] Implement `consumer.py`: subscribe to `transcript.raw`, deserialize message, call parser, call producer
+- [x] Implement `producer.py`: publish `ParsedTranscript` JSON to `transcript.parsed`
+- [x] Implement health check endpoint `GET /health` in `main.py`
+- [x] Write unit tests for `pdf_parser.py` using sample transcript PDFs (anonymized test fixtures)
+- [x] Write unit tests for `pii_masker.py` verifying no raw PII appears in output
+- [x] Write integration test: send a message to `transcript.raw`, assert a correctly structured message appears on `transcript.parsed`
+- [x] Configure all secrets and Kafka broker URL via environment variables (`.env` / K8s Secret)
 
 ---
 

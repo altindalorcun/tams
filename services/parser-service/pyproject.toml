@@ -1,0 +1,14 @@
+[project]
+name = "parser-service"
+version = "0.1.0"
+description = "TAMS transcript parsing service (Python / FastAPI)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: tests that require a real Kafka broker via Docker (deselect with -m 'not integration')",
+]
