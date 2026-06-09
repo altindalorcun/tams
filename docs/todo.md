@@ -128,32 +128,32 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 5 — analysis-service (Spring Boot)
 
-- [ ] **[User]** Generate `analysis-service` via Spring Initializr: Project=Maven, Language=Java, Spring Boot=3.3.5, Java=21, dependencies: Spring Web, Spring Security, Spring Data JPA, PostgreSQL Driver, Lombok, Flyway Migration, Spring for Apache Kafka. Place under `services/analysis-service/`.
-- [ ] Update `services/analysis-service/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM; add `spring-boot-starter-webflux` for WebClient (or keep `spring-boot-starter-web` and use `RestTemplate`)
-- [ ] Write `Dockerfile` (multi-stage, non-root user)
-- [ ] Configure `application.yml` with DB, Kafka broker, and rule-service URL from environment variables
-- [ ] Write Flyway migrations for `analysis_results` (include `department_id UUID NOT NULL`), `deficiencies`, and `transcript_courses` tables
-- [ ] Implement JPA entities and repositories for all three tables
-- [ ] Implement `TranscriptUploadController`:
+- [x] **[User]** Generate `analysis-service` via Spring Initializr: Project=Maven, Language=Java, Spring Boot=3.3.5, Java=21, dependencies: Spring Web, Spring Security, Spring Data JPA, PostgreSQL Driver, Lombok, Flyway Migration, Spring for Apache Kafka. Place under `services/analysis-service/`.
+- [x] Update `services/analysis-service/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM; add `spring-boot-starter-webflux` for WebClient (or keep `spring-boot-starter-web` and use `RestTemplate`)
+- [x] Write `Dockerfile` (multi-stage, non-root user)
+- [x] Configure `application.yml` with DB, Kafka broker, and rule-service URL from environment variables
+- [x] Write Flyway migrations for `analysis_results` (include `department_id UUID NOT NULL`), `deficiencies`, and `transcript_courses` tables
+- [x] Implement JPA entities and repositories for all three tables
+- [x] Implement `TranscriptUploadController`:
   - `POST /api/v1/transcripts` — accept multipart PDF + `departmentId` (UUID) request parameter; teacher selects which department's rules to apply; store jobId, publish to `transcript.raw` Kafka topic, return `202 Accepted` with jobId
-- [ ] Implement Kafka producer: serialize PDF bytes + metadata (jobId, teacherId, departmentId) to `transcript.raw`
-- [ ] Implement `TranscriptParsedConsumer`: consume from `transcript.parsed`, trigger the graduation engine
-- [ ] Implement `RuleServiceClient` (WebClient): fetch full rule set from `GET http://rule-service/internal/rules/{departmentId}`
-- [ ] Implement `GraduationEngine`:
+- [x] Implement Kafka producer: serialize PDF bytes + metadata (jobId, teacherId, departmentId) to `transcript.raw`
+- [x] Implement `TranscriptParsedConsumer`: consume from `transcript.parsed`, trigger the graduation engine
+- [x] Implement `RuleServiceClient` (WebClient): fetch full rule set from `GET http://rule-service/internal/rules/{departmentId}`
+- [x] Implement `GraduationEngine`:
   - For each category in the rule set, count how many courses from the pool the student passed (`min_course_count` check)
   - Sum credits and ECTS of passed courses that match course codes (`min_credit` / `min_ects` check)
   - Verify all `is_mandatory=true` courses are passed regardless of count/credit thresholds
   - Return `AnalysisResult` with overall eligibility flag and per-category deficiencies
-- [ ] Implement `ResultService`: persist `AnalysisResult` and all `Deficiency` rows to the database
-- [ ] Implement result query endpoints:
+- [x] Implement `ResultService`: persist `AnalysisResult` and all `Deficiency` rows to the database
+- [x] Implement result query endpoints:
   - `GET /api/v1/results` — Teacher: list all results for their uploaded students (paginated, searchable by student_ref)
   - `GET /api/v1/results/{id}` — Teacher or Student: get full result with deficiency details
   - `GET /api/v1/results/me` — Student: get own latest result (matched by masked_student_ref)
   - `GET /api/v1/transcripts/{jobId}/status` — poll analysis status (PENDING / COMPLETED / FAILED)
-- [ ] Enforce Spring Security role guards on all endpoints
-- [ ] Write unit tests for `GraduationEngine` covering: fully eligible, credit deficit, missing mandatory course, multiple category deficits
-- [ ] Write integration tests for upload and result retrieval
-- [ ] Add Swagger / OpenAPI 3.0 documentation
+- [x] Enforce Spring Security role guards on all endpoints
+- [x] Write unit tests for `GraduationEngine` covering: fully eligible, credit deficit, missing mandatory course, multiple category deficits
+- [x] Write integration tests for upload and result retrieval
+- [x] Add Swagger / OpenAPI 3.0 documentation
 
 ---
 

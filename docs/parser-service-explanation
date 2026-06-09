@@ -1,0 +1,271 @@
+parser-service — Tam Çalışma Mantığı
+1. Servisin Görevi (Tek Cümlede)
+parser-service, Kafka üzerinden gelen bir PDF transkripti bellekte (diske hiç yazmadan) ayrıştırıp; öğrencinin kimlik/program bilgilerini ve tüm derslerini yapılandırılmış JSON'a çevirir, PII'yi (kişisel veri) maskeleyerek tekrar Kafka'ya yayınlar. Stateless'tır — veritabanı yoktur.
+
+Mimari roldeki yeri (docs/architecture.md'den): en CPU-yoğun servis olduğu için Kubernetes'te birincil ölçeklenme (HPA) hedefidir.
+
+2. Kullanılan Teknolojiler
+Katman	Teknoloji
+Dil
+Python 3.12+ (lokal venv 3.13)
+Web framework
+FastAPI + Uvicorn (sadece /health ve yaşam döngüsü için)
+PDF ayrıştırma
+pdfplumber (birincil), pypdf (yedek)
+Mesajlaşma
+confluent-kafka (consumer + producer)
+Veri modeli/validasyon
+Pydantic v2 + pydantic-settings
+Test
+pytest, pytest-asyncio, httpx
+Bağımlılıklar:
+
+
+requirements.txt
+Lines 1-15
+# ── Web framework ────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+# ── PDF parsing ──────────────────────────────────────────────────────────────
+pdfplumber==0.11.5
+pypdf==5.1.0
+# ── Kafka ────────────────────────────────────────────────────────────────────
+confluent-kafka==2.6.1
+# ── Configuration & validation ───────────────────────────────────────────────
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+3. Dosya Yapısı ve Sorumluluklar
+services/parser-service/
+├── src/
+│   ├── main.py            # FastAPI uygulaması, /health, consumer'ı başlatır
+│   ├── config.py          # Tüm ayarlar (env'den), pydantic-settings
+│   ├── consumer.py        # transcript.raw'ı dinler → parse → producer
+│   ├── producer.py        # ParsedTranscript'i transcript.parsed'a yayınlar
+│   ├── parser/
+│   │   ├── pdf_parser.py  # ASIL İŞ: PDF → yapılandırılmış veri
+│   │   ├── models.py      # Pydantic modelleri (PII-li / PII-siz ayrımı)
+│   │   └── grades.py      # is_passed (geçti/kaldı) kuralı
+│   └── pii/
+│       └── pii_masker.py  # SHA-256 maskeleme (ham PII'ye dokunan TEK yer)
+├── tests/                 # 37 test + fixtures/sample_transcript.pdf
+├── pyproject.toml         # pytest yapılandırması (pythonpath=src)
+├── Dockerfile             # multi-stage, non-root appuser
+├── .env.example
+└── requirements.txt / requirements-dev.txt
+4. Mimari: Mesajı Nereden Alır, Nereye Atar?
+analysis-service ──(transcript.raw)──▶ parser-service ──(transcript.parsed)──▶ analysis-service
+                       Kafka                                    Kafka
+Girdi topic'i: transcript.raw — Üreticisi analysis-service'tir (Phase 5). Öğretmen PDF yüklediğinde analysis-service PDF byte'larını base64'leyip bu topic'e koyar.
+Çıktı topic'i: transcript.parsed — Tüketicisi yine analysis-service'tir; mezuniyet motorunu tetiklemek için kullanır.
+parser-service hiçbir REST endpoint'i ile dış dünyaya iş yapmaz; sadece Kafka ile haberleşir. Tek HTTP ucu /health'tir (Kubernetes liveness/readiness probe'u için).
+
+Kafka topic özellikleri (PII güvenliği için kısa ömürlü): transcript.raw 5 dk, transcript.parsed 1 saat retention.
+
+5. Girdi (Input) Formatı
+transcript.raw'dan gelen mesaj JSON'dur ve şu şemaya uyar:
+
+
+models.py
+Lines 50-60
+class RawTranscriptMessage(BaseModel):
+    """Inbound ``transcript.raw`` message produced by analysis-service.
+    The PDF is carried as a Base64-encoded string so it survives JSON transport.
+    """
+    job_id: str
+    teacher_id: str | None = None
+    department_id: str | None = None
+    pdf_base64: str
+pdf_base64: PDF'in base64'lenmiş hali (JSON üzerinden taşınabilmesi için).
+job_id, teacher_id, department_id: korelasyon meta verisi (PII değil), çıktıya aynen taşınır.
+6. Neleri Parse Eder?
+Örnek Hacettepe mezuniyet transkriptinden çıkarılan veriler:
+
+Kimlik (sadece bellekte, asla yayınlanmaz):
+
+Ad Soyad, TC Kimlik No, Öğrenci No
+Akademik meta (PII-siz, yayınlanır):
+
+Program adı + kodu (BİLGİSAYAR MÜHENDİSLİĞİ / 356)
+Fakülte + kodu (MÜHENDİSLİK FAKÜLTESİ / 310)
+Öğrenim süresi (4), Program türü (Lisans)
+Mezuniyet ortalaması (2,72), Mezun olduğu dönem (2023-2024 Bahar)
+Kayıt/Mezuniyet tarihleri, Toplam AKTS (244)
+Dersler — döneme göre gruplu (9 dönem, 61 ders): Her ders için: kod, ad, kredi (Krd), AKTS, not, başarı yılı ve türetilmiş is_passed.
+
+7. PDF Ayrıştırmanın İncelikleri (En Kritik Kısım)
+Hacettepe transkripti iki ciddi tuzak içerir; bunları pdf_parser.py özel olarak çözer:
+
+a) Filigran temizliği
+Sayfaya çapraz basılı soluk gri "Hacettepe Üniversitesi" filigranının harfleri gerçek metnin arasına karışıyor (ör. YAvPILARI, 3p4). Bu glifler düşük mürekkep seviyeli (CMYK K-kanalı ≈ 0.12) olduğundan mürekkep seviyesine göre filtrelenir:
+
+
+pdf_parser.py
+Lines 92-97
+def _is_visible_text(obj: dict) -> bool:
+    """Return ``True`` for real text, ``False`` for the faint watermark glyphs."""
+    color = obj.get("non_stroking_color")
+    if isinstance(color, (tuple, list)) and len(color) == 4:
+        return color[3] >= _MIN_INK_LEVEL
+    return True
+b) Sahte-bold (çift çizim) temizliği
+Başlık değerleri her glifi aynı koordinata iki kez çizerek kalınlaştırılmış (ör. 29837459164 → 2299883377445599116644). pdfplumber'ın hazır dedupe_chars'ı bunu yakalayamadı; bu yüzden glifleri konuma göre tekilleştirip metni yeniden kuruyorum:
+
+
+pdf_parser.py
+Lines 100-124
+def _clean_page_text(page: pdfplumber.page.Page) -> str:
+    """Return reconstructed text for a page with watermark and bold artifacts removed."""
+    seen: set[tuple[float, float, str]] = set()
+    deduped: list[dict] = []
+    for char in page.chars:
+        if not _is_visible_text(char):
+            continue
+        key = (
+            round(char["x0"], _POSITION_ROUNDING),
+            round(char["top"], _POSITION_ROUNDING),
+            char["text"],
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(char)
+    if not deduped:
+        return ""
+    return extract_text_from_chars(deduped, x_tolerance=_X_TOLERANCE) or ""
+c) Meta veri çıkarımı
+Temizlenmiş metinde etiket bazlı regex'ler kullanılır. İki sütunlu yerleşim için değer, sağdaki bir sonraki etikete kadar (ör. Adı Soyadı ... Kayıt Tarihi) yakalanır; tek sütunlu transkriptler için satır sonuna kadar yakalayan yedek regex'ler vardır.
+
+d) Ders satırı çözümü
+Transkriptte her fiziksel satırda iki ders yan yanadır ve kolon sırası Kod | Ad | Başarı Yılı | Krd | AKTS | Not. Tek bir regex'i finditer ile satırda çalıştırınca iki ders de doğal olarak yakalanır:
+
+
+pdf_parser.py
+Lines 127-135
+_RE_COURSE = re.compile(
+    r"([A-ZÇĞİÖŞÜ]{2,4}\d{3})\s+"  # course code, e.g. BBM101
+    r"(.+?)\s+"  # course name (non-greedy, bounded by year)
+    r"(\d{2}-\d{2})\s+"  # academic year (Başarı Yılı)
+    r"(\d+)\s+"  # credit (Krd)
+    r"(\d+)\s+"  # ECTS (AKTS)
+    r"([A-ZÇĞİÖŞÜ]{1,2}\d?)"  # letter grade (Not)
+)
+Dönem başlıkları (1. Sınıf Güz gibi) ayrı bir regex'le tespit edilip dersler o döneme atanır.
+
+Yedek motor
+pdfplumber hiç metin döndüremezse (taranmış/şifreli PDF) pypdf devreye girer.
+
+8. Not Kuralı (is_passed)
+grades.py, başarısız notları açıkça listeler; bunlar dışındaki her not geçer sayılır (D dahil — Hacettepe'de koşullu geçer):
+
+
+grades.py
+Lines 28-50
+FAILING_GRADES: frozenset[str] = frozenset(
+    {
+        "F1",
+        "F2",
+        "F3",
+        "FF",
+        "F",
+        "K",  # Kaldı (failed)
+        "G",  # Girmedi (did not sit the exam)
+        "D0",
+    }
+)
+# Status codes that are neither a pass nor a fail (in progress / not graded yet).
+NON_GRADED: frozenset[str] = frozenset(
+    {
+        "E",  # Eksik (incomplete)
+        "I",  # In progress
+    }
+)
+9. PII Maskeleme (Gizlilik Garantisi)
+Ham PII'ye dokunan tek modül pii_masker.py'dir ve burada bilinçli olarak hiç log/print yoktur. TC + Öğrenci No tek bir maskeli referansa (student_ref) çevrilir: sha256(salt + değer)'in ilk 16 hex karakteri.
+
+
+pii_masker.py
+Lines 31-43
+def mask_value(raw_value: str, salt: str) -> str:
+    """Return ``sha256(salt + raw_value)`` truncated to 16 hex characters.
+    The same ``raw_value`` and ``salt`` always yield the same digest, which lets
+    downstream services correlate a student across uploads without ever learning
+    the underlying identifier.
+    """
+    if not salt:
+        raise ValueError("A non-empty PII salt is required for masking.")
+    digest = hashlib.sha256(f"{salt}{raw_value}".encode("utf-8")).hexdigest()
+    return digest[:_MASK_HEX_LENGTH]
+Deterministik olması sayesinde aynı öğrenci farklı yüklemelerde aynı student_ref'i alır; ama alt servisler gerçek kimliği asla öğrenmez. salt zorunlu bir secret'tır (PII_HASH_SALT env).
+
+İki katmanlı model (PII sızıntısını yapısal olarak engeller)
+ParsedTranscript → yayınlanan, PII-siz model (sadece student_ref + meta + dersler).
+StudentIdentity → ham ad/TC/öğrenci no, sadece bellekteki FullTranscript içinde yaşar, asla serialize edilmez.
+
+models.py
+Lines 83-99
+class StudentIdentity(BaseModel):
+    """Raw PII. Lives only inside :class:`FullTranscript`; never published."""
+    full_name: str | None = None
+    tc_kimlik_no: str | None = None
+    ogrenci_no: str | None = None
+class FullTranscript(BaseModel):
+    """In-memory parse result combining raw identity with the publishable part."""
+    identity: StudentIdentity
+    transcript: ParsedTranscript
+10. Uçtan Uca Akış (Bir Mesajın Yaşamı)
+consumer.py transcript.raw'dan mesajı poll eder.
+JSON decode → RawTranscriptMessage doğrulaması → pdf_base64 byte'lara çözülür.
+parse_transcript(pdf_bytes, salt, job_id, teacher_id, department_id) çağrılır.
+PDF temizlenir → meta + kimlik + dersler çıkarılır → student_ref maskelenir → FullTranscript döner.
+producer.py yalnızca result.transcript (yani PII-siz ParsedTranscript) kısmını transcript.parsed'a, student_ref key'i ile yayınlar.
+Hata olursa mesaj payload'sız loglanır (PII sızmasın diye) ve döngü devam eder.
+
+consumer.py
+Lines 68-84
+            message = RawTranscriptMessage.model_validate(payload)
+            pdf_bytes = base64.b64decode(message.pdf_base64)
+            result = parse_transcript(
+                pdf_bytes,
+                salt=self._settings.pii_hash_salt,
+                job_id=message.job_id,
+                teacher_id=message.teacher_id,
+                department_id=message.department_id,
+            )
+            self._producer.publish(result.transcript)
+            logger.info("Processed transcript for job %s", message.job_id)
+        except Exception:  # noqa: BLE001 - isolate one bad message from the loop
+            # The exception is logged without the payload to avoid leaking PII.
+            logger.exception("Failed to process a transcript.raw message")
+Consumer, FastAPI yaşam döngüsünde ayrı bir daemon thread'de başlatılır (main.py lifespan); böylece /health HTTP'si consumer'dan bağımsız yanıt verir. ENABLE_CONSUMER=false ile consumer'sız (sadece HTTP) çalıştırılabilir — testlerde bunu kullanıyorum.
+
+11. Çıktı (Output) Örneği
+transcript.parsed'a giden JSON kabaca şöyle:
+
+{
+  "student_ref": "532cde1777542794",
+  "job_id": "job-42",
+  "teacher_id": "teacher-1",
+  "department_id": "dept-1",
+  "metadata": {
+    "program_name": "BİLGİSAYAR MÜHENDİSLİĞİ", "program_code": "356",
+    "faculty": "MÜHENDİSLİK FAKÜLTESİ", "faculty_code": "310",
+    "study_duration_years": 4, "program_type": "Lisans",
+    "graduation_gpa": 2.72, "graduation_term": "2023-2024 Bahar",
+    "registration_date": "15.08.2016", "graduation_date": "13.06.2024",
+    "total_ects": 244.0
+  },
+  "semesters": [
+    { "name": "1. Sınıf Güz", "courses": [
+      { "course_code": "BBM101", "course_name": "PROGRAMLAMAYA GİRİŞ I",
+        "credit": 3.0, "ects": 6.0, "grade": "D",
+        "academic_year": "16-17", "is_passed": true }
+    ]}
+  ]
+}
+Dikkat: çıktıda ad/TC/öğrenci no yok — yalnızca student_ref.
+
+12. Yapılandırma & Dağıtım
+Tüm ayarlar env'den gelir (config.py, get_settings() ile lazy + cache'li): Kafka adresi, topic adları, PII_HASH_SALT, ENABLE_CONSUMER, log seviyesi. Hiçbir secret hardcoded değil.
+Dockerfile çok aşamalı build + non-root appuser ile çalışır; PYTHONPATH=/app/src, giriş uvicorn main:app.
+İstersen bir sonraki adımda (Agent mode'a geçince) gerçek Kafka entegrasyon testini ekleyebilir veya farklı bölüm transkriptleriyle parser'ın dayanıklılığını test edebiliriz. Şu an Ask mode'da olduğum için sadece açıklama yapabiliyorum; değişiklik isterseniz Agent mode'a geçmeniz yeterli.
