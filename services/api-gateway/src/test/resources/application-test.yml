@@ -1,0 +1,44 @@
+spring:
+  cloud:
+    gateway:
+      mvc:
+        routes:
+          - id: auth-service
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/auth/**
+          - id: rule-service-departments
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/departments/**
+          - id: rule-service-courses
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/courses/**
+          - id: rule-service-categories
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/categories/**
+          - id: analysis-service-transcripts
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/transcripts/**
+          - id: analysis-service-results
+            uri: http://localhost:${wiremock.server.port}
+            predicates:
+              - Path=/api/v1/results/**
+
+app:
+  jwt:
+    # 64-byte Base64-encoded test secret (never used outside tests)
+    secret: dGVzdHNlY3JldGtleXRlc3RzZWNyZXRrZXl0ZXN0c2VjcmV0a2V5dGVzdHNlY3JldGtleXRlc3Q=
+  cors:
+    allowed-origins: http://localhost:5173
+  rate-limit:
+    requests-per-second: 100
+    burst-capacity: 200
+
+logging:
+  level:
+    root: WARN
+    tr.com.hacettepe.tams: DEBUG

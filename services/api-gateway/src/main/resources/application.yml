@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      mvc:
+        routes:
+          # Auth service — no JWT required on these paths
+          - id: auth-service
+            uri: ${AUTH_SERVICE_URL:http://auth-service:8081}
+            predicates:
+              - Path=/api/v1/auth/**
+
+          # Rule service — Admin-only CRUD for departments, courses, categories
+          - id: rule-service-departments
+            uri: ${RULE_SERVICE_URL:http://rule-service:8082}
+            predicates:
+              - Path=/api/v1/departments/**
+
+          - id: rule-service-courses
+            uri: ${RULE_SERVICE_URL:http://rule-service:8082}
+            predicates:
+              - Path=/api/v1/courses/**
+
+          - id: rule-service-categories
+            uri: ${RULE_SERVICE_URL:http://rule-service:8082}
+            predicates:
+              - Path=/api/v1/categories/**
+
+          # Analysis service — transcript upload (10 MB body limit enforced at this route)
+          - id: analysis-service-transcripts
+            uri: ${ANALYSIS_SERVICE_URL:http://analysis-service:8083}
+            predicates:
+              - Path=/api/v1/transcripts/**
+
+          # Analysis service — result queries
+          - id: analysis-service-results
+            uri: ${ANALYSIS_SERVICE_URL:http://analysis-service:8083}
+            predicates:
+              - Path=/api/v1/results/**
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    # 10 MB limit covers the transcript upload route
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  rate-limit:
+    requests-per-second: ${RATE_LIMIT_RPS:10}
+    burst-capacity: ${RATE_LIMIT_BURST:20}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    tr.com.hacettepe.tams: DEBUG

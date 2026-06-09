@@ -159,20 +159,20 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 6 — api-gateway (Spring Cloud Gateway)
 
-- [ ] **[User]** Generate `api-gateway` via Spring Initializr: Project=Maven, Language=Java, Spring Boot=3.3.5, Java=21, dependencies: Gateway, Spring Security. Place under `services/api-gateway/`.
-- [ ] Update `services/api-gateway/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM; the Spring Cloud Gateway version is managed via the Spring Cloud BOM already declared in the root `<dependencyManagement>` — no extra version pin needed
-- [ ] Write `Dockerfile` (multi-stage, non-root user)
-- [ ] Configure routes in `application.yml`:
+- [x] **[User]** Generate `api-gateway` via Spring Initializr: Project=Maven, Language=Java, Spring Boot=3.3.5, Java=21, dependencies: Gateway, Spring Security. Place under `services/api-gateway/`.
+- [x] Update `services/api-gateway/pom.xml`: replace the auto-generated `<parent>` block with one pointing to the root `tams` parent POM; the Spring Cloud Gateway version is managed via the Spring Cloud BOM already declared in the root `<dependencyManagement>` — no extra version pin needed
+- [x] Write `Dockerfile` (multi-stage, non-root user)
+- [x] Configure routes in `application.yml`:
   - `/api/v1/auth/**` → auth-service (no JWT required)
   - `/api/v1/departments/**`, `/api/v1/courses/**`, `/api/v1/categories/**` → rule-service
   - `/api/v1/transcripts/**`, `/api/v1/results/**` → analysis-service
-- [ ] Implement `JwtAuthenticationFilter` as a `GlobalFilter`: validate JWT signature and expiry on all routes except `/api/v1/auth/**`; reject with `401` if invalid
-- [ ] Propagate user identity headers (`X-User-Id`, `X-User-Role`) to downstream services so they can enforce role checks without re-validating the JWT
-- [ ] Configure CORS: allow the frontend origin, standard methods and headers
-- [ ] Configure `RequestRateLimiter` filter using Redis or a simple in-memory implementation for MVP
-- [ ] Configure maximum request body size (`10MB`) for the transcript upload route
-- [ ] Write integration tests: valid JWT routes through, invalid JWT returns 401, unknown path returns 404
-- [ ] Add Swagger / OpenAPI 3.0 documentation (or aggregate all service docs via Springdoc)
+- [x] Implement `JwtAuthenticationFilter` as a `GlobalFilter`: validate JWT signature and expiry on all routes except `/api/v1/auth/**`; reject with `401` if invalid
+- [x] Propagate user identity headers (`X-User-Id`, `X-User-Role`) to downstream services so they can enforce role checks without re-validating the JWT
+- [x] Configure CORS: allow the frontend origin, standard methods and headers
+- [x] Configure `RequestRateLimiter` filter using Redis or a simple in-memory implementation for MVP
+- [x] Configure maximum request body size (`10MB`) for the transcript upload route
+- [x] Write integration tests: valid JWT routes through, invalid JWT returns 401, unknown path returns 404
+- [x] Add Swagger / OpenAPI 3.0 documentation (or aggregate all service docs via Springdoc)
 
 ---
 
