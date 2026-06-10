@@ -57,8 +57,8 @@ Brand assets live in `src/assets/logos/`. All brand assets must be accessed thro
 
 | Component | Asset | Where used | Constraints |
 |---|---|---|---|
-| `LogoFull` | `tams-logo-full.png` | `/login` page only | `max-w-[280px]`, centred |
-| `LogoIcon` | `tams-logo-icon.png` | `AppShell` sidebar/header top-left | `h-8 w-auto` |
+| `LogoFull` | `tams-main-logo-with-words.png` | `/login` page only | `max-w-[280px]`, centred |
+| `LogoIcon` | `tams-main-logo.png` | `AppShell` sidebar/header top-left | `h-8 w-auto` |
 | `HacettepeLogo` | `hacettepe-logo.png` | `/login` page bottom-left corner | `max-w-[100px] opacity-60` |
 | `HacettepeLogoHorizontal` | `hacettepe-logo-horizontal.png` | Reserved for `/about` or print views | — |
 

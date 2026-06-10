@@ -178,35 +178,35 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 7 — frontend (React / Vite)
 
-- [ ] **[User]** Create the `frontend/` directory.
-- [ ] **[AI]** Scaffold the React + Vite + TypeScript project inside `frontend/`: run `npm create vite@latest . -- --template react-ts`, install all runtime dependencies (`react-router-dom`, `axios`, `@tanstack/react-query`, `tailwindcss`, `@tailwindcss/vite`, `zustand`, `next-themes`, `lucide-react`, `react-hook-form`, `@hookform/resolvers`, `zod`, `clsx`, `tailwind-merge`, `class-variance-authority`), initialise shadcn/ui (`npx shadcn@latest init` with base-color `slate` and CSS variables enabled), create `Dockerfile` (multi-stage: `node:22-alpine` build stage, `nginx:alpine` serve stage, non-root user), and set up the full `src/` folder structure (`api/`, `features/auth/`, `features/admin/`, `features/teacher/`, `features/student/`, `components/ui/`, `components/brand/`, `hooks/`, `router/`, `types/`, `assets/logos/`)
+- [x] **[User]** Create the `frontend/` directory.
+- [x] **[AI]** Scaffold the React + Vite + TypeScript project inside `frontend/`: run `npm create vite@latest . -- --template react-ts`, install all runtime dependencies (`react-router-dom`, `axios`, `@tanstack/react-query`, `tailwindcss`, `@tailwindcss/vite`, `zustand`, `next-themes`, `lucide-react`, `react-hook-form`, `@hookform/resolvers`, `zod`, `clsx`, `tailwind-merge`, `class-variance-authority`), initialise shadcn/ui (`npx shadcn@latest init` with base-color `slate` and CSS variables enabled), create `Dockerfile` (multi-stage: `node:22-alpine` build stage, `nginx:alpine` serve stage, non-root user), and set up the full `src/` folder structure (`api/`, `features/auth/`, `features/admin/`, `features/teacher/`, `features/student/`, `components/ui/`, `components/brand/`, `hooks/`, `router/`, `types/`, `assets/logos/`)
 - [x] Copy Hacettepe logo assets into `frontend/src/assets/logos/`: `hacettepe-logo.png` (shield emblem) and `hacettepe-logo-horizontal.png` (shield + wordmark). The TAMS logo design reference is saved as `tams-logo-reference.png` in the same directory — it contains both variants side by side.
-- [ ] **[User]** Export `tams-logo-full.png` (right half of reference — graduation cap + "TAMS" text + subtitle) and `tams-logo-icon.png` (left half — graduation cap only) as separate PNG files into `frontend/src/assets/logos/`; white/transparent background, minimum 2× resolution
-- [ ] Implement `LogoFull` and `LogoIcon` brand components in `src/components/brand/` as typed `<img>` wrappers with explicit `alt` text and size props; these are the only permitted references to the logo assets
-- [ ] Wrap the React root with `ThemeProvider` from `next-themes` (`attribute="class"`, `defaultTheme="system"`, `enableSystem`); implement a `ThemeToggle` button component (`src/components/ThemeToggle.tsx`) using shadcn `Button` variant `ghost` with `Sun` / `Moon` icons from `lucide-react`
-- [ ] Implement `AppShell` layout component (`src/components/AppShell.tsx`): collapsible left sidebar (`LogoIcon` + role-based navigation links), top header bar (`ThemeToggle` + user avatar menu with logout), and `<Outlet />` main content area; sidebar collapses to a drawer on mobile
-- [ ] In IntelliJ IDEA Ultimate: `frontend/` is auto-detected as a Node.js project when `package.json` is present; run `npm install` from the built-in terminal to restore packages; start the Vite dev server from the **npm** side panel (`View → Tool Windows → npm → dev`)
-- [ ] Implement Axios instance with base URL from `VITE_API_URL` env variable
-- [ ] Implement JWT interceptor: attach `Authorization: Bearer <token>` to every request; on 401, redirect to login
-- [ ] Implement `ProtectedRoute` component that redirects to `/login` if no valid token; also checks role for role-gated pages
-- [ ] Implement login page (`/login`): full-screen two-column layout — left panel with `LogoFull` centred, right panel with email + password form; `hacettepe-logo-horizontal.png` in the bottom-left corner at reduced opacity; calls `POST /api/v1/auth/login`, stores token in `sessionStorage`; collapse to single-column on mobile
-- [ ] Implement Admin dashboard (`/admin`):
+- [x] **[User]** Export `tams-logo-full.png` (right half of reference — graduation cap + "TAMS" text + subtitle) and `tams-logo-icon.png` (left half — graduation cap only) as separate PNG files into `frontend/src/assets/logos/`; white/transparent background, minimum 2× resolution
+- [x] Implement `LogoFull` and `LogoIcon` brand components in `src/components/brand/` as typed `<img>` wrappers with explicit `alt` text and size props; these are the only permitted references to the logo assets
+- [x] Wrap the React root with `ThemeProvider` from `next-themes` (`attribute="class"`, `defaultTheme="system"`, `enableSystem`); implement a `ThemeToggle` button component (`src/components/ThemeToggle.tsx`) using shadcn `Button` variant `ghost` with `Sun` / `Moon` icons from `lucide-react`
+- [x] Implement `AppShell` layout component (`src/components/AppShell.tsx`): collapsible left sidebar (`LogoIcon` + role-based navigation links), top header bar (`ThemeToggle` + user avatar menu with logout), and `<Outlet />` main content area; sidebar collapses to a drawer on mobile
+- [x] In IntelliJ IDEA Ultimate: `frontend/` is auto-detected as a Node.js project when `package.json` is present; run `npm install` from the built-in terminal to restore packages; start the Vite dev server from the **npm** side panel (`View → Tool Windows → npm → dev`)
+- [x] Implement Axios instance with base URL from `VITE_API_URL` env variable
+- [x] Implement JWT interceptor: attach `Authorization: Bearer <token>` to every request; on 401, redirect to login
+- [x] Implement `ProtectedRoute` component that redirects to `/login` if no valid token; also checks role for role-gated pages
+- [x] Implement login page (`/login`): full-screen two-column layout — left panel with `LogoFull` centred, right panel with email + password form; `hacettepe-logo-horizontal.png` in the bottom-left corner at reduced opacity; calls `POST /api/v1/auth/login`, stores token in `sessionStorage`; collapse to single-column on mobile
+- [x] Implement Admin dashboard (`/admin`):
   - Department list table with add/edit/delete actions
   - Course catalog management (add/edit/delete global courses; assign to departments)
   - Category list per department with add/edit/delete actions; course pool management per category
   - Confirmation modals for destructive actions
-- [ ] Implement Teacher dashboard (`/teacher`):
+- [x] Implement Teacher dashboard (`/teacher`):
   - PDF file upload component with drag-and-drop support; department selector (dropdown from `/api/v1/departments`) to choose which rules apply
   - Job status polling after upload (show spinner until COMPLETED or FAILED)
   - Analysis result display: eligibility badge, category breakdown table, deficiency list
   - Student history table: paginated, searchable by student reference
-- [ ] Implement Student result page (`/student/results`):
+- [x] Implement Student result page (`/student/results`):
   - Eligibility status banner
   - Per-category credit and ECTS progress (earned vs. required)
   - List of missing mandatory courses
   - Fully responsive / mobile-first layout
-- [ ] Handle all loading states (skeleton loaders or spinners) and error states (toast notifications or inline messages)
-- [ ] Write component unit tests with Vitest + React Testing Library for critical components (login form, upload flow, result display)
+- [x] Handle all loading states (skeleton loaders or spinners) and error states (toast notifications or inline messages)
+- [x] Write component unit tests with Vitest + React Testing Library for critical components (login form, upload flow, result display)
 
 ---
 
