@@ -1,0 +1,26 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  labels:
+    app.kubernetes.io/part-of: tams
+spec:
+  acme:
+    # Let's Encrypt staging endpoint — no rate limits, certificates are not trusted by browsers.
+    # Use staging to validate your setup before switching to the production issuer.
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+
+    # Replace with the e-mail address that should receive expiry warnings from Let's Encrypt.
+    email: admin@tams.example.com
+
+    # cert-manager stores the ACME account private key in this Secret.
+    # The Secret is created automatically; do not create it manually.
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+
+    solvers:
+      - http01:
+          ingress:
+            # Must match the ingress class used by your nginx-ingress-controller.
+            # Verify with: kubectl get ingressclass
+            ingressClassName: nginx

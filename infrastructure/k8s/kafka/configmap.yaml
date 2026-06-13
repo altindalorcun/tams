@@ -7,10 +7,10 @@ metadata:
     app: kafka
     app.kubernetes.io/part-of: tams
 data:
-  # Generate once with:
-  #   docker run --rm confluentinc/cp-kafka:7.8.0 kafka-storage random-uuid
-  # Then update this value. Never regenerate while the data volume exists.
-  CLUSTER_ID: "CHANGE_ME_RUN_KAFKA_STORAGE_RANDOM_UUID"
+  # Generated with:
+  #   python3 -c "import uuid, base64; print(base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b'=').decode())"
+  # Never regenerate while the data volume exists — it will break the broker.
+  CLUSTER_ID: "SMRDz2RdQveg--SXptaB1A"
 
   KAFKA_NODE_ID: "1"
   KAFKA_PROCESS_ROLES: "broker,controller"

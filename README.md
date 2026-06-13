@@ -161,3 +161,11 @@ See [`.env.example`](.env.example) for the full list of required variables with 
 - All sensitive values (passwords, JWT secrets, PII hash salt) must come from environment variables. Never commit real secrets.
 - PII (TC Kimlik No, Öğrenci No) is never stored. It is replaced with a deterministic SHA-256 hash inside `parser-service` before any data leaves that service.
 - Every service endpoint requires explicit authorization. Default stance: deny all.
+
+## TLS Certificate Management
+
+HTTPS is enforced by the Kubernetes Ingress (`nginx.ingress.kubernetes.io/force-ssl-redirect: "true"`). TLS certificates are issued and managed by [cert-manager](https://cert-manager.io/) with Let's Encrypt.
+
+**cert-manager automatically renews certificates 30 days before expiry — no manual renewal process is required.**
+
+To set up TLS on a new cluster, follow the steps in [`infrastructure/k8s/NOTES.md`](infrastructure/k8s/NOTES.md) (sections P9-8 and P9-11).

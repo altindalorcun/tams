@@ -229,19 +229,19 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 9 — Cross-Cutting Concerns
 
-- [ ] Ensure all five services expose `GET /actuator/health` (Spring Boot) or `GET /health` (FastAPI) and that Kubernetes readiness/liveness probes point to these endpoints
-- [ ] Configure structured JSON logging on all Spring Boot services (`logstash-logback-encoder`) and Python service (`python-json-logger`)
-- [ ] Verify Swagger UI is accessible at `/swagger-ui.html` (Spring) and `/docs` (FastAPI) on each service when running locally
-- [ ] Write an end-to-end test scenario (can be manual or automated): Admin creates rules → Teacher uploads transcript → Result appears → Student views result
-- [ ] Install cert-manager into the cluster: `kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml`
-- [ ] Verify cert-manager pods are running in the `cert-manager` namespace before proceeding (`kubectl get pods -n cert-manager`)
-- [ ] Create a `ClusterIssuer` manifest (`infrastructure/k8s/cert-manager/cluster-issuer-staging.yaml`) pointing to the Let's Encrypt **staging** ACME endpoint (`acme-staging-v02.api.letsencrypt.org`) — use staging first to avoid the production rate limit (5 duplicate certificates per week)
+- [x] Ensure all five services expose `GET /actuator/health` (Spring Boot) or `GET /health` (FastAPI) and that Kubernetes readiness/liveness probes point to these endpoints
+- [x] Configure structured JSON logging on all Spring Boot services (`logstash-logback-encoder`) and Python service (`python-json-logger`)
+- [x] Verify Swagger UI is accessible at `/swagger-ui.html` (Spring) and `/docs` (FastAPI) on each service when running locally
+- [x] Write an end-to-end test scenario (can be manual or automated): Admin creates rules → Teacher uploads transcript → Result appears → Student views result
+- [x] Install cert-manager into the cluster: `kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml`
+- [x] Verify cert-manager pods are running in the `cert-manager` namespace before proceeding (`kubectl get pods -n cert-manager`)
+- [x] Create a `ClusterIssuer` manifest (`infrastructure/k8s/cert-manager/cluster-issuer-staging.yaml`) pointing to the Let's Encrypt **staging** ACME endpoint (`acme-staging-v02.api.letsencrypt.org`) — use staging first to avoid the production rate limit (5 duplicate certificates per week)
 - [ ] Deploy the staging `ClusterIssuer` and confirm a test certificate is issued successfully: `kubectl describe certificate tams-tls -n tams` should show `Ready: True`
-- [ ] Once staging succeeds, create `infrastructure/k8s/cert-manager/cluster-issuer-prod.yaml` pointing to the Let's Encrypt **production** endpoint (`acme-v02.api.letsencrypt.org`); delete the staging certificate secret (`kubectl delete secret tams-tls -n tams`) before switching so a fresh production cert is issued
-- [ ] Confirm the Ingress manifest includes both `nginx.ingress.kubernetes.io/ssl-redirect: "true"` and `nginx.ingress.kubernetes.io/force-ssl-redirect: "true"` annotations
+- [x] Once staging succeeds, create `infrastructure/k8s/cert-manager/cluster-issuer-prod.yaml` pointing to the Let's Encrypt **production** endpoint (`acme-v02.api.letsencrypt.org`); delete the staging certificate secret (`kubectl delete secret tams-tls -n tams`) before switching so a fresh production cert is issued
+- [x] Confirm the Ingress manifest includes both `nginx.ingress.kubernetes.io/ssl-redirect: "true"` and `nginx.ingress.kubernetes.io/force-ssl-redirect: "true"` annotations
 - [ ] Verify forced HTTP-to-HTTPS redirect is active: `curl -I http://tams.example.com` must return `HTTP/1.1 301` with `Location: https://tams.example.com`
 - [ ] Verify the certificate in a browser: no security warnings, correct domain, certificate issued by Let's Encrypt
-- [ ] Add a note to `README.md` that cert-manager automatically renews certificates 30 days before expiry — no manual renewal process is required
-- [ ] Review all services for accidental PII logging — search codebase for any log statements that might output raw TC or Öğrenci No
-- [ ] Add `CONTRIBUTING.md` with instructions for running locally, environment variable setup, and branch/commit conventions
-- [ ] Final review: ensure no secrets are committed to the repository (run `git log --all -p | grep -i password` as a sanity check)
+- [x] Add a note to `README.md` that cert-manager automatically renews certificates 30 days before expiry — no manual renewal process is required
+- [x] Review all services for accidental PII logging — search codebase for any log statements that might output raw TC or Öğrenci No
+- [x] Add `CONTRIBUTING.md` with instructions for running locally, environment variable setup, and branch/commit conventions
+- [x] Final review: ensure no secrets are committed to the repository (run `git log --all -p | grep -i password` as a sanity check)

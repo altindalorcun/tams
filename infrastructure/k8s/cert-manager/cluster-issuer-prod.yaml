@@ -1,0 +1,27 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  labels:
+    app.kubernetes.io/part-of: tams
+spec:
+  acme:
+    # Let's Encrypt production endpoint — certificates are trusted by all browsers.
+    # Switch to this issuer only after verifying the setup with cluster-issuer-staging.yaml.
+    # Rate limit: 5 duplicate certificates per week per registered domain.
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+    # Replace with the e-mail address that should receive expiry warnings from Let's Encrypt.
+    email: admin@tams.example.com
+
+    # cert-manager stores the ACME account private key in this Secret.
+    # The Secret is created automatically; do not create it manually.
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+
+    solvers:
+      - http01:
+          ingress:
+            # Must match the ingress class used by your nginx-ingress-controller.
+            # Verify with: kubectl get ingressclass
+            ingressClassName: nginx

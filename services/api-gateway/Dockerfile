@@ -3,9 +3,12 @@ FROM maven:3-eclipse-temurin-21 AS build
 
 WORKDIR /workspace
 
-# Copy root POM first so Maven can resolve the parent
+# Copy root POM and all sibling service POMs so Maven can resolve the multi-module parent
 COPY pom.xml /workspace/pom.xml
 COPY services/api-gateway/pom.xml /workspace/services/api-gateway/pom.xml
+COPY services/auth-service/pom.xml /workspace/services/auth-service/pom.xml
+COPY services/rule-service/pom.xml /workspace/services/rule-service/pom.xml
+COPY services/analysis-service/pom.xml /workspace/services/analysis-service/pom.xml
 
 # Prefetch dependencies before copying source (layer cache optimisation)
 RUN mvn -pl services/api-gateway -am dependency:go-offline -q

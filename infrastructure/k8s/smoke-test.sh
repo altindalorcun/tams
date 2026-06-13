@@ -140,50 +140,63 @@ load_images() {
 
 # ── Patch image tags in manifests (in-memory, no file modification) ────────────
 apply_manifests_with_smoke_tag() {
-  # Replace :latest tag with :smoke in all deployment yamls via kubectl apply with sed pipe
+  # Server-side apply is used throughout for true idempotency across repeated runs.
+  # --force-conflicts ensures re-runs don't fail on field-manager conflicts.
+  ksa() { kubectl apply --server-side --force-conflicts "$@"; }
+
+  # Replace :latest tag with :smoke and apply via server-side apply
   apply_patched() {
     local file="$1"
-    sed "s|:latest|:${IMAGE_TAG}|g" "$file" | kubectl apply -f -
+    sed "s|:latest|:${IMAGE_TAG}|g" "$file" | kubectl apply --server-side --force-conflicts -f -
   }
 
   log "Step 1 — Namespace..."
-  kubectl apply -f "$K8S_DIR/namespace.yaml"
+  ksa -f "$K8S_DIR/namespace.yaml"
 
   log "Step 2 — Smoke secrets..."
   create_smoke_secrets
 
   log "Step 3 — ConfigMap..."
-  kubectl apply -f "$K8S_DIR/tams-config.yaml"
+  ksa -f "$K8S_DIR/tams-config.yaml"
 
   log "Step 4 — PostgreSQL..."
-  kubectl apply -f "$K8S_DIR/postgres/postgres-auth-pvc.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-rules-pvc.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-analysis-pvc.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-auth-statefulset.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-rules-statefulset.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-analysis-statefulset.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-auth-service.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-rules-service.yaml"
-  kubectl apply -f "$K8S_DIR/postgres/postgres-analysis-service.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-auth-pvc.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-rules-pvc.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-analysis-pvc.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-auth-statefulset.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-rules-statefulset.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-analysis-statefulset.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-auth-service.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-rules-service.yaml"
+  ksa -f "$K8S_DIR/postgres/postgres-analysis-service.yaml"
   wait_rollout statefulset postgres-auth
   wait_rollout statefulset postgres-rules
   wait_rollout statefulset postgres-analysis
 
   log "Step 5 — Kafka..."
-  kubectl apply -f "$K8S_DIR/kafka/configmap.yaml"
-  kubectl apply -f "$K8S_DIR/kafka/service.yaml"
-  kubectl apply -f "$K8S_DIR/kafka/statefulset.yaml"
-  wait_rollout statefulset kafka
-  kubectl apply -f "$K8S_DIR/kafka/init-job.yaml"
+  # Delete any pre-existing Kafka StatefulSet and PVC so each run starts with a clean volume.
+  # Without this, the metadata log retains old broker incarnations that trigger
+  # DuplicateBrokerRegistrationException on restart, causing CrashLoopBackOff delays.
+  kubectl delete statefulset kafka -n "$NAMESPACE" --ignore-not-found=true
+  kubectl delete pvc kafka-data-kafka-0 -n "$NAMESPACE" --ignore-not-found=true
+  kubectl wait --for=delete pvc/kafka-data-kafka-0 -n "$NAMESPACE" --timeout=60s 2>/dev/null || true
+  ksa -f "$K8S_DIR/kafka/configmap.yaml"
+  ksa -f "$K8S_DIR/kafka/service.yaml"
+  ksa -f "$K8S_DIR/kafka/statefulset.yaml"
+  log "  Waiting for statefulset/kafka (up to 360s)..."
+  kubectl rollout status statefulset/kafka -n "$NAMESPACE" --timeout=360s
+  # Delete a completed/failed init job before re-applying so the Job can be re-run.
+  kubectl delete job kafka-init -n "$NAMESPACE" --ignore-not-found=true
+  ksa -f "$K8S_DIR/kafka/init-job.yaml"
   kubectl wait --for=condition=complete job/kafka-init -n "$NAMESPACE" --timeout=120s
 
   log "Step 6 — Backend services..."
   for svc in auth-service rule-service parser-service analysis-service; do
     apply_patched "$K8S_DIR/$svc/deployment.yaml"
-    kubectl apply -f "$K8S_DIR/$svc/service.yaml"
+    ksa -f "$K8S_DIR/$svc/service.yaml"
   done
   for svc in parser-service analysis-service; do
-    kubectl apply -f "$K8S_DIR/$svc/hpa.yaml"
+    ksa -f "$K8S_DIR/$svc/hpa.yaml"
   done
   wait_rollout deployment auth-service
   wait_rollout deployment rule-service
@@ -192,17 +205,17 @@ apply_manifests_with_smoke_tag() {
 
   log "Step 7 — api-gateway and frontend..."
   apply_patched "$K8S_DIR/api-gateway/deployment.yaml"
-  kubectl apply -f "$K8S_DIR/api-gateway/service.yaml"
-  kubectl apply -f "$K8S_DIR/api-gateway/hpa.yaml"
+  ksa -f "$K8S_DIR/api-gateway/service.yaml"
+  ksa -f "$K8S_DIR/api-gateway/hpa.yaml"
   apply_patched "$K8S_DIR/frontend/deployment.yaml"
-  kubectl apply -f "$K8S_DIR/frontend/service.yaml"
+  ksa -f "$K8S_DIR/frontend/service.yaml"
   wait_rollout deployment api-gateway
   wait_rollout deployment frontend
 }
 
 # ── Create smoke-test secrets with dummy values ────────────────────────────────
 create_smoke_secrets() {
-  kubectl apply -n "$NAMESPACE" -f - <<EOF
+  kubectl apply --server-side --force-conflicts -n "$NAMESPACE" -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:

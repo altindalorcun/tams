@@ -11,6 +11,7 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from pythonjsonlogger import jsonlogger
 
 from config import get_settings
 from consumer import TranscriptConsumer
@@ -19,11 +20,25 @@ from producer import TranscriptProducer
 logger = logging.getLogger(__name__)
 
 
+def _configure_logging(log_level: str) -> None:
+    """Configure root logger to emit structured JSON lines to stdout."""
+    handler = logging.StreamHandler()
+    formatter = jsonlogger.JsonFormatter(
+        fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%SZ",
+        rename_fields={"asctime": "timestamp", "name": "logger", "levelname": "level"},
+    )
+    handler.setFormatter(formatter)
+    root = logging.getLogger()
+    root.setLevel(log_level.upper())
+    root.handlers = [handler]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Start the Kafka consumer on startup and stop it on shutdown."""
     settings = get_settings()
-    logging.basicConfig(level=settings.log_level)
+    _configure_logging(settings.log_level)
 
     consumer: TranscriptConsumer | None = None
     thread: threading.Thread | None = None
@@ -46,7 +61,12 @@ async def lifespan(app: FastAPI):
             thread.join(timeout=5.0)
 
 
-app = FastAPI(title="TAMS parser-service", lifespan=lifespan)
+app = FastAPI(
+    title="TAMS — parser-service API",
+    description="Consumes raw transcript PDFs from Kafka, parses them, masks PII, and publishes structured results.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 
 @app.get("/health")

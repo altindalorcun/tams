@@ -171,3 +171,209 @@ Başarılı bir smoke test şu satırlarla biter:
 | Kafka `init-job` timeout | Kafka henüz hazır değil | `kubectl logs job/kafka-init -n tams` ile kontrol et |
 | `pg_isready` probe başarısız | PostgreSQL başlamadı | `kubectl logs statefulset/postgres-auth -n tams` |
 | Port-forward başarısız | Pod henüz ready değil | `kubectl get pods -n tams` ile tüm pod'ların `Running` olduğunu doğrula |
+
+---
+
+## Phase 8 ve Phase 9 — Yapılacaklar
+
+Bu bölüm kalan tüm görevleri, hangi görevin hangi ortamda yapılması gerektiğiyle birlikte listeler.
+
+---
+
+### Phase 8 — Kalan Görev
+
+#### P8-1 · Smoke Test (Yerel Kubernetes Cluster)
+
+**Durum:** Henüz çalıştırılmadı.  
+**Gereksinim:** Docker Desktop, `minikube` veya `kind`, `kubectl`.
+
+```bash
+# Minikube ile (önerilen — en az 4 CPU + 6 GB RAM gerekir)
+./infrastructure/k8s/smoke-test.sh
+
+# kind ile
+./infrastructure/k8s/smoke-test.sh --driver=kind
+
+# Image'lar önceden build edilmişse tekrar build etme
+./infrastructure/k8s/smoke-test.sh --skip-build
+
+# İşin bitince cluster'ı sil
+./infrastructure/k8s/smoke-test.sh --teardown
+```
+
+Script otomatik olarak şunları yapar:
+- Cluster'ı başlatır / oluşturur
+- 6 servisin Docker image'larını `smoke` tag'iyle build eder
+- Image'ları cluster'a yükler (registry gerekmez)
+- Sahte secret değerleriyle Kubernetes Secret'larını oluşturur
+- Tüm manifest'leri doğru sırayla apply eder
+- Her servisin health endpoint'ini port-forward üzerinden kontrol eder
+
+**Beklenen sonuç:** Tüm satırlar `[smoke-test] PASS` olarak kapanır.
+
+---
+
+### Phase 9 — Tamamlananlar
+
+| # | Madde | Oluşturulan / Değiştirilen Dosyalar |
+|---|---|---|
+| 9-1 | Health endpoint'leri | `auth-service/pom.xml`, `rule-service/pom.xml`, `analysis-service/pom.xml` — `spring-boot-starter-actuator` eklendi |
+| 9-2 | Yapılandırılmış JSON logging | Root `pom.xml` + 4 servis `pom.xml` — `logstash-logback-encoder 8.0`; 4× `logback-spring.xml`; `parser-service/requirements.txt` + `src/main.py` — `python-json-logger` |
+| 9-3 | Swagger UI doğrulaması | Statik denetim — tüm servisler doğru; `parser-service/src/main.py` `description`/`version` eklendi |
+| 9-4 | Uçtan uca test senaryosu | `docs/e2e-test.sh` — Admin → Kural → Teacher → PDF Yükleme → Poll → Sonuç → Student akışı |
+| 9-5/6 | cert-manager kurulum scripti | `infrastructure/k8s/cert-manager/install.sh` |
+| 9-7 | Staging ClusterIssuer manifest | `infrastructure/k8s/cert-manager/cluster-issuer-staging.yaml` |
+| 9-9 | Production ClusterIssuer manifest | `infrastructure/k8s/cert-manager/cluster-issuer-prod.yaml` |
+| 9-10 | Ingress SSL annotation doğrulaması | `api-gateway/ingress.yaml` — her iki annotation zaten mevcut |
+
+---
+
+### Phase 9 — Kalan Görevler
+
+#### P9-8 · Staging ClusterIssuer'ı Dağıt ve Sertifikayı Doğrula
+
+**Durum:** Gerçek cluster ve domain gerektirir.
+
+**Ön koşul:** cert-manager kurulu (`./infrastructure/k8s/cert-manager/install.sh` çalıştırıldı).
+
+```bash
+# 1. cluster-issuer-staging.yaml içindeki email alanını kendi adresinle güncelle,
+#    ardından uygula:
+kubectl apply -f infrastructure/k8s/cert-manager/cluster-issuer-staging.yaml
+
+# 2. ClusterIssuer'ın hazır olduğunu doğrula:
+kubectl describe clusterissuer letsencrypt-staging
+#    "Ready: True" ve "The ACME account was registered" görmek gerekir.
+
+# 3. Ingress'i geçici olarak staging issuer'a çevir (production'da limit yok):
+kubectl annotate ingress tams-ingress -n tams \
+  cert-manager.io/cluster-issuer=letsencrypt-staging --overwrite
+
+# 4. cert-manager'ın Certificate objesi oluşturmasını bekle (1-3 dakika):
+kubectl get certificate tams-tls -n tams -w
+
+# 5. Sertifikanın durumunu kontrol et:
+kubectl describe certificate tams-tls -n tams
+```
+
+**Beklenen çıktı:**
+```
+NAME       READY   SECRET     AGE
+tams-tls   True    tams-tls   3m
+```
+
+**Sorun giderme:**
+
+| Belirti | Olası Neden | Çözüm |
+|---|---|---|
+| `CertificateRequest` sürekli `Pending` | HTTP-01 challenge erişilemiyor | `kubectl describe certificaterequest -n tams` ve ingress controller log'larına bak |
+| `ACME account not registered` | ClusterIssuer e-postası yanlış | `cluster-issuer-staging.yaml` içindeki `email` alanını güncelle ve tekrar apply et |
+| `ingressClassName: nginx` bulunamıyor | Nginx ingress controller kurulu değil | `kubectl get ingressclass` ile class adını doğrula |
+
+---
+
+#### P9-11 · Production ClusterIssuer'a Geç
+
+**Durum:** P9-8 tamamlandıktan sonra yapılacak.
+
+```bash
+# 1. Production ClusterIssuer'ı uygula
+#    (cluster-issuer-prod.yaml içindeki email alanını da güncelle):
+kubectl apply -f infrastructure/k8s/cert-manager/cluster-issuer-prod.yaml
+
+# 2. Ingress'i production issuer'a çevir:
+kubectl annotate ingress tams-ingress -n tams \
+  cert-manager.io/cluster-issuer=letsencrypt-prod --overwrite
+
+# 3. Staging secret'ı sil — cert-manager yeni production sertifikasını otomatik oluşturur:
+kubectl delete secret tams-tls -n tams
+
+# 4. Production sertifikasını doğrula (3-5 dakika sürebilir):
+kubectl get certificate tams-tls -n tams -w
+```
+
+---
+
+#### P9-12 · HTTP → HTTPS Yönlendirmesini Doğrula
+
+**Durum:** Production sertifikası alındıktan sonra yapılacak.
+
+```bash
+curl -I http://tams.example.com
+```
+
+**Beklenen çıktı:**
+```
+HTTP/1.1 301 Moved Permanently
+Location: https://tams.example.com
+```
+
+---
+
+#### P9-13 · Tarayıcıda TLS Doğrulaması
+
+- `https://tams.example.com` adresini tarayıcıda aç
+- Güvenlik uyarısı **çıkmaması** gerekir
+- Adres çubuğundaki kilit simgesine tıklayarak sertifika detaylarını doğrula:
+  - Verilen: `Let's Encrypt`
+  - Alan adı: `tams.example.com`
+  - Geçerlilik: 90 gün (cert-manager 30 gün kala otomatik yeniler)
+
+---
+
+#### P9-14 · README'ye Otomatik Yenileme Notu Ekle
+
+`README.md`'e şu paragrafı ekle:
+
+> **Sertifika Yönetimi:** cert-manager, Let's Encrypt TLS sertifikalarını sona ermeden 30 gün önce otomatik olarak yeniler. Manuel yenileme işlemi gerekmez.
+
+---
+
+#### P9-15 · PII Log Denetimi
+
+**Durum:** Kod tabanında çalıştırılacak — cluster gerekmez.
+
+```bash
+# TC Kimlik No veya Öğrenci No içerebilecek log ifadelerini ara:
+rg -n --type java \
+  "log\.(info|debug|warn|error).*tc|log\.(info|debug|warn|error).*kimlik|log\.(info|debug|warn|error).*student" \
+  services/ -i
+
+rg -n --type py \
+  "logger\.(info|debug|warning|error).*tc|logger\.(info|debug|warning|error).*pii" \
+  services/ -i
+```
+
+**Kontrol edilecekler:**
+- Ham TC Kimlik No veya Öğrenci No asla log'a yazılmamalı
+- Yalnızca maskelenmiş `student_ref` değeri (16 hex karakter) log'a yazılabilir
+- `parser-service/src/pii/pii_masker.py` testleri zaten bunu doğrular; bu adım diğer servislerde cross-check
+
+---
+
+#### P9-16 · CONTRIBUTING.md Oluştur
+
+Repo kök dizininde `CONTRIBUTING.md` oluştur. İçermesi gerekenler:
+- Geliştirme ortamı kurulumu (Java 21, Python 3.12, Node 22, Docker)
+- `.env` dosyası kurulumu (`.env.example` üzerinden)
+- Yerel çalıştırma adımları (`make infra-up`, `make up`)
+- Branch convention: `feature/`, `fix/`, `chore/` prefixleri
+- Commit convention: `type(scope): description` (örn: `feat(auth): add refresh token rotation`)
+- PR açmadan önce testlerin geçmesi gerektiği notu
+
+---
+
+#### P9-17 · Final Güvenlik Kontrolü
+
+```bash
+# Git geçmişinde şifre/token içeren commit var mı?
+git log --all -p | grep -i "password\s*=\s*['\"][^$]" | head -20
+
+# .env dosyası commit'lenmiş mi?
+git log --all --name-only | grep "^\.env$"
+
+# Secret .yaml dosyaları (example dışında) commit'lenmiş mi?
+git log --all --name-only | grep "secret\.yaml$" | grep -v "\.example$"
+```
+
+Sonuçlar boş olmalı.
