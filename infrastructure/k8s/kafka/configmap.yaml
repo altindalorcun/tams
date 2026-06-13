@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: tams
+  labels:
+    app: kafka
+    app.kubernetes.io/part-of: tams
+data:
+  # Generate once with:
+  #   docker run --rm confluentinc/cp-kafka:7.8.0 kafka-storage random-uuid
+  # Then update this value. Never regenerate while the data volume exists.
+  CLUSTER_ID: "CHANGE_ME_RUN_KAFKA_STORAGE_RANDOM_UUID"
+
+  KAFKA_NODE_ID: "1"
+  KAFKA_PROCESS_ROLES: "broker,controller"
+  KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+  KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka.tams.svc.cluster.local:9092"
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+  KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-0.kafka-headless.tams.svc.cluster.local:9093"
+  KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+  KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"

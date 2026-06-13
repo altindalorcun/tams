@@ -1,0 +1,42 @@
+---
+# Headless service — provides stable DNS for the StatefulSet pod.
+# kafka-0.kafka-headless.tams.svc.cluster.local:9093 is used by CONTROLLER_QUORUM_VOTERS.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: tams
+  labels:
+    app: kafka
+    app.kubernetes.io/part-of: tams
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
+---
+# Regular ClusterIP service — used by application services as the broker endpoint.
+# Referenced in tams-config ConfigMap as KAFKA_BROKER=kafka.tams.svc.cluster.local:9092
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: tams
+  labels:
+    app: kafka
+    app.kubernetes.io/part-of: tams
+spec:
+  type: ClusterIP
+  selector:
+    app: kafka
+  ports:
+    - name: broker
+      port: 9092
+      targetPort: 9092

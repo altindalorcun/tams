@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-analysis-data
+  namespace: tams
+  labels:
+    app: postgres-analysis
+    app.kubernetes.io/part-of: tams
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

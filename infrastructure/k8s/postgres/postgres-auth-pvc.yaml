@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-auth-data
+  namespace: tams
+  labels:
+    app: postgres-auth
+    app.kubernetes.io/part-of: tams
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

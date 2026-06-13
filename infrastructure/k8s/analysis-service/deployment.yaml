@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analysis-service
+  namespace: tams
+  labels:
+    app: analysis-service
+    app.kubernetes.io/part-of: tams
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: analysis-service
+  template:
+    metadata:
+      labels:
+        app: analysis-service
+    spec:
+      containers:
+        - name: analysis-service
+          image: ghcr.io/tams/analysis-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: POSTGRES_ANALYSIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-analysis
+                  key: host
+            - name: POSTGRES_ANALYSIS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-analysis
+                  key: user
+            - name: POSTGRES_ANALYSIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-analysis
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tams-jwt-secret
+                  key: jwt-secret
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: tams-config
+                  key: KAFKA_BROKER
+            - name: RULE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tams-config
+                  key: RULE_SERVICE_URL
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3

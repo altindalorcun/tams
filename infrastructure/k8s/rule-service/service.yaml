@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rule-service
+  namespace: tams
+  labels:
+    app: rule-service
+    app.kubernetes.io/part-of: tams
+spec:
+  type: ClusterIP
+  selector:
+    app: rule-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP

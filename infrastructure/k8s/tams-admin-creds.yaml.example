@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tams-admin-creds
+  namespace: tams
+  labels:
+    app.kubernetes.io/part-of: tams
+type: Opaque
+stringData:
+  # Initial admin user seeded by auth-service on first startup via ApplicationRunner.
+  # After the first successful startup these credentials can be rotated through the API.
+  email: CHANGE_ME_ADMIN_EMAIL
+  username: CHANGE_ME_ADMIN_USERNAME
+  password: CHANGE_ME_STRONG_ADMIN_PASSWORD

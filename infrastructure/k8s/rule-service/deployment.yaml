@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rule-service
+  namespace: tams
+  labels:
+    app: rule-service
+    app.kubernetes.io/part-of: tams
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rule-service
+  template:
+    metadata:
+      labels:
+        app: rule-service
+    spec:
+      containers:
+        - name: rule-service
+          image: ghcr.io/tams/rule-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: POSTGRES_RULES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-rules
+                  key: host
+            - name: POSTGRES_RULES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-rules
+                  key: user
+            - name: POSTGRES_RULES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-rules
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tams-jwt-secret
+                  key: jwt-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3

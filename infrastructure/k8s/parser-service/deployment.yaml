@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parser-service
+  namespace: tams
+  labels:
+    app: parser-service
+    app.kubernetes.io/part-of: tams
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: parser-service
+  template:
+    metadata:
+      labels:
+        app: parser-service
+    spec:
+      containers:
+        - name: parser-service
+          image: ghcr.io/tams/parser-service:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: tams-config
+                  key: KAFKA_BROKER
+            - name: PII_HASH_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: tams-pii-salt
+                  key: PII_HASH_SALT
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: tams-config
+                  key: LOG_LEVEL
+            - name: ENABLE_CONSUMER
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3

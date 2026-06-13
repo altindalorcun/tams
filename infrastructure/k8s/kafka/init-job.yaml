@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init
+  namespace: tams
+  labels:
+    app: kafka-init
+    app.kubernetes.io/part-of: tams
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-kafka
+          image: confluentinc/cp-kafka:7.8.0
+          command:
+            - bash
+            - -c
+            - |
+              echo "Waiting for Kafka broker to become ready..."
+              until kafka-topics --bootstrap-server kafka.tams.svc.cluster.local:9092 --list > /dev/null 2>&1; do
+                echo "Kafka not ready yet, retrying in 5s..."
+                sleep 5
+              done
+              echo "Kafka is ready."
+      containers:
+        - name: create-topics
+          image: confluentinc/cp-kafka:7.8.0
+          command:
+            - bash
+            - -c
+            - |
+              kafka-topics --bootstrap-server kafka.tams.svc.cluster.local:9092 \
+                --create --if-not-exists \
+                --topic transcript.raw \
+                --partitions 1 \
+                --replication-factor 1 \
+                --config retention.ms=300000 \
+                --config cleanup.policy=delete
+
+              kafka-topics --bootstrap-server kafka.tams.svc.cluster.local:9092 \
+                --create --if-not-exists \
+                --topic transcript.parsed \
+                --partitions 1 \
+                --replication-factor 1 \
+                --config retention.ms=3600000 \
+                --config cleanup.policy=delete
+
+              echo "Topics created:"
+              kafka-topics --bootstrap-server kafka.tams.svc.cluster.local:9092 --list

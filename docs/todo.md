@@ -212,17 +212,17 @@ This checklist covers every step from an empty repository to a fully functional 
 
 ## Phase 8 — Kubernetes Manifests
 
-- [ ] Create `infrastructure/k8s/namespace.yaml` defining the `tams` namespace
-- [ ] For each of the 5 backend services + frontend, create:
+- [x] Create `infrastructure/k8s/namespace.yaml` defining the `tams` namespace
+- [x] For each of the 5 backend services + frontend, create:
   - `deployment.yaml` — image, replicas (min), resource requests/limits, env vars referencing Secrets and ConfigMaps, liveness and readiness probes
   - `service.yaml` — `ClusterIP` type for backend services; `NodePort` or `ClusterIP` for frontend
-- [ ] Create `infrastructure/k8s/api-gateway/ingress.yaml` as described in `docs/architecture.md`
-- [ ] Create `infrastructure/k8s/kafka/` manifests for Kafka in KRaft mode (StatefulSet + Service + ConfigMap)
-- [ ] Create `infrastructure/k8s/postgres/` manifests for each PostgreSQL instance (StatefulSet + Service + PersistentVolumeClaim + Secret)
-- [ ] Create HPA manifests for `parser-service` and `analysis-service` (and optionally `api-gateway`)
-- [ ] Create `infrastructure/k8s/tams-config.yaml` ConfigMap with non-sensitive application config
-- [ ] Create Kubernetes Secret templates (`.yaml.example` files — real secrets managed outside the repo or via a secrets manager)
-- [ ] Write a `README` in `infrastructure/k8s/` explaining how to apply the manifests in order (`kubectl apply -f namespace.yaml` first, then infra, then services)
+- [x] Create `infrastructure/k8s/api-gateway/ingress.yaml` as described in `docs/architecture.md`
+- [x] Create `infrastructure/k8s/kafka/` manifests for Kafka in KRaft mode (StatefulSet + Service + ConfigMap)
+- [x] Create `infrastructure/k8s/postgres/` manifests for each PostgreSQL instance (StatefulSet + Service + PersistentVolumeClaim + Secret)
+- [x] Create HPA manifests for `parser-service` and `analysis-service` (and optionally `api-gateway`)
+- [x] Create `infrastructure/k8s/tams-config.yaml` ConfigMap with non-sensitive application config
+- [x] Create Kubernetes Secret templates (`.yaml.example` files — real secrets managed outside the repo or via a secrets manager)
+- [x] Write a `README` in `infrastructure/k8s/` explaining how to apply the manifests in order (`kubectl apply -f namespace.yaml` first, then infra, then services)
 - [ ] Smoke-test the full stack on a local Kubernetes cluster (e.g., Minikube or kind)
 
 ---

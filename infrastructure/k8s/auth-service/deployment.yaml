@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: tams
+  labels:
+    app: auth-service
+    app.kubernetes.io/part-of: tams
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: ghcr.io/tams/auth-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: POSTGRES_AUTH_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-auth
+                  key: host
+            - name: POSTGRES_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-auth
+                  key: user
+            - name: POSTGRES_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tams-db-auth
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tams-jwt-secret
+                  key: jwt-secret
+            - name: ADMIN_SEED_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: tams-admin-creds
+                  key: email
+            - name: ADMIN_SEED_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: tams-admin-creds
+                  key: username
+            - name: ADMIN_SEED_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tams-admin-creds
+                  key: password
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
