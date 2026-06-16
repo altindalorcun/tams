@@ -35,8 +35,9 @@ var/
 sdist/
 develop-eggs/
 .installed.cfg
-lib/
+/lib/
 lib64/
+!frontend/src/lib/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
