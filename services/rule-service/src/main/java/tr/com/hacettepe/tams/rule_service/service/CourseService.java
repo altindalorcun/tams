@@ -30,7 +30,7 @@ public class CourseService {
             throw new DuplicateResourceException("Course code already exists: " + request.courseCode());
         }
         Course saved = courseRepository.save(
-                new Course(request.courseCode(), request.courseName(), request.credit(), request.ects()));
+                new Course(request.courseCode(), request.name(), request.credits(), request.ects()));
         return CourseResponse.from(saved);
     }
 

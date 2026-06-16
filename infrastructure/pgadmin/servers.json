@@ -1,0 +1,31 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "auth-db (tams_auth)",
+      "Group": "TAMS",
+      "Host": "postgres-auth",
+      "Port": 5432,
+      "MaintenanceDB": "tams_auth",
+      "Username": "tams_auth_user",
+      "SSLMode": "prefer"
+    },
+    "2": {
+      "Name": "rules-db (tams_rules)",
+      "Group": "TAMS",
+      "Host": "postgres-rules",
+      "Port": 5432,
+      "MaintenanceDB": "tams_rules",
+      "Username": "tams_rules_user",
+      "SSLMode": "prefer"
+    },
+    "3": {
+      "Name": "analysis-db (tams_analysis)",
+      "Group": "TAMS",
+      "Host": "postgres-analysis",
+      "Port": 5432,
+      "MaintenanceDB": "tams_analysis",
+      "Username": "tams_analysis_user",
+      "SSLMode": "prefer"
+    }
+  }
+}

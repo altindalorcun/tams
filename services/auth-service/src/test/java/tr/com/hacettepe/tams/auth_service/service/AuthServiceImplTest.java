@@ -165,7 +165,7 @@ class AuthServiceImplTest {
     void login_happyPath_shouldReturnTokens() {
         LoginRequest req = new LoginRequest("teacher1@test.com", "pass1234");
 
-        when(userRepository.findByEmailOrUsername(req.identifier(), req.identifier()))
+        when(userRepository.findByEmail(req.email()))
                 .thenReturn(Optional.of(teacherUser));
         when(jwtUtil.generateAccessToken(USER_ID, Role.TEACHER)).thenReturn(ACCESS_TOKEN);
         when(jwtProperties.refreshExpirationMs()).thenReturn(REFRESH_MS);
@@ -177,7 +177,7 @@ class AuthServiceImplTest {
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(response.userId()).isEqualTo(USER_ID);
         verify(authenticationManager).authenticate(
-                new UsernamePasswordAuthenticationToken(req.identifier(), req.password())
+                new UsernamePasswordAuthenticationToken(req.email(), req.password())
         );
     }
 

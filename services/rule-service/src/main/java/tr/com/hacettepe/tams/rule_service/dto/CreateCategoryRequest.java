@@ -18,7 +18,7 @@ public record CreateCategoryRequest(
         @Schema(description = "Optional description", example = "Technical elective courses")
         String description,
 
-        @Schema(description = "Minimum total credit required from this category's course pool", example = "12.00")
+        @Schema(description = "Minimum total credits required from this category's course pool", example = "12.00")
         @NotNull @PositiveOrZero BigDecimal minCredit,
 
         @Schema(description = "Minimum total ECTS required from this category's course pool", example = "18.00")

@@ -16,7 +16,7 @@ public record UpdateCourseRequest(
         @Schema(description = "Updated course name", example = "Calculus II")
         @NotBlank @Size(max = 255) String courseName,
 
-        @Schema(description = "Updated credit value (must be positive)", example = "3.00")
+        @Schema(description = "Updated credits value (must be positive)", example = "3.00")
         @Positive BigDecimal credit,
 
         @Schema(description = "Updated ECTS value (must be positive)", example = "4.00")

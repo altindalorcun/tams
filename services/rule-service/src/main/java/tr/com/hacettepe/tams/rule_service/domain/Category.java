@@ -20,7 +20,7 @@ import java.util.UUID;
  * <p>Three independent thresholds are evaluated by the graduation engine:
  * <ul>
  *   <li>{@code minCourseCount} — student must pass at least this many courses from the pool</li>
- *   <li>{@code minCredit} — cumulative credit of passed courses must reach this threshold</li>
+ *   <li>{@code minCredit} — cumulative credits of passed courses must reach this threshold</li>
  *   <li>{@code minEcts} — cumulative ECTS of passed courses must reach this threshold</li>
  * </ul>
  * Additionally, courses flagged {@code is_mandatory} in {@link CategoryCourse} must each be passed

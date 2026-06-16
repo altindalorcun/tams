@@ -18,7 +18,7 @@ public record UpdateCategoryRequest(
         @Schema(description = "Updated description")
         String description,
 
-        @Schema(description = "Updated minimum total credit threshold", example = "15.00")
+        @Schema(description = "Updated minimum total credits threshold", example = "15.00")
         @NotNull @PositiveOrZero BigDecimal minCredit,
 
         @Schema(description = "Updated minimum total ECTS threshold", example = "21.00")

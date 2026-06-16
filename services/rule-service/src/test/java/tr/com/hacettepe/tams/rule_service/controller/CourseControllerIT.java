@@ -62,7 +62,7 @@ class CourseControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST — 400 when credit is not positive")
+    @DisplayName("POST — 400 when credits is not positive")
     void create_nonPositiveCredit_returns400() throws Exception {
         CreateCourseRequest request = new CreateCourseRequest(
                 "MAT101", "Calculus I", new BigDecimal("0.00"), new BigDecimal("5.00"));
