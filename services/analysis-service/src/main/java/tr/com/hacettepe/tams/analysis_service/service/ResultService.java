@@ -4,9 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisResult;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisStatus;
-import tr.com.hacettepe.tams.analysis_service.domain.Deficiency;
+import tr.com.hacettepe.tams.analysis_service.domain.CategoryResult;
 import tr.com.hacettepe.tams.analysis_service.domain.TranscriptCourse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedCourse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedSemester;
@@ -22,8 +23,11 @@ import java.util.List;
 
 /**
  * Persists the graduation engine output to the database.
- * Updates the existing PENDING {@link AnalysisResult} row and creates
- * child {@link Deficiency} and {@link TranscriptCourse} rows in a single transaction.
+ * Updates the existing PENDING {@link AnalysisResult} row and creates child
+ * {@link CategoryResult} and {@link TranscriptCourse} rows in a single transaction.
+ *
+ * <p>All categories (both satisfied and unsatisfied) are stored as {@link CategoryResult}
+ * rows, enabling per-category progress display in the frontend.
  */
 @Slf4j
 @Service
@@ -33,33 +37,38 @@ public class ResultService {
     private final AnalysisResultRepository analysisResultRepository;
 
     /**
-     * Transitions a PENDING result to COMPLETED: attaches all deficiencies,
-     * persists a course snapshot, and marks the result eligible or not.
+     * Transitions a PENDING result to COMPLETED: stores department name, GPA, all
+     * category evaluations, and the transcript course snapshot, then marks the result
+     * eligible or not.
      *
-     * @param jobId      the jobId used to locate the existing PENDING row
-     * @param parsed     the PII-free parsed transcript from Kafka
-     * @param engineOut  the output of the graduation engine
+     * @param jobId     the jobId used to locate the existing PENDING row
+     * @param parsed    the PII-free parsed transcript from Kafka
+     * @param engineOut the output of the graduation engine
+     * @param ruleSet   the rule set used for evaluation (provides departmentName)
      * @throws ResourceNotFoundException if no result row exists for the given jobId
      */
     @Transactional
     public void completeResult(String jobId,
                                ParsedTranscriptMessage parsed,
-                               EngineResult engineOut) {
+                               EngineResult engineOut,
+                               RuleSetResponse ruleSet) {
         AnalysisResult result = analysisResultRepository.findByJobId(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Analysis result not found for jobId=" + jobId));
 
-        result.setMaskedStudentRef(parsed.studentRef());
+        result.setMaskedStudentRef(maskStudentNumber(parsed.studentRef()));
         result.setIsEligible(engineOut.eligible());
         result.setTotalCredit(engineOut.totalCredit());
         result.setTotalEcts(engineOut.totalEcts());
+        result.setGpa(engineOut.gpa());
+        result.setDepartmentName(ruleSet.departmentName());
         result.setStatus(AnalysisStatus.COMPLETED);
         result.setCompletedAt(OffsetDateTime.now());
 
-        attachDeficiencies(result, engineOut.categoryEvaluations());
+        attachCategoryResults(result, engineOut.categoryEvaluations());
         attachTranscriptCourses(result, parsed);
 
         analysisResultRepository.save(result);
-        log.info("Analysis completed: jobId={}, eligible={}", jobId, engineOut.eligible());
+        log.info("Analysis completed: jobId={}, eligible={}, gpa={}", jobId, engineOut.eligible(), engineOut.gpa());
     }
 
     /**
@@ -79,26 +88,39 @@ public class ResultService {
         }, () -> log.error("Cannot fail unknown jobId={}", jobId));
     }
 
-    private void attachDeficiencies(AnalysisResult result,
-                                    List<CategoryEvaluation> evaluations) {
+    /**
+     * Masks a student identifier by replacing all but the last four characters with asterisks.
+     * Used both when persisting the result and when performing JWT-based student lookup.
+     *
+     * @param studentNumber raw student number or already-masked identifier
+     * @return masked identifier, e.g. {@code "****0001"} for {@code "20190001"}
+     */
+    public static String maskStudentNumber(String studentNumber) {
+        if (studentNumber == null || studentNumber.length() <= 4) {
+            return studentNumber;
+        }
+        return "*".repeat(studentNumber.length() - 4) + studentNumber.substring(studentNumber.length() - 4);
+    }
+
+    private void attachCategoryResults(AnalysisResult result, List<CategoryEvaluation> evaluations) {
         for (CategoryEvaluation eval : evaluations) {
-            if (eval.satisfied()) {
-                continue;
-            }
-            Deficiency d = new Deficiency();
-            d.setResult(result);
-            d.setCategoryName(eval.categoryName());
-            d.setRequiredCredit(eval.requiredCredit());
-            d.setEarnedCredit(eval.earnedCredit());
-            d.setRequiredEcts(eval.requiredEcts());
-            d.setEarnedEcts(eval.earnedEcts());
-            d.setMissingCourses(eval.missingMandatoryCourses().toArray(String[]::new));
-            result.getDeficiencies().add(d);
+            CategoryResult cr = new CategoryResult();
+            cr.setResult(result);
+            cr.setCategoryId(eval.categoryId());
+            cr.setCategoryName(eval.categoryName());
+            cr.setSatisfied(eval.satisfied());
+            cr.setRequiredCredit(eval.requiredCredit());
+            cr.setEarnedCredit(eval.earnedCredit());
+            cr.setRequiredEcts(eval.requiredEcts());
+            cr.setEarnedEcts(eval.earnedEcts());
+            cr.setRequiredCourseCount(eval.requiredCourseCount());
+            cr.setEarnedCourseCount(eval.earnedCourseCount());
+            cr.setMissingMandatoryCourses(eval.missingMandatoryCourses().toArray(String[]::new));
+            result.getCategoryResults().add(cr);
         }
     }
 
-    private void attachTranscriptCourses(AnalysisResult result,
-                                         ParsedTranscriptMessage parsed) {
+    private void attachTranscriptCourses(AnalysisResult result, ParsedTranscriptMessage parsed) {
         if (parsed.semesters() == null) {
             return;
         }

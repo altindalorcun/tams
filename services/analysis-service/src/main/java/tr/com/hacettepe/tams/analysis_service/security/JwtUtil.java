@@ -20,6 +20,7 @@ import javax.crypto.SecretKey;
 public class JwtUtil {
 
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_STUDENT_NUMBER = "studentNumber";
 
     private final JwtProperties jwtProperties;
 
@@ -37,6 +38,14 @@ public class JwtUtil {
 
     public String extractRole(String token) {
         return parseToken(token).get(CLAIM_ROLE, String.class);
+    }
+
+    /**
+     * Extracts the {@code studentNumber} claim from a STUDENT token.
+     * Returns {@code null} for non-STUDENT tokens (claim absent).
+     */
+    public String extractStudentNumber(String token) {
+        return parseToken(token).get(CLAIM_STUDENT_NUMBER, String.class);
     }
 
     public String extractSubject(String token) {

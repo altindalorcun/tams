@@ -27,8 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -71,13 +70,13 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("register — happy path: saves user and returns token pair")
     void register_happyPath_shouldSaveUserAndReturnTokens() {
-        RegisterRequest req = new RegisterRequest("teacher1", "teacher1@test.com", "pass1234", Role.TEACHER);
+        RegisterRequest req = new RegisterRequest("teacher1", "teacher1@test.com", "pass1234", Role.TEACHER, null);
 
         when(userRepository.existsByEmail(req.email())).thenReturn(false);
         when(userRepository.existsByUsername(req.username())).thenReturn(false);
         when(passwordEncoder.encode(req.password())).thenReturn("$2a$hashed");
         when(userRepository.save(any(User.class))).thenReturn(teacherUser);
-        when(jwtUtil.generateAccessToken(USER_ID, Role.TEACHER)).thenReturn(ACCESS_TOKEN);
+        when(jwtUtil.generateAccessToken(eq(USER_ID), eq(Role.TEACHER), isNull())).thenReturn(ACCESS_TOKEN);
         when(jwtProperties.refreshExpirationMs()).thenReturn(REFRESH_MS);
         when(jwtProperties.accessExpirationMs()).thenReturn(ACCESS_MS);
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -96,15 +95,17 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("register — password is hashed; plain text must never be passed to save()")
     void register_passwordShouldBeHashed() {
-        RegisterRequest req = new RegisterRequest("student1", "student1@test.com", "plainPass8", Role.STUDENT);
+        RegisterRequest req = new RegisterRequest("student1", "student1@test.com", "plainPass8", Role.STUDENT, "20190001");
         User student = User.builder().id(UUID.randomUUID()).username("student1")
-                .email("student1@test.com").passwordHash("$2a$bcrypt").role(Role.STUDENT).build();
+                .email("student1@test.com").passwordHash("$2a$bcrypt").role(Role.STUDENT)
+                .studentNumber("20190001").build();
 
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.existsByStudentNumber(anyString())).thenReturn(false);
         when(passwordEncoder.encode("plainPass8")).thenReturn("$2a$bcrypt");
         when(userRepository.save(any(User.class))).thenReturn(student);
-        when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
+        when(jwtUtil.generateAccessToken(any(), any(), any())).thenReturn(ACCESS_TOKEN);
         when(jwtProperties.refreshExpirationMs()).thenReturn(REFRESH_MS);
         when(jwtProperties.accessExpirationMs()).thenReturn(ACCESS_MS);
         when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -120,7 +121,7 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("register — should throw ConflictException when email is already taken")
     void register_duplicateEmail_shouldThrowConflict() {
-        RegisterRequest req = new RegisterRequest("teacher2", "taken@test.com", "pass1234", Role.TEACHER);
+        RegisterRequest req = new RegisterRequest("teacher2", "taken@test.com", "pass1234", Role.TEACHER, null);
         when(userRepository.existsByEmail("taken@test.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.register(req))
@@ -134,7 +135,7 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("register — should throw ConflictException when username is already taken")
     void register_duplicateUsername_shouldThrowConflict() {
-        RegisterRequest req = new RegisterRequest("takenUser", "new@test.com", "pass1234", Role.TEACHER);
+        RegisterRequest req = new RegisterRequest("takenUser", "new@test.com", "pass1234", Role.TEACHER, null);
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByUsername("takenUser")).thenReturn(true);
 
@@ -149,13 +150,42 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("register — should throw UnauthorizedException when role is ADMIN")
     void register_adminRole_shouldThrowUnauthorized() {
-        RegisterRequest req = new RegisterRequest("hacker", "hacker@test.com", "pass1234", Role.ADMIN);
+        RegisterRequest req = new RegisterRequest("hacker", "hacker@test.com", "pass1234", Role.ADMIN, null);
 
         assertThatThrownBy(() -> authService.register(req))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("ADMIN");
 
         verifyNoInteractions(userRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("register — should throw IllegalArgumentException when STUDENT has no studentNumber")
+    void register_studentWithoutStudentNumber_shouldThrow() {
+        RegisterRequest req = new RegisterRequest("student2", "student2@test.com", "pass1234", Role.STUDENT, null);
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.register(req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("studentNumber");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("register — should throw ConflictException when student number is already taken")
+    void register_duplicateStudentNumber_shouldThrowConflict() {
+        RegisterRequest req = new RegisterRequest("student3", "student3@test.com", "pass1234", Role.STUDENT, "20190001");
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByUsername(anyString())).thenReturn(false);
+        when(userRepository.existsByStudentNumber("20190001")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(req))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("20190001");
+
+        verify(userRepository, never()).save(any());
     }
 
     // ── login ─────────────────────────────────────────────────────────────────
@@ -167,7 +197,7 @@ class AuthServiceImplTest {
 
         when(userRepository.findByEmail(req.email()))
                 .thenReturn(Optional.of(teacherUser));
-        when(jwtUtil.generateAccessToken(USER_ID, Role.TEACHER)).thenReturn(ACCESS_TOKEN);
+        when(jwtUtil.generateAccessToken(eq(USER_ID), eq(Role.TEACHER), isNull())).thenReturn(ACCESS_TOKEN);
         when(jwtProperties.refreshExpirationMs()).thenReturn(REFRESH_MS);
         when(jwtProperties.accessExpirationMs()).thenReturn(ACCESS_MS);
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -207,7 +237,7 @@ class AuthServiceImplTest {
                 .build();
 
         when(refreshTokenRepository.findByToken(rawRefresh)).thenReturn(Optional.of(stored));
-        when(jwtUtil.generateAccessToken(USER_ID, Role.TEACHER)).thenReturn(ACCESS_TOKEN);
+        when(jwtUtil.generateAccessToken(eq(USER_ID), eq(Role.TEACHER), isNull())).thenReturn(ACCESS_TOKEN);
         when(jwtProperties.refreshExpirationMs()).thenReturn(REFRESH_MS);
         when(jwtProperties.accessExpirationMs()).thenReturn(ACCESS_MS);
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));

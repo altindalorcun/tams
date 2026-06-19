@@ -53,7 +53,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 201 Created with valid ADMIN token")
     void create_validRequest_returns201() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "CS");
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "CS");
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -62,6 +62,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString("/api/v1/departments/")))
                 .andExpect(jsonPath("$.name").value("Bilgisayar Mühendisliği"))
+                .andExpect(jsonPath("$.code").value("BBM"))
                 .andExpect(jsonPath("$.description").value("CS"))
                 .andExpect(jsonPath("$.id").isNotEmpty());
     }
@@ -69,7 +70,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 400 when name is blank")
     void create_blankName_returns400() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("  ", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("  ", "XX", null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -81,7 +82,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 401 without a token")
     void create_noToken_returns401() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null);
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -92,7 +93,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 403 with a TEACHER token")
     void create_teacherToken_returns403() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + bearerToken("TEACHER"))
@@ -104,8 +105,8 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 409 on duplicate name")
     void create_duplicateName_returns409() throws Exception {
-        departmentRepository.save(new Department("Bilgisayar Mühendisliği", null));
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", null);
+        departmentRepository.save(new Department("Bilgisayar Mühendisliği", "BBM", null));
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -117,7 +118,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("GET list — returns persisted departments")
     void list_returnsAll() throws Exception {
-        departmentRepository.save(new Department("Elektrik Mühendisliği", null));
+        departmentRepository.save(new Department("Elektrik Mühendisliği", "EE", null));
 
         mockMvc.perform(get(BASE_URL).header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
@@ -128,7 +129,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("GET by id — returns the department")
     void getById_returnsDepartment() throws Exception {
-        Department saved = departmentRepository.save(new Department("Makine Mühendisliği", "ME"));
+        Department saved = departmentRepository.save(new Department("Makine Mühendisliği", "ME", null));
 
         mockMvc.perform(get(BASE_URL + "/" + saved.getId())
                         .header("Authorization", "Bearer " + adminToken))
@@ -148,8 +149,8 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("PUT — updates name and description")
     void update_returnsUpdated() throws Exception {
-        Department saved = departmentRepository.save(new Department("Eski Ad", "old"));
-        UpdateDepartmentRequest request = new UpdateDepartmentRequest("Yeni Ad", "new");
+        Department saved = departmentRepository.save(new Department("Eski Ad", "EA", null));
+        UpdateDepartmentRequest request = new UpdateDepartmentRequest("Yeni Ad", "YA", "new");
 
         mockMvc.perform(put(BASE_URL + "/" + saved.getId())
                         .header("Authorization", "Bearer " + adminToken)
@@ -163,7 +164,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("PUT — 404 for unknown id")
     void update_notFound_returns404() throws Exception {
-        UpdateDepartmentRequest request = new UpdateDepartmentRequest("X", null);
+        UpdateDepartmentRequest request = new UpdateDepartmentRequest("X", "XX", null);
 
         mockMvc.perform(put(BASE_URL + "/" + UNKNOWN_ID)
                         .header("Authorization", "Bearer " + adminToken)
@@ -175,7 +176,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("DELETE — 204 then 404 on re-fetch")
     void delete_removesDepartment() throws Exception {
-        Department saved = departmentRepository.save(new Department("Silinecek", null));
+        Department saved = departmentRepository.save(new Department("Silinecek", "SIL", null));
 
         mockMvc.perform(delete(BASE_URL + "/" + saved.getId())
                         .header("Authorization", "Bearer " + adminToken))
@@ -197,7 +198,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Course pool — add, list, then remove a course")
     void coursePool_addListRemove() throws Exception {
-        Department dept = departmentRepository.save(new Department("Bilgisayar", null));
+        Department dept = departmentRepository.save(new Department("Bilgisayar", "BLG", null));
         Course course = courseRepository.save(
                 new Course("BIL101", "Intro to CS", new BigDecimal("4.00"), new BigDecimal("6.00")));
 
@@ -225,7 +226,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Course pool — adding the same course twice returns 409")
     void coursePool_addDuplicate_returns409() throws Exception {
-        Department dept = departmentRepository.save(new Department("Bilgisayar", null));
+        Department dept = departmentRepository.save(new Department("Bilgisayar", "BLG", null));
         Course course = courseRepository.save(
                 new Course("BIL102", "Data Structures", new BigDecimal("4.00"), new BigDecimal("6.00")));
         String url = BASE_URL + "/" + dept.getId() + "/courses";
@@ -244,7 +245,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Course pool — adding an unknown course returns 404")
     void coursePool_unknownCourse_returns404() throws Exception {
-        Department dept = departmentRepository.save(new Department("Bilgisayar", null));
+        Department dept = departmentRepository.save(new Department("Bilgisayar", "BLG", null));
 
         mockMvc.perform(post(BASE_URL + "/" + dept.getId() + "/courses")
                         .header("Authorization", "Bearer " + adminToken)
@@ -255,7 +256,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("Course pool — removing a course not in the pool returns 404")
     void coursePool_removeMissing_returns404() throws Exception {
-        Department dept = departmentRepository.save(new Department("Bilgisayar", null));
+        Department dept = departmentRepository.save(new Department("Bilgisayar", "BLG", null));
         Course course = courseRepository.save(
                 new Course("BIL103", "Algorithms", new BigDecimal("4.00"), new BigDecimal("6.00")));
 

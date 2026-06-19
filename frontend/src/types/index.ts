@@ -4,6 +4,6 @@ export type {
   CreateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
 } from "./rules";
 export type {
-  AnalysisStatus, TranscriptJobResponse, Deficiency, CategoryResult,
+  AnalysisStatus, TranscriptJobResponse, CategoryResult,
   AnalysisResult, AnalysisResultSummary, PageResponse,
 } from "./analysis";

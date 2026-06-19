@@ -54,7 +54,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /register — TEACHER role → 201 with tokens")
     void register_teacher_shouldReturn201WithTokens() throws Exception {
-        RegisterRequest body = new RegisterRequest("teacher1", "teacher1@test.com", "pass1234!", Role.TEACHER);
+        RegisterRequest body = new RegisterRequest("teacher1", "teacher1@test.com", "pass1234!", Role.TEACHER, null);
 
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -68,21 +68,22 @@ class AuthControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /register — STUDENT role → 201 with tokens")
+    @DisplayName("POST /register — STUDENT role with studentNumber → 201 with tokens")
     void register_student_shouldReturn201() throws Exception {
-        RegisterRequest body = new RegisterRequest("student1", "student1@test.com", "pass1234!", Role.STUDENT);
+        RegisterRequest body = new RegisterRequest("student1", "student1@test.com", "pass1234!", Role.STUDENT, "20231001");
 
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.role").value("STUDENT"));
+                .andExpect(jsonPath("$.role").value("STUDENT"))
+                .andExpect(jsonPath("$.studentNumber").value("20231001"));
     }
 
     @Test
     @DisplayName("POST /register — ADMIN role → 401 Unauthorized")
     void register_adminRole_shouldReturn401() throws Exception {
-        RegisterRequest body = new RegisterRequest("admin2", "admin2@test.com", "pass1234!", Role.ADMIN);
+        RegisterRequest body = new RegisterRequest("admin2", "admin2@test.com", "pass1234!", Role.ADMIN, null);
 
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -94,8 +95,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /register — duplicate email → 409 Conflict")
     void register_duplicateEmail_shouldReturn409() throws Exception {
-        RegisterRequest first  = new RegisterRequest("user1", "dup@test.com", "pass1234!", Role.TEACHER);
-        RegisterRequest second = new RegisterRequest("user2", "dup@test.com", "pass1234!", Role.TEACHER);
+        RegisterRequest first  = new RegisterRequest("user1", "dup@test.com", "pass1234!", Role.TEACHER, null);
+        RegisterRequest second = new RegisterRequest("user2", "dup@test.com", "pass1234!", Role.TEACHER, null);
 
         mockMvc.perform(post(REGISTER_URL).contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(first))).andExpect(status().isCreated());
@@ -109,8 +110,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /register — duplicate username → 409 Conflict")
     void register_duplicateUsername_shouldReturn409() throws Exception {
-        RegisterRequest first  = new RegisterRequest("sameName", "a@test.com", "pass1234!", Role.TEACHER);
-        RegisterRequest second = new RegisterRequest("sameName", "b@test.com", "pass1234!", Role.TEACHER);
+        RegisterRequest first  = new RegisterRequest("sameName", "a@test.com", "pass1234!", Role.TEACHER, null);
+        RegisterRequest second = new RegisterRequest("sameName", "b@test.com", "pass1234!", Role.TEACHER, null);
 
         mockMvc.perform(post(REGISTER_URL).contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(first))).andExpect(status().isCreated());
@@ -133,7 +134,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /register — password shorter than 8 chars → 400 Bad Request")
     void register_shortPassword_shouldReturn400() throws Exception {
-        RegisterRequest body = new RegisterRequest("user3", "user3@test.com", "short", Role.TEACHER);
+        RegisterRequest body = new RegisterRequest("user3", "user3@test.com", "short", Role.TEACHER, null);
 
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -162,7 +163,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST /login — valid username identifier → 200 with tokens")
     void login_withUsername_shouldReturn200() throws Exception {
-        registerUser("loginUser2", "login2@test.com", "pass1234!", Role.STUDENT);
+        registerUser("loginUser2", "login2@test.com", "pass1234!", Role.STUDENT, "20231002");
 
         LoginRequest login = new LoginRequest("loginUser2", "pass1234!");
 
@@ -274,7 +275,11 @@ class AuthControllerIT extends AbstractIntegrationTest {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void registerUser(String username, String email, String password, Role role) throws Exception {
-        RegisterRequest body = new RegisterRequest(username, email, password, role);
+        registerUser(username, email, password, role, null);
+    }
+
+    private void registerUser(String username, String email, String password, Role role, String studentNumber) throws Exception {
+        RegisterRequest body = new RegisterRequest(username, email, password, role, studentNumber);
         mockMvc.perform(post(REGISTER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(body)))

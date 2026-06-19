@@ -24,20 +24,25 @@ import java.util.UUID;
 public class JwtUtil {
 
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_STUDENT_NUMBER = "studentNumber";
 
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(UUID userId, Role role) {
+    public String generateAccessToken(UUID userId, Role role, String studentNumber) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.accessExpirationMs());
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(userId.toString())
                 .claim(CLAIM_ROLE, role.name())
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(secretKey())
-                .compact();
+                .expiration(expiry);
+
+        if (role == Role.STUDENT && studentNumber != null) {
+            builder.claim(CLAIM_STUDENT_NUMBER, studentNumber);
+        }
+
+        return builder.signWith(secretKey()).compact();
     }
 
     /**

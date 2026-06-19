@@ -31,6 +31,9 @@ public class Department {
     @Column(nullable = false, unique = true, length = 255)
     private String name;
 
+    @Column(nullable = false, unique = true, length = 20)
+    private String code;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -48,8 +51,9 @@ public class Department {
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DepartmentCourse> departmentCourses = new LinkedHashSet<>();
 
-    public Department(String name, String description) {
+    public Department(String name, String code, String description) {
         this.name = name;
+        this.code = code;
         this.description = description;
     }
 }

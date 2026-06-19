@@ -33,7 +33,10 @@ public class DepartmentService {
         if (departmentRepository.existsByName(request.name())) {
             throw new DuplicateResourceException("Department already exists: " + request.name());
         }
-        Department saved = departmentRepository.save(new Department(request.name(), request.description()));
+        if (departmentRepository.existsByCode(request.code())) {
+            throw new DuplicateResourceException("Department code already taken: " + request.code());
+        }
+        Department saved = departmentRepository.save(new Department(request.name(), request.code(), request.description()));
         return DepartmentResponse.from(saved);
     }
 
@@ -55,7 +58,11 @@ public class DepartmentService {
         if (!department.getName().equals(request.name()) && departmentRepository.existsByName(request.name())) {
             throw new DuplicateResourceException("Department name already taken: " + request.name());
         }
+        if (!department.getCode().equals(request.code()) && departmentRepository.existsByCodeAndIdNot(request.code(), id)) {
+            throw new DuplicateResourceException("Department code already taken: " + request.code());
+        }
         department.setName(request.name());
+        department.setCode(request.code());
         department.setDescription(request.description());
         return DepartmentResponse.from(departmentRepository.save(department));
     }

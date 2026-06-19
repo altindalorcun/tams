@@ -126,7 +126,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                   <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
                     <div>
                       <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                      <span className="ml-1 text-sm">{c.name}</span>
+                      <span className="ml-1 text-sm">{c.courseName}</span>
                       {c.isMandatory && <Badge variant="outline" className="ml-1 text-xs">Zorunlu</Badge>}
                     </div>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeMut.mutate(c.courseId)}>
@@ -148,7 +148,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                 <div key={c.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
                   <div>
                     <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                    <span className="ml-1 text-sm">{c.name}</span>
+                    <span className="ml-1 text-sm">{c.courseName}</span>
                   </div>
                   <div className="flex gap-1">
                     <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => addMut.mutate({ courseId: c.id, isMandatory: false })}>Seçmeli</Button>

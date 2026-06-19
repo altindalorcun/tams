@@ -10,11 +10,12 @@ public record AuthResponse(
         String tokenType,
         long expiresIn,
         UUID userId,
-        Role role
+        Role role,
+        String studentNumber
 ) {
     public static AuthResponse of(String accessToken, String refreshToken,
-                                   long expiresInMs, UUID userId, Role role) {
+                                   long expiresInMs, UUID userId, Role role, String studentNumber) {
         return new AuthResponse(accessToken, refreshToken, "Bearer",
-                expiresInMs / 1000, userId, role);
+                expiresInMs / 1000, userId, role, studentNumber);
     }
 }

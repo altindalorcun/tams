@@ -52,7 +52,7 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        department = new Department("Bilgisayar Mühendisliği", null);
+        department = new Department("Bilgisayar Mühendisliği", "BBM", null);
         department.setId(DEPT_ID);
         category = new Category(department, "Teknik Seçmeli", null,
                 BigDecimal.ZERO, BigDecimal.ZERO, 5);

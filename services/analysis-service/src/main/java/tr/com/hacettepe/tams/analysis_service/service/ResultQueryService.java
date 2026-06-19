@@ -21,10 +21,8 @@ import java.util.UUID;
  * <p>Access rules:
  * <ul>
  *   <li>TEACHER — can only see results they personally uploaded (teacherId matches).</li>
- *   <li>STUDENT — can only see results whose maskedStudentRef matches the value they
- *       supply. The masked ref is a deterministic SHA-256 hash computed by parser-service
- *       from the student's raw TC + Öğrenci No; it is the student's persistent identity
- *       token within this system.</li>
+ *   <li>STUDENT — can only see results whose maskedStudentRef matches the value derived
+ *       from their JWT {@code studentNumber} claim via {@link ResultService#maskStudentNumber}.</li>
  * </ul>
  */
 @Service
@@ -37,9 +35,9 @@ public class ResultQueryService {
      * Returns a paginated list of result summaries for a given teacher.
      * Optionally filters by a partial maskedStudentRef substring.
      *
-     * @param teacherId    the authenticated teacher's UUID
-     * @param studentRef   optional search token (partial maskedStudentRef)
-     * @param pageable     pagination and sort parameters
+     * @param teacherId  the authenticated teacher's UUID
+     * @param studentRef optional search token (partial maskedStudentRef)
+     * @param pageable   pagination and sort parameters
      */
     @Transactional(readOnly = true)
     public Page<AnalysisResultSummaryResponse> listForTeacher(UUID teacherId,
@@ -58,10 +56,10 @@ public class ResultQueryService {
      * A TEACHER may only read results they uploaded; a STUDENT may only read
      * results whose maskedStudentRef matches the supplied token.
      *
-     * @param id           the UUID of the analysis result
-     * @param role         the caller's role (TEACHER or STUDENT)
-     * @param callerId     the authenticated user's UUID (used for TEACHER ownership check)
-     * @param studentRef   the caller's masked student ref (used for STUDENT ownership check)
+     * @param id        the UUID of the analysis result
+     * @param role      the caller's role (TEACHER or STUDENT)
+     * @param callerId  the authenticated user's UUID (used for TEACHER ownership check)
+     * @param studentRef the caller's masked student ref (used for STUDENT ownership check)
      * @throws ResourceNotFoundException if no result exists with the given id
      * @throws UnauthorizedException     if the caller does not own this result
      */
@@ -75,8 +73,25 @@ public class ResultQueryService {
 
         enforceOwnership(result, role, callerId, studentRef);
 
-        // Trigger lazy-load of collections inside the transaction boundary.
-        result.getDeficiencies().size();
+        result.getCategoryResults().size();
+        result.getTranscriptCourses().size();
+
+        return AnalysisResultDetailResponse.from(result);
+    }
+
+    /**
+     * Returns the full detail of a result by its job ID.
+     * Intended for the TEACHER flow: after upload, the teacher polls by jobId.
+     *
+     * @param jobId the Kafka job ID returned at upload time
+     * @throws ResourceNotFoundException if no result exists for the given jobId
+     */
+    @Transactional(readOnly = true)
+    public AnalysisResultDetailResponse getByJobId(String jobId) {
+        AnalysisResult result = analysisResultRepository.findByJobId(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Result not found for jobId: " + jobId));
+
+        result.getCategoryResults().size();
         result.getTranscriptCourses().size();
 
         return AnalysisResultDetailResponse.from(result);
@@ -84,18 +99,20 @@ public class ResultQueryService {
 
     /**
      * Returns the latest completed result for a student identified by their masked ref.
+     * The masked ref must be derived from the JWT {@code studentNumber} claim via
+     * {@link ResultService#maskStudentNumber} before calling this method.
      *
-     * @param studentRef the student's deterministic masked identity token
+     * @param maskedStudentRef the student's masked identity token
      * @throws ResourceNotFoundException if no result exists for this student ref
      */
     @Transactional(readOnly = true)
-    public AnalysisResultDetailResponse getLatestForStudent(String studentRef) {
+    public AnalysisResultDetailResponse getLatestForStudent(String maskedStudentRef) {
         AnalysisResult result = analysisResultRepository
-                .findFirstByMaskedStudentRefOrderByCreatedAtDesc(studentRef)
+                .findFirstByMaskedStudentRefOrderByCreatedAtDesc(maskedStudentRef)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No results found for the provided student reference"));
 
-        result.getDeficiencies().size();
+        result.getCategoryResults().size();
         result.getTranscriptCourses().size();
 
         return AnalysisResultDetailResponse.from(result);

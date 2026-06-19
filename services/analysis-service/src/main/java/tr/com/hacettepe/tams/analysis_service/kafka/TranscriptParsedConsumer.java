@@ -89,7 +89,7 @@ public class TranscriptParsedConsumer {
         }
 
         EngineResult engineResult = graduationEngine.evaluate(message, ruleSet);
-        resultService.completeResult(jobId, message, engineResult);
+        resultService.completeResult(jobId, message, engineResult, ruleSet);
     }
 
     /**

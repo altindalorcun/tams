@@ -48,7 +48,7 @@ class InternalRulesControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("GET /internal/rules/{id} — no auth required, returns aggregated rule set")
     void getRuleSet_returnsAggregatedRules() throws Exception {
-        Department dept = departmentRepository.save(new Department("Bilgisayar Mühendisliği", null));
+        Department dept = departmentRepository.save(new Department("Bilgisayar Mühendisliği", "BBM", null));
         Course course = courseRepository.save(
                 new Course("BIL401", "Machine Learning", new BigDecimal("3.00"), new BigDecimal("4.00")));
         departmentCourseRepository.save(new DepartmentCourse(dept, course));
@@ -71,7 +71,7 @@ class InternalRulesControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("GET /internal/rules/{id} — empty categories for a department without rules")
     void getRuleSet_noCategories_returnsEmptyList() throws Exception {
-        Department dept = departmentRepository.save(new Department("Yeni Bölüm", null));
+        Department dept = departmentRepository.save(new Department("Yeni Bölüm", "YB", null));
 
         mockMvc.perform(get("/internal/rules/" + dept.getId()))
                 .andExpect(status().isOk())

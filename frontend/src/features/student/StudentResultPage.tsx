@@ -14,15 +14,15 @@ function CategoryProgressCard({ cat }: { cat: CategoryResult }) {
   const courseProgress = Math.min(100, (cat.earnedCourseCount / cat.requiredCourseCount) * 100);
 
   return (
-    <Card className={cn("shadow-sm", !cat.isEligible && "border-destructive/40")}>
+    <Card className={cn("shadow-sm", !cat.satisfied && "border-destructive/40")}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold">{cat.categoryName}</h3>
           <Badge
-            variant={cat.isEligible ? "default" : "outline"}
-            className={cn(!cat.isEligible && "border-destructive text-destructive")}
+            variant={cat.satisfied ? "default" : "outline"}
+            className={cn(!cat.satisfied && "border-destructive text-destructive")}
           >
-            {cat.isEligible ? "Yeterli" : "Eksik"}
+            {cat.satisfied ? "Yeterli" : "Eksik"}
           </Badge>
         </div>
       </CardHeader>
@@ -35,17 +35,17 @@ function CategoryProgressCard({ cat }: { cat: CategoryResult }) {
           <Progress value={courseProgress} className="h-2" />
         </div>
 
-        {cat.requiredCredits !== undefined && (
+        {cat.requiredCredit > 0 && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Kredi</span>
-              <span className="tabular-nums">{cat.earnedCredits} / {cat.requiredCredits}</span>
+              <span className="tabular-nums">{cat.earnedCredit} / {cat.requiredCredit}</span>
             </div>
-            <Progress value={Math.min(100, (cat.earnedCredits / cat.requiredCredits) * 100)} className="h-2" />
+            <Progress value={Math.min(100, (cat.earnedCredit / cat.requiredCredit) * 100)} className="h-2" />
           </div>
         )}
 
-        {cat.requiredEcts !== undefined && (
+        {cat.requiredEcts > 0 && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>AKTS</span>
@@ -55,22 +55,17 @@ function CategoryProgressCard({ cat }: { cat: CategoryResult }) {
           </div>
         )}
 
-        {cat.deficiencies.length > 0 && (
+        {cat.missingMandatoryCourses.length > 0 && (
           <>
             <Separator />
             <div className="space-y-1.5">
-              {cat.deficiencies.map((d) => (
-                <div key={d.courseCode} className="flex items-start gap-2 text-sm">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-destructive" />
-                  <span>
-                    <span className="font-mono text-xs text-muted-foreground">{d.courseCode}</span>
-                    {" "}{d.courseName}
-                    {d.isMandatory && (
-                      <Badge variant="outline" className="ml-1.5 text-[10px] leading-none py-0 border-destructive text-destructive">
-                        Zorunlu
-                      </Badge>
-                    )}
-                  </span>
+              <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Eksik Zorunlu Dersler
+              </p>
+              {cat.missingMandatoryCourses.map((courseCode) => (
+                <div key={courseCode} className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                  <span className="font-mono text-xs text-muted-foreground">{courseCode}</span>
                 </div>
               ))}
             </div>
@@ -118,9 +113,7 @@ export function StudentResultPage() {
     );
   }
 
-  const mandatoryDeficiencies = result.categoryResults
-    .flatMap((c) => c.deficiencies)
-    .filter((d) => d.isMandatory);
+  const allMissingMandatory = result.categoryResults.flatMap((c) => c.missingMandatoryCourses);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-8 space-y-8">
@@ -149,15 +142,15 @@ export function StudentResultPage() {
       </div>
 
       {/* Mandatory deficiencies summary */}
-      {mandatoryDeficiencies.length > 0 && (
+      {allMissingMandatory.length > 0 && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Alınmamış Zorunlu Dersler</AlertTitle>
           <AlertDescription>
             <ul className="mt-1 space-y-0.5">
-              {mandatoryDeficiencies.map((d) => (
-                <li key={d.courseCode} className="text-sm">
-                  <span className="font-mono">{d.courseCode}</span> — {d.courseName}
+              {allMissingMandatory.map((courseCode) => (
+                <li key={courseCode} className="text-sm">
+                  <span className="font-mono">{courseCode}</span>
                 </li>
               ))}
             </ul>

@@ -50,12 +50,21 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.existsByUsername(request.username())) {
             throw new ConflictException("Username already in use: " + request.username());
         }
+        if (request.role() == Role.STUDENT) {
+            if (request.studentNumber() == null || request.studentNumber().isBlank()) {
+                throw new IllegalArgumentException("studentNumber is required for STUDENT role");
+            }
+            if (userRepository.existsByStudentNumber(request.studentNumber())) {
+                throw new ConflictException("Student number already in use: " + request.studentNumber());
+            }
+        }
 
         User user = User.builder()
                 .username(request.username())
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(request.role())
+                .studentNumber(request.studentNumber())
                 .build();
 
         user = userRepository.save(user);
@@ -111,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
     // ── private helpers ──────────────────────────────────────────────────────
 
     private AuthResponse issueTokenPair(User user) {
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole());
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRole(), user.getStudentNumber());
         String rawRefreshToken = UUID.randomUUID().toString();
 
         RefreshToken refreshToken = RefreshToken.builder()
@@ -124,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.of(accessToken, rawRefreshToken,
-                jwtProperties.accessExpirationMs(), user.getId(), user.getRole());
+                jwtProperties.accessExpirationMs(), user.getId(), user.getRole(), user.getStudentNumber());
     }
 
     private String stripBearer(String header) {

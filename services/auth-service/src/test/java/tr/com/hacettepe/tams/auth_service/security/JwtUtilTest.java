@@ -33,7 +33,7 @@ class JwtUtilTest {
     @DisplayName("Generated token subject should equal the user UUID")
     void generateAccessToken_subjectShouldBeUserId() {
         UUID userId = UUID.randomUUID();
-        String token = jwtUtil.generateAccessToken(userId, Role.TEACHER);
+        String token = jwtUtil.generateAccessToken(userId, Role.TEACHER, null);
 
         Claims claims = jwtUtil.parseToken(token);
         assertThat(claims.getSubject()).isEqualTo(userId.toString());
@@ -43,17 +43,36 @@ class JwtUtilTest {
     @DisplayName("Generated token should contain the correct role claim")
     void generateAccessToken_shouldContainRoleClaim() {
         UUID userId = UUID.randomUUID();
-        String token = jwtUtil.generateAccessToken(userId, Role.STUDENT);
+        String token = jwtUtil.generateAccessToken(userId, Role.STUDENT, null);
 
         Claims claims = jwtUtil.parseToken(token);
         assertThat(claims.get("role", String.class)).isEqualTo("STUDENT");
     }
 
     @Test
+    @DisplayName("STUDENT token should include studentNumber claim when provided")
+    void generateAccessToken_studentShouldContainStudentNumberClaim() {
+        UUID userId = UUID.randomUUID();
+        String token = jwtUtil.generateAccessToken(userId, Role.STUDENT, "20190001");
+
+        Claims claims = jwtUtil.parseToken(token);
+        assertThat(claims.get("studentNumber", String.class)).isEqualTo("20190001");
+    }
+
+    @Test
+    @DisplayName("Non-STUDENT token should not include studentNumber claim")
+    void generateAccessToken_nonStudentShouldNotContainStudentNumberClaim() {
+        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER, null);
+
+        Claims claims = jwtUtil.parseToken(token);
+        assertThat(claims.get("studentNumber")).isNull();
+    }
+
+    @Test
     @DisplayName("Generated token expiry should be approximately ACCESS_MS milliseconds in the future")
     void generateAccessToken_expiryShouldBeInFuture() {
         long beforeMs = System.currentTimeMillis();
-        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.ADMIN);
+        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.ADMIN, null);
 
         Date expiry = jwtUtil.parseToken(token).getExpiration();
         long afterMs = System.currentTimeMillis();
@@ -69,7 +88,7 @@ class JwtUtilTest {
     @DisplayName("extractUserId should return the UUID embedded in the token")
     void extractUserId_shouldReturnCorrectUUID() {
         UUID userId = UUID.randomUUID();
-        String token = jwtUtil.generateAccessToken(userId, Role.TEACHER);
+        String token = jwtUtil.generateAccessToken(userId, Role.TEACHER, null);
 
         assertThat(jwtUtil.extractUserId(token)).isEqualTo(userId);
     }
@@ -77,7 +96,7 @@ class JwtUtilTest {
     @Test
     @DisplayName("extractRole should return the role embedded in the token")
     void extractRole_shouldReturnCorrectRole() {
-        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.ADMIN);
+        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.ADMIN, null);
 
         assertThat(jwtUtil.extractRole(token)).isEqualTo(Role.ADMIN);
     }
@@ -85,7 +104,7 @@ class JwtUtilTest {
     @Test
     @DisplayName("isValid should return true for a freshly generated token")
     void isValid_shouldReturnTrue_forValidToken() {
-        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER);
+        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER, null);
 
         assertThat(jwtUtil.isValid(token)).isTrue();
     }
@@ -95,7 +114,7 @@ class JwtUtilTest {
     void isValid_shouldReturnFalse_forExpiredToken() {
         // Use negative expiration to produce an already-expired token
         JwtUtil expiredJwtUtil = new JwtUtil(new JwtProperties(TEST_SECRET, -1000L, REFRESH_MS));
-        String expiredToken = expiredJwtUtil.generateAccessToken(UUID.randomUUID(), Role.STUDENT);
+        String expiredToken = expiredJwtUtil.generateAccessToken(UUID.randomUUID(), Role.STUDENT, null);
 
         assertThat(jwtUtil.isValid(expiredToken)).isFalse();
     }
@@ -105,7 +124,7 @@ class JwtUtilTest {
     void isValid_shouldReturnFalse_forTokenSignedWithDifferentSecret() {
         String differentSecret = "ZGlmZmVyZW50U2VjcmV0S2V5VGhhdElzTG9uZ0Vub3VnaA==";
         JwtUtil otherJwtUtil = new JwtUtil(new JwtProperties(differentSecret, ACCESS_MS, REFRESH_MS));
-        String foreignToken = otherJwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER);
+        String foreignToken = otherJwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER, null);
 
         assertThat(jwtUtil.isValid(foreignToken)).isFalse();
     }
@@ -113,7 +132,7 @@ class JwtUtilTest {
     @Test
     @DisplayName("isValid should return false for a tampered token")
     void isValid_shouldReturnFalse_forTamperedToken() {
-        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER);
+        String token = jwtUtil.generateAccessToken(UUID.randomUUID(), Role.TEACHER, null);
         String tampered = token.substring(0, token.length() - 4) + "XXXX";
 
         assertThat(jwtUtil.isValid(tampered)).isFalse();

@@ -27,7 +27,7 @@ class GraduationEngineTest {
 
     @BeforeEach
     void setUp() {
-        engine = new GraduationEngine();
+        engine = new GraduationEngine(new GpaCalculator());
     }
 
     // ── Helper factories ──────────────────────────────────────────────────────

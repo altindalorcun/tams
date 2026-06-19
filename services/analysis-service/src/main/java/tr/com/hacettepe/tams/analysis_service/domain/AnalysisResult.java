@@ -52,6 +52,12 @@ public class AnalysisResult {
     @Column(name = "total_ects", nullable = false, precision = 6, scale = 2)
     private BigDecimal totalEcts = BigDecimal.ZERO;
 
+    @Column(name = "department_name", length = 255)
+    private String departmentName;
+
+    @Column(name = "gpa", precision = 4, scale = 2)
+    private BigDecimal gpa;
+
     @Column(name = "error_message")
     private String errorMessage;
 
@@ -62,7 +68,7 @@ public class AnalysisResult {
     private OffsetDateTime completedAt;
 
     @OneToMany(mappedBy = "result", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Deficiency> deficiencies = new ArrayList<>();
+    private List<CategoryResult> categoryResults = new ArrayList<>();
 
     @OneToMany(mappedBy = "result", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TranscriptCourse> transcriptCourses = new ArrayList<>();

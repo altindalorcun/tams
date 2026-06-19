@@ -12,24 +12,27 @@ vi.mock("@/api/analysisApi");
 const MOCK_RESULT: AnalysisResult = {
   id: "result-1",
   jobId: "job-1",
-  studentRef: "abc123def456",
+  maskedStudentRef: "abc123def456",
   departmentId: "dept-1",
   departmentName: "Bilgisayar Mühendisliği",
+  status: "COMPLETED",
   isEligible: true,
   gpa: 3.42,
+  totalCredit: 120,
+  totalEcts: 180,
   createdAt: "2026-01-15T10:00:00Z",
   categoryResults: [
     {
       categoryId: "cat-1",
       categoryName: "Zorunlu Dersler",
-      isEligible: true,
+      satisfied: true,
       earnedCourseCount: 10,
       requiredCourseCount: 10,
-      earnedCredits: 60,
-      requiredCredits: 60,
+      earnedCredit: 60,
+      requiredCredit: 60,
       earnedEcts: 90,
       requiredEcts: 90,
-      deficiencies: [],
+      missingMandatoryCourses: [],
     },
   ],
 };
@@ -40,11 +43,9 @@ const INELIGIBLE_RESULT: AnalysisResult = {
   categoryResults: [
     {
       ...MOCK_RESULT.categoryResults[0],
-      isEligible: false,
+      satisfied: false,
       earnedCourseCount: 8,
-      deficiencies: [
-        { courseCode: "BBM301", courseName: "Veri Yapıları", isMandatory: true, reason: "Alınmamış" },
-      ],
+      missingMandatoryCourses: ["BBM301"],
     },
   ],
 };
@@ -79,7 +80,6 @@ describe("StudentResultPage", () => {
       expect(screen.getByText(/mezuniyete hak kazanamadınız/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/BBM301/i)).toBeInTheDocument();
-    expect(screen.getByText(/veri yapıları/i)).toBeInTheDocument();
   });
 
   it("shows empty state when no result exists", async () => {

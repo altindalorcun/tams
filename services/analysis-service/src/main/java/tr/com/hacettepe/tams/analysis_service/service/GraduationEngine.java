@@ -1,5 +1,6 @@
 package tr.com.hacettepe.tams.analysis_service.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCategoryDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCourseDto;
@@ -32,7 +33,10 @@ import java.util.stream.Collectors;
  * The student is <em>eligible</em> to graduate when every category is satisfied.
  */
 @Component
+@RequiredArgsConstructor
 public class GraduationEngine {
+
+    private final GpaCalculator gpaCalculator;
 
     /**
      * Runs the graduation eligibility check.
@@ -60,6 +64,8 @@ public class GraduationEngine {
                 .map(c -> BigDecimal.valueOf(c.ects()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        BigDecimal gpa = gpaCalculator.calculate(allCourses);
+
         List<CategoryEvaluation> evaluations = new ArrayList<>();
         boolean allSatisfied = true;
 
@@ -71,7 +77,7 @@ public class GraduationEngine {
             }
         }
 
-        return new EngineResult(allSatisfied, totalCredit, totalEcts, evaluations);
+        return new EngineResult(allSatisfied, totalCredit, totalEcts, gpa, evaluations);
     }
 
     private CategoryEvaluation evaluateCategory(RuleCategoryDto category,

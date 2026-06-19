@@ -17,8 +17,8 @@ import type { Course, CreateCourseRequest } from "@/types";
 
 const schema = z.object({
   courseCode: z.string().min(1, "Ders kodu zorunludur"),
-  name: z.string().min(1, "Ders adı zorunludur"),
-  credits: z.coerce.number().min(0, "Kredi 0 veya üzeri olmalıdır"),
+  courseName: z.string().min(1, "Ders adı zorunludur"),
+  credit: z.coerce.number().min(0, "Kredi 0 veya üzeri olmalıdır"),
   ects: z.coerce.number().min(0, "AKTS 0 veya üzeri olmalıdır"),
 });
 type FormValues = z.infer<typeof schema>;
@@ -34,8 +34,8 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: initial
-      ? { courseCode: initial.courseCode, name: initial.name, credits: initial.credits, ects: initial.ects }
-      : { courseCode: "", name: "", credits: 0, ects: 0 },
+      ? { courseCode: initial.courseCode, courseName: initial.courseName, credit: initial.credit, ects: initial.ects }
+      : { courseCode: "", courseName: "", credit: 0, ects: 0 },
   });
 
   async function onSubmit(values: FormValues) {
@@ -58,7 +58,7 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="name" render={({ field }) => (
+            <FormField control={form.control} name="courseName" render={({ field }) => (
               <FormItem>
                 <FormLabel>Ders Adı</FormLabel>
                 <FormControl><Input placeholder="Algoritma ve Programlamaya Giriş" {...field} /></FormControl>
@@ -66,7 +66,7 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
               </FormItem>
             )} />
             <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="credits" render={({ field }) => (
+              <FormField control={form.control} name="credit" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Kredi</FormLabel>
                   <FormControl><Input type="number" min={0} {...field} /></FormControl>
@@ -171,8 +171,8 @@ export function CoursesTab() {
               {courses?.map((c) => (
                 <TableRow key={c.id} className="hover:bg-muted/50 transition-colors duration-150">
                   <TableCell className="font-mono text-sm">{c.courseCode}</TableCell>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.credits}</TableCell>
+                  <TableCell className="font-medium">{c.courseName}</TableCell>
+                  <TableCell className="text-right tabular-nums">{c.credit}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.ects}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -202,7 +202,7 @@ export function CoursesTab() {
         open={!!deleteTarget}
         onOpenChange={(v) => { if (!v) setDeleteTarget(undefined); }}
         title="Dersi sil"
-        description={`"${deleteTarget?.courseCode} — ${deleteTarget?.name}" dersini katalogdan silmek istediğinize emin misiniz?`}
+        description={`"${deleteTarget?.courseCode} — ${deleteTarget?.courseName}" dersini katalogdan silmek istediğinize emin misiniz?`}
         onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
         loading={deleteMut.isPending}
       />

@@ -53,7 +53,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         courseRepository.deleteAll();
         departmentRepository.deleteAll();
         adminToken = bearerToken("ADMIN");
-        department = departmentRepository.save(new Department("Bilgisayar Mühendisliği", null));
+        department = departmentRepository.save(new Department("Bilgisayar Mühendisliği", "BBM", null));
     }
 
     private String categoriesUrl() {

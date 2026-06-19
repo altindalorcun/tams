@@ -43,6 +43,9 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Column(name = "student_number", unique = true, length = 20)
+    private String studentNumber;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;

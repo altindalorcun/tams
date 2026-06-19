@@ -5,46 +5,49 @@ export interface TranscriptJobResponse {
   status: AnalysisStatus;
 }
 
-export interface Deficiency {
-  courseCode: string;
-  courseName: string;
-  isMandatory: boolean;
-  reason: string;
-}
-
 export interface CategoryResult {
   categoryId: string;
   categoryName: string;
-  isEligible: boolean;
-  earnedCourseCount: number;
-  requiredCourseCount: number;
-  earnedCredits: number;
-  requiredCredits?: number;
+  satisfied: boolean;
+  requiredCredit: number;
+  earnedCredit: number;
+  requiredEcts: number;
   earnedEcts: number;
-  requiredEcts?: number;
-  deficiencies: Deficiency[];
+  requiredCourseCount: number;
+  earnedCourseCount: number;
+  missingMandatoryCourses: string[];
 }
 
 export interface AnalysisResult {
   id: string;
   jobId: string;
-  studentRef: string;
+  maskedStudentRef: string;
   departmentId: string;
   departmentName: string;
+  status: AnalysisStatus;
   isEligible: boolean;
   gpa: number;
+  totalCredit: number;
+  totalEcts: number;
   createdAt: string;
+  completedAt?: string;
   categoryResults: CategoryResult[];
+  courses?: unknown[];
 }
 
 export interface AnalysisResultSummary {
   id: string;
   jobId: string;
-  studentRef: string;
+  maskedStudentRef: string;
+  departmentId: string;
   departmentName: string;
+  status: AnalysisStatus;
   isEligible: boolean;
   gpa: number;
+  totalCredit: number;
+  totalEcts: number;
   createdAt: string;
+  completedAt?: string;
 }
 
 export interface PageResponse<T> {

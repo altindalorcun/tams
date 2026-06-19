@@ -50,8 +50,18 @@ export async function getResult(id: string): Promise<AnalysisResult> {
 
 /**
  * Student: get own latest result.
+ * The backend resolves the student identity from the JWT studentNumber claim.
  */
 export async function getMyResult(): Promise<AnalysisResult> {
   const res = await axiosInstance.get<AnalysisResult>("/api/v1/results/me");
+  return res.data;
+}
+
+/**
+ * Teacher: get full analysis result by job ID.
+ * Use this after uploading a transcript — the jobId comes from the upload response.
+ */
+export async function getResultByJobId(jobId: string): Promise<AnalysisResult> {
+  const res = await axiosInstance.get<AnalysisResult>(`/api/v1/results/by-job/${jobId}`);
   return res.data;
 }

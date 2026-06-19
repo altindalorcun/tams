@@ -3,20 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadSection } from "./UploadSection";
 import { ResultCard, ResultCardSkeleton, HistoryTable } from "./ResultCard";
-import { getResult, getResults } from "@/api/analysisApi";
+import { getResult, getResults, getResultByJobId } from "@/api/analysisApi";
 
 /**
  * Teacher dashboard: upload transcripts, view results, browse history.
  */
 export function TeacherPage() {
   const [activeTab, setActiveTab] = useState<"upload" | "history">("upload");
-  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [uploadJobId, setUploadJobId] = useState<string | null>(null);
+  const [historyResultId, setHistoryResultId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
-  const { data: resultDetail, isLoading: resultLoading } = useQuery({
-    queryKey: ["result", selectedResultId],
-    queryFn: () => getResult(selectedResultId!),
-    enabled: !!selectedResultId,
+  const { data: uploadResult, isLoading: uploadResultLoading } = useQuery({
+    queryKey: ["result-by-job", uploadJobId],
+    queryFn: () => getResultByJobId(uploadJobId!),
+    enabled: !!uploadJobId,
+  });
+
+  const { data: historyResult, isLoading: historyResultLoading } = useQuery({
+    queryKey: ["result", historyResultId],
+    queryFn: () => getResult(historyResultId!),
+    enabled: !!historyResultId,
   });
 
   const { data: history, isLoading: historyLoading } = useQuery({
@@ -26,7 +33,7 @@ export function TeacherPage() {
   });
 
   function handleResultReady(jobId: string) {
-    setSelectedResultId(jobId);
+    setUploadJobId(jobId);
   }
 
   return (
@@ -42,13 +49,13 @@ export function TeacherPage() {
         <TabsContent value="upload" className="pt-6 space-y-6">
           <UploadSection onResultReady={handleResultReady} />
 
-          {selectedResultId && (
+          {uploadJobId && (
             <section className="space-y-4">
               <h2 className="text-lg font-semibold">Analiz Sonucu</h2>
-              {resultLoading || !resultDetail ? (
+              {uploadResultLoading || !uploadResult ? (
                 <ResultCardSkeleton />
               ) : (
-                <ResultCard result={resultDetail} />
+                <ResultCard result={uploadResult} />
               )}
             </section>
           )}
@@ -82,18 +89,18 @@ export function TeacherPage() {
             results={history?.content ?? []}
             isLoading={historyLoading}
             onSelect={(id) => {
-              setSelectedResultId(id);
+              setHistoryResultId(id);
               setActiveTab("upload");
             }}
           />
 
-          {selectedResultId && !historyLoading && (
+          {historyResultId && !historyLoading && (
             <section className="space-y-4 pt-4">
               <h2 className="text-lg font-semibold">Seçili Analiz Detayı</h2>
-              {resultLoading || !resultDetail ? (
+              {historyResultLoading || !historyResult ? (
                 <ResultCardSkeleton />
               ) : (
-                <ResultCard result={resultDetail} />
+                <ResultCard result={historyResult} />
               )}
             </section>
           )}

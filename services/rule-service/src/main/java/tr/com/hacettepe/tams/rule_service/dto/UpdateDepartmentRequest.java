@@ -10,6 +10,9 @@ public record UpdateDepartmentRequest(
         @Schema(description = "New unique name for the department", example = "Elektrik-Elektronik Mühendisliği")
         @NotBlank @Size(max = 255) String name,
 
+        @Schema(description = "Unique short department code", example = "EENG")
+        @NotBlank @Size(max = 20) String code,
+
         @Schema(description = "Updated description", example = "Department of Electrical and Electronics Engineering")
         String description
 ) {}

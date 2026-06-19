@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { AnalysisResult, CategoryResult } from "@/types";
+import type { AnalysisResult, AnalysisResultSummary, CategoryResult } from "@/types";
 
 function EligibilityBanner({ isEligible, gpa }: { isEligible: boolean; gpa: number }) {
   return (
@@ -29,25 +29,24 @@ function EligibilityBanner({ isEligible, gpa }: { isEligible: boolean; gpa: numb
 
 function CategoryCard({ cat }: { cat: CategoryResult }) {
   const courseProgress = Math.min(100, (cat.earnedCourseCount / cat.requiredCourseCount) * 100);
-  const creditProgress = cat.requiredCredits
-    ? Math.min(100, (cat.earnedCredits / cat.requiredCredits) * 100)
+  const creditProgress = cat.requiredCredit > 0
+    ? Math.min(100, (cat.earnedCredit / cat.requiredCredit) * 100)
     : null;
-  const ectsProgress = cat.requiredEcts
+  const ectsProgress = cat.requiredEcts > 0
     ? Math.min(100, (cat.earnedEcts / cat.requiredEcts) * 100)
     : null;
 
   return (
-    <Card className={cn("shadow-sm", !cat.isEligible && "border-destructive/40")}>
+    <Card className={cn("shadow-sm", !cat.satisfied && "border-destructive/40")}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{cat.categoryName}</h3>
-          <Badge variant={cat.isEligible ? "default" : "outline"} className={cn(!cat.isEligible && "border-destructive text-destructive")}>
-            {cat.isEligible ? "Yeterli" : "Eksik"}
+          <Badge variant={cat.satisfied ? "default" : "outline"} className={cn(!cat.satisfied && "border-destructive text-destructive")}>
+            {cat.satisfied ? "Yeterli" : "Eksik"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Course count progress */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Ders sayısı</span>
@@ -60,7 +59,7 @@ function CategoryCard({ cat }: { cat: CategoryResult }) {
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Kredi</span>
-              <span>{cat.earnedCredits} / {cat.requiredCredits}</span>
+              <span>{cat.earnedCredit} / {cat.requiredCredit}</span>
             </div>
             <Progress value={creditProgress} className="h-1.5" />
           </div>
@@ -76,19 +75,16 @@ function CategoryCard({ cat }: { cat: CategoryResult }) {
           </div>
         )}
 
-        {cat.deficiencies.length > 0 && (
+        {cat.missingMandatoryCourses.length > 0 && (
           <>
             <Separator />
             <div className="space-y-1">
               <p className="text-xs font-medium text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Eksik Dersler
+                <AlertTriangle className="h-3 w-3" /> Eksik Zorunlu Dersler
               </p>
-              {cat.deficiencies.map((d) => (
-                <div key={d.courseCode} className="flex items-start justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    <span className="font-mono">{d.courseCode}</span> {d.courseName}
-                    {d.isMandatory && <Badge variant="outline" className="ml-1 text-[10px] leading-none py-0">Zorunlu</Badge>}
-                  </span>
+              {cat.missingMandatoryCourses.map((courseCode) => (
+                <div key={courseCode} className="text-xs text-muted-foreground">
+                  <span className="font-mono">{courseCode}</span>
                 </div>
               ))}
             </div>
@@ -105,7 +101,7 @@ interface ResultCardProps {
 }
 
 /**
- * Displays a full analysis result with eligibility, category breakdown, and deficiencies.
+ * Displays a full analysis result with eligibility, category breakdown, and missing mandatory courses.
  */
 export function ResultCard({ result, isLoading }: ResultCardProps) {
   if (isLoading) {
@@ -147,7 +143,7 @@ export function ResultCardSkeleton() {
 }
 
 export function HistoryTable({ results, isLoading, onSelect }: {
-  results: { id: string; studentRef: string; departmentName: string; isEligible: boolean; gpa: number; createdAt: string }[];
+  results: AnalysisResultSummary[];
   isLoading: boolean;
   onSelect: (id: string) => void;
 }) {
@@ -179,7 +175,7 @@ export function HistoryTable({ results, isLoading, onSelect }: {
               className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
               onClick={() => onSelect(r.id)}
             >
-              <TableCell className="font-mono text-xs">{r.studentRef}</TableCell>
+              <TableCell className="font-mono text-xs">{r.maskedStudentRef}</TableCell>
               <TableCell>{r.departmentName}</TableCell>
               <TableCell className="text-right tabular-nums">{r.gpa.toFixed(2)}</TableCell>
               <TableCell>

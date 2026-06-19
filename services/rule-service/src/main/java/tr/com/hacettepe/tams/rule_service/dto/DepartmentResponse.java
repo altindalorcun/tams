@@ -9,12 +9,13 @@ import java.util.UUID;
 public record DepartmentResponse(
         UUID id,
         String name,
+        String code,
         String description,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
     public static DepartmentResponse from(Department d) {
-        return new DepartmentResponse(d.getId(), d.getName(), d.getDescription(),
+        return new DepartmentResponse(d.getId(), d.getName(), d.getCode(), d.getDescription(),
                 d.getCreatedAt(), d.getUpdatedAt());
     }
 }
