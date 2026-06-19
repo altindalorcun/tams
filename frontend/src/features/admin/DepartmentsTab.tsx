@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,8 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from "@/api/ruleApi";
-import type { Department, CreateDepartmentRequest } from "@/types";
+import {
+  getDepartments, createDepartment, updateDepartment, deleteDepartment,
+  getDepartmentCourses, addCourseToDepartment, removeCourseFromDepartment, getCourses,
+} from "@/api/ruleApi";
+import type { Department, CreateDepartmentRequest, DepartmentCourse } from "@/types";
 
 const schema = z.object({
   name: z.string().min(1, "İsim zorunludur"),
@@ -74,6 +77,111 @@ function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
   );
 }
 
+interface DeptCoursesPoolDialogProps {
+  departmentId: string;
+  departmentName: string;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+function DeptCoursesPoolDialog({ departmentId, departmentName, open, onOpenChange }: DeptCoursesPoolDialogProps) {
+  const qc = useQueryClient();
+
+  const { data: allCourses = [] } = useQuery({ queryKey: ["courses"], queryFn: getCourses, enabled: open });
+  const { data: deptCourses = [], isLoading } = useQuery({
+    queryKey: ["department-courses", departmentId],
+    queryFn: () => getDepartmentCourses(departmentId),
+    enabled: open,
+  });
+
+  const assignedIds = new Set(deptCourses.map((c: DepartmentCourse) => c.courseId));
+
+  const addMut = useMutation({
+    mutationFn: (courseId: string) => addCourseToDepartment(departmentId, courseId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["department-courses", departmentId] }); toast.success("Ders havuza eklendi."); },
+    onError: () => toast.error("Ders eklenemedi."),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: (courseId: string) => removeCourseFromDepartment(departmentId, courseId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["department-courses", departmentId] }); toast.success("Ders havuzdan çıkarıldı."); },
+    onError: () => toast.error("Ders çıkarılamadı."),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl shadow-xl">
+        <DialogHeader>
+          <DialogTitle>{departmentName} — Ders Havuzu</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-1">
+          Bu bölümün ders havuzuna ders ekleyin veya çıkarın. Havuzdaki dersler mezuniyet kategorilerine atanabilir.
+        </p>
+        <div className="grid grid-cols-2 gap-4 pt-2 min-h-[240px]">
+          <div>
+            <p className="text-sm font-medium mb-2">Havuzdaki Dersler</p>
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
+                {deptCourses.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Henüz ders yok</p>
+                )}
+                {deptCourses.map((c: DepartmentCourse) => (
+                  <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
+                    <div>
+                      <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
+                      <span className="ml-1 text-sm">{c.courseName}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive"
+                      onClick={() => removeMut.mutate(c.courseId)}
+                      aria-label="Havuzdan çıkar"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-medium mb-2">Eklenebilir Dersler</p>
+            <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
+              {allCourses.filter((c) => !assignedIds.has(c.id)).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Eklenecek ders yok</p>
+              )}
+              {allCourses.filter((c) => !assignedIds.has(c.id)).map((c) => (
+                <div key={c.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
+                  <div>
+                    <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
+                    <span className="ml-1 text-sm">{c.courseName}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs"
+                    onClick={() => addMut.mutate(c.id)}
+                    aria-label="Havuza ekle"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ekle
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Kapat</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /**
  * Admin tab: manage university departments.
  */
@@ -82,6 +190,7 @@ export function DepartmentsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Department | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Department | undefined>();
+  const [poolTarget, setPoolTarget] = useState<Department | undefined>();
 
   const { data: departments, isLoading } = useQuery({
     queryKey: ["departments"],
@@ -138,7 +247,7 @@ export function DepartmentsTab() {
               <TableRow>
                 <TableHead>Bölüm Adı</TableHead>
                 <TableHead>Kod</TableHead>
-                <TableHead className="w-24 text-right">İşlemler</TableHead>
+                <TableHead className="w-32 text-right">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -155,6 +264,9 @@ export function DepartmentsTab() {
                   <TableCell className="text-muted-foreground">{d.code}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setPoolTarget(d)} aria-label="Ders havuzu" title="Ders Havuzu">
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(d)} aria-label="Düzenle">
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -185,6 +297,15 @@ export function DepartmentsTab() {
         onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
         loading={deleteMut.isPending}
       />
+
+      {poolTarget && (
+        <DeptCoursesPoolDialog
+          departmentId={poolTarget.id}
+          departmentName={poolTarget.name}
+          open={!!poolTarget}
+          onOpenChange={(v) => { if (!v) setPoolTarget(undefined); }}
+        />
+      )}
     </section>
   );
 }
