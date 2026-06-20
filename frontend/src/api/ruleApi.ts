@@ -1,6 +1,6 @@
 import { axiosInstance } from "./axiosInstance";
 import type {
-  Department, Course, Category, DepartmentCourse, CategoryCourse,
+  Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
   CreateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
 } from "@/types";
 
@@ -32,6 +32,13 @@ export async function deleteDepartment(id: string): Promise<void> {
 
 export async function getDepartmentCourses(departmentId: string): Promise<DepartmentCourse[]> {
   const res = await axiosInstance.get<DepartmentCourse[]>(`/api/v1/departments/${departmentId}/courses`);
+  return res.data;
+}
+
+export async function getDepartmentCoursePool(departmentId: string): Promise<DepartmentCoursePoolResponse> {
+  const res = await axiosInstance.get<DepartmentCoursePoolResponse>(
+    `/api/v1/departments/${departmentId}/course-pool`,
+  );
   return res.data;
 }
 

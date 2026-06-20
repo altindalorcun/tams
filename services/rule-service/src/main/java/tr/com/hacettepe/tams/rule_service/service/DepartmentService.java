@@ -14,7 +14,9 @@ import tr.com.hacettepe.tams.rule_service.repository.DepartmentCourseRepository;
 import tr.com.hacettepe.tams.rule_service.repository.DepartmentRepository;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Business logic for department management.
@@ -101,6 +103,24 @@ public class DepartmentService {
         return departmentCourseRepository.findCoursesByDepartmentId(departmentId).stream()
                 .map(CourseResponse::from)
                 .toList();
+    }
+
+    /**
+     * Returns assigned and available courses for a department in one query,
+     * so the frontend can populate the course-pool dialog with a single request.
+     */
+    @Transactional(readOnly = true)
+    public DepartmentCoursePoolResponse findCoursePool(UUID departmentId) {
+        getDepartmentOrThrow(departmentId);
+        List<Course> assigned = departmentCourseRepository.findCoursesByDepartmentId(departmentId);
+        Set<UUID> assignedIds = assigned.stream().map(Course::getId).collect(Collectors.toSet());
+        List<Course> available = courseRepository.findAll().stream()
+                .filter(c -> !assignedIds.contains(c.getId()))
+                .toList();
+        return new DepartmentCoursePoolResponse(
+                assigned.stream().map(DepartmentCourseItem::from).toList(),
+                available.stream().map(CourseResponse::from).toList()
+        );
     }
 
     Department getDepartmentOrThrow(UUID id) {

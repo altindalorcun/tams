@@ -33,6 +33,11 @@ export interface DepartmentCourse {
   ects: number;
 }
 
+export interface DepartmentCoursePoolResponse {
+  assignedCourses: DepartmentCourse[];
+  availableCourses: Course[];
+}
+
 export interface CategoryCourse {
   courseId: string;
   courseCode: string;

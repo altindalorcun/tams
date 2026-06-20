@@ -14,9 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   getDepartments, createDepartment, updateDepartment, deleteDepartment,
-  getDepartmentCourses, addCourseToDepartment, removeCourseFromDepartment, getCourses,
+  getDepartmentCoursePool, addCourseToDepartment, removeCourseFromDepartment,
 } from "@/api/ruleApi";
-import type { Department, CreateDepartmentRequest, DepartmentCourse } from "@/types";
+import type { Department, CreateDepartmentRequest, DepartmentCourse, DepartmentCoursePoolResponse } from "@/types";
 
 const schema = z.object({
   name: z.string().min(1, "İsim zorunludur"),
@@ -84,89 +84,131 @@ interface DeptCoursesPoolDialogProps {
   onOpenChange: (v: boolean) => void;
 }
 
+const POOL_KEY = (departmentId: string) => ["department-course-pool", departmentId];
+
 function DeptCoursesPoolDialog({ departmentId, departmentName, open, onOpenChange }: DeptCoursesPoolDialogProps) {
   const qc = useQueryClient();
 
-  const { data: allCourses = [] } = useQuery({ queryKey: ["courses"], queryFn: getCourses, enabled: open });
-  const { data: deptCourses = [], isLoading } = useQuery({
-    queryKey: ["department-courses", departmentId],
-    queryFn: () => getDepartmentCourses(departmentId),
+  const { data: pool, isLoading } = useQuery({
+    queryKey: POOL_KEY(departmentId),
+    queryFn: () => getDepartmentCoursePool(departmentId),
     enabled: open,
   });
 
-  const assignedIds = new Set(deptCourses.map((c: DepartmentCourse) => c.courseId));
+  const assignedCourses: DepartmentCourse[] = pool?.assignedCourses ?? [];
+  const availableCourses = pool?.availableCourses ?? [];
 
   const addMut = useMutation({
     mutationFn: (courseId: string) => addCourseToDepartment(departmentId, courseId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["department-courses", departmentId] }); toast.success("Ders havuza eklendi."); },
-    onError: () => toast.error("Ders eklenemedi."),
+    onMutate: async (courseId: string) => {
+      await qc.cancelQueries({ queryKey: POOL_KEY(departmentId) });
+      const previous = qc.getQueryData<DepartmentCoursePoolResponse>(POOL_KEY(departmentId));
+      const courseToAdd = (previous?.availableCourses ?? []).find((c) => c.id === courseId);
+      if (courseToAdd && previous) {
+        qc.setQueryData<DepartmentCoursePoolResponse>(POOL_KEY(departmentId), {
+          assignedCourses: [
+            ...previous.assignedCourses,
+            { courseId: courseToAdd.id, courseCode: courseToAdd.courseCode, courseName: courseToAdd.courseName, credit: courseToAdd.credit, ects: courseToAdd.ects },
+          ],
+          availableCourses: previous.availableCourses.filter((c) => c.id !== courseId),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _courseId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(POOL_KEY(departmentId), context.previous);
+      }
+      toast.error("Ders eklenemedi.");
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: POOL_KEY(departmentId) }); toast.success("Ders havuza eklendi."); },
   });
 
   const removeMut = useMutation({
     mutationFn: (courseId: string) => removeCourseFromDepartment(departmentId, courseId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["department-courses", departmentId] }); toast.success("Ders havuzdan çıkarıldı."); },
-    onError: () => toast.error("Ders çıkarılamadı."),
+    onMutate: async (courseId: string) => {
+      await qc.cancelQueries({ queryKey: POOL_KEY(departmentId) });
+      const previous = qc.getQueryData<DepartmentCoursePoolResponse>(POOL_KEY(departmentId));
+      const courseToRemove = (previous?.assignedCourses ?? []).find((c) => c.courseId === courseId);
+      if (courseToRemove && previous) {
+        qc.setQueryData<DepartmentCoursePoolResponse>(POOL_KEY(departmentId), {
+          assignedCourses: previous.assignedCourses.filter((c) => c.courseId !== courseId),
+          availableCourses: [
+            ...previous.availableCourses,
+            { id: courseToRemove.courseId, courseCode: courseToRemove.courseCode, courseName: courseToRemove.courseName, credit: courseToRemove.credit, ects: courseToRemove.ects },
+          ],
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _courseId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(POOL_KEY(departmentId), context.previous);
+      }
+      toast.error("Ders çıkarılamadı.");
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: POOL_KEY(departmentId) }); toast.success("Ders havuzdan çıkarıldı."); },
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl shadow-xl">
+      <DialogContent className="w-[min(95vw,1000px)] max-w-none shadow-xl">
         <DialogHeader>
           <DialogTitle>{departmentName} — Ders Havuzu</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground -mt-1">
           Bu bölümün ders havuzuna ders ekleyin veya çıkarın. Havuzdaki dersler mezuniyet kategorilerine atanabilir.
         </p>
-        <div className="grid grid-cols-2 gap-4 pt-2 min-h-[240px]">
-          <div>
-            <p className="text-sm font-medium mb-2">Havuzdaki Dersler</p>
+        <div className="grid grid-cols-2 gap-6 pt-2">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Havuzdaki Dersler</p>
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : (
-              <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
-                {deptCourses.length === 0 && (
+              <div className="space-y-1 max-h-72 overflow-y-auto rounded-md border p-2">
+                {assignedCourses.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">Henüz ders yok</p>
                 )}
-                {deptCourses.map((c: DepartmentCourse) => (
-                  <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
-                    <div>
-                      <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                      <span className="ml-1 text-sm">{c.courseName}</span>
+                {assignedCourses.map((c: DepartmentCourse) => (
+                  <div key={c.courseId} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-tight truncate">{c.courseName}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{c.courseCode}</p>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-destructive"
+                      className="h-7 w-7 shrink-0 text-destructive"
                       onClick={() => removeMut.mutate(c.courseId)}
                       aria-label="Havuzdan çıkar"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div>
-            <p className="text-sm font-medium mb-2">Eklenebilir Dersler</p>
-            <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
-              {allCourses.filter((c) => !assignedIds.has(c.id)).length === 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Eklenebilir Dersler</p>
+            <div className="space-y-1 max-h-72 overflow-y-auto rounded-md border p-2">
+              {availableCourses.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Eklenecek ders yok</p>
               )}
-              {allCourses.filter((c) => !assignedIds.has(c.id)).map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
-                  <div>
-                    <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                    <span className="ml-1 text-sm">{c.courseName}</span>
+              {availableCourses.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-tight truncate">{c.courseName}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{c.courseCode}</p>
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 text-xs"
+                    className="h-7 shrink-0 text-xs"
                     onClick={() => addMut.mutate(c.id)}
                     aria-label="Havuza ekle"
                   >
-                    <Plus className="h-3 w-3 mr-1" />
+                    <Plus className="h-3.5 w-3.5 mr-1" />
                     Ekle
                   </Button>
                 </div>

@@ -72,8 +72,8 @@ public class DepartmentController {
     @PostMapping("/{id}/courses")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Add a course to the department's offering pool")
-    public ResponseEntity<Void> addCourse(@PathVariable UUID id, @RequestParam UUID courseId) {
-        departmentService.addCourse(id, courseId);
+    public ResponseEntity<Void> addCourse(@PathVariable UUID id, @Valid @RequestBody AddCourseToPoolRequest request) {
+        departmentService.addCourse(id, request.courseId());
         return ResponseEntity.noContent().build();
     }
 
@@ -82,6 +82,13 @@ public class DepartmentController {
     @Operation(summary = "List all courses offered by a department")
     public ResponseEntity<List<CourseResponse>> findCourses(@PathVariable UUID id) {
         return ResponseEntity.ok(departmentService.findCoursesForDepartment(id));
+    }
+
+    @GetMapping("/{id}/course-pool")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get assigned and available courses for the department pool dialog")
+    public ResponseEntity<DepartmentCoursePoolResponse> getCoursePool(@PathVariable UUID id) {
+        return ResponseEntity.ok(departmentService.findCoursePool(id));
     }
 
     @DeleteMapping("/{id}/courses/{courseId}")
