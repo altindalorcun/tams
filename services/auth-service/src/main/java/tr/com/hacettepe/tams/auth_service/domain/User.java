@@ -50,6 +50,10 @@ public class User {
     @Builder.Default
     private boolean isActive = true;
 
+    @Column(name = "must_change_password", nullable = false)
+    @Builder.Default
+    private boolean mustChangePassword = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false,
             columnDefinition = "TIMESTAMPTZ")

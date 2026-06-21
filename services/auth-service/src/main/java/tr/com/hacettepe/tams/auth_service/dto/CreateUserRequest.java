@@ -7,10 +7,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import tr.com.hacettepe.tams.auth_service.domain.Role;
 
-public record RegisterRequest(
+/**
+ * Request body for admin-initiated user creation.
+ * No password field — a secure default is assigned by the service.
+ * The user is required to change it on first login.
+ */
+public record CreateUserRequest(
         @NotBlank @Size(min = 3, max = 100) String username,
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 8, max = 128) String password,
         @NotNull Role role,
         @Nullable @Size(max = 20) String studentNumber
 ) {}

@@ -2,7 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { ChangePasswordPage } from "@/features/auth/ChangePasswordPage";
 import { AdminPage } from "@/features/admin/AdminPage";
+import { UsersPage } from "@/features/admin/UsersPage";
 import { TeacherPage } from "@/features/teacher/TeacherPage";
 import { StudentResultPage } from "@/features/student/StudentResultPage";
 
@@ -19,6 +21,8 @@ function ForbiddenPage() {
 /**
  * Top-level router.
  * Protected areas are nested under AppShell via the ProtectedRoute wrapper.
+ * /change-password is protected (requires auth token) but rendered without AppShell
+ * so the user cannot navigate away before completing the mandatory password change.
  */
 export function AppRouter() {
   return (
@@ -27,11 +31,17 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
+        {/* Mandatory password change — requires auth token, no AppShell */}
+        <Route element={<ProtectedRoute allowMustChangePassword />}>
+          <Route path="/change-password" element={<ChangePasswordPage />} />
+        </Route>
+
         {/* Authenticated shell */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route path="/admin/*" element={<ProtectedRoute requiredRole="ADMIN" />}>
               <Route index element={<AdminPage />} />
+              <Route path="users" element={<UsersPage />} />
             </Route>
             <Route path="/teacher/*" element={<ProtectedRoute requiredRole="TEACHER" />}>
               <Route index element={<TeacherPage />} />
@@ -40,7 +50,6 @@ export function AppRouter() {
               <Route path="results" element={<StudentResultPage />} />
               <Route index element={<StudentResultPage />} />
             </Route>
-            {/* Default authenticated landing — redirect based on role is handled in AppShell */}
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Route>
         </Route>

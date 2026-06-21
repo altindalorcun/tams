@@ -57,6 +57,7 @@ describe("LoginPage", () => {
     vi.mocked(authApi.login).mockResolvedValueOnce({
       accessToken: "test-token",
       refreshToken: "refresh-token",
+      mustChangePassword: false,
     });
     renderLogin();
 

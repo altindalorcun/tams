@@ -21,7 +21,7 @@ import { useAuthStore } from "./authStore";
 import { login } from "@/api/authApi";
 
 const loginSchema = z.object({
-  email: z.string().email("Geçerli bir e-posta adresi girin"),
+  email: z.string().min(1, "E-posta veya kullanıcı adı gereklidir"),
   password: z.string().min(1, "Şifre gereklidir"),
 });
 
@@ -33,16 +33,19 @@ type LoginFormValues = z.infer<typeof loginSchema>;
  * Mobile: single-column with form.
  */
 export function LoginPage() {
-  const { accessToken, role, setToken } = useAuthStore();
+  const { accessToken, role, mustChangePassword, setAuth } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (accessToken && role) {
-      const destination =
-        role === "ADMIN" ? "/admin" : role === "TEACHER" ? "/teacher" : "/student/results";
-      navigate(destination, { replace: true });
+    if (!accessToken || !role) return;
+    if (mustChangePassword) {
+      navigate("/change-password", { replace: true });
+      return;
     }
-  }, [accessToken, role, navigate]);
+    const destination =
+      role === "ADMIN" ? "/admin" : role === "TEACHER" ? "/teacher" : "/student/results";
+    navigate(destination, { replace: true });
+  }, [accessToken, role, mustChangePassword, navigate]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -53,10 +56,10 @@ export function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     try {
-      const { accessToken: token } = await login(values);
-      setToken(token);
+      const response = await login(values);
+      setAuth(response.accessToken, response.mustChangePassword);
     } catch {
-      toast.error("Giriş başarısız. E-posta veya şifrenizi kontrol edin.");
+      toast.error("Giriş başarısız. E-posta/kullanıcı adı veya şifrenizi kontrol edin.");
     }
   }
 
@@ -77,7 +80,7 @@ export function LoginPage() {
 
           <h1 className="text-2xl font-semibold mb-2">Giriş Yap</h1>
           <p className="text-sm text-muted-foreground mb-8">
-            Hesabınıza erişmek için e-posta ve şifrenizi girin.
+            Hesabınıza erişmek için e-posta/kullanıcı adı ve şifrenizi girin.
           </p>
 
           <Form {...form}>
@@ -87,12 +90,12 @@ export function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-posta</FormLabel>
+                    <FormLabel>E-posta veya Kullanıcı Adı</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
+                        type="text"
                         placeholder="kullanici@hacettepe.edu.tr"
-                        autoComplete="email"
+                        autoComplete="username"
                         {...field}
                       />
                     </FormControl>

@@ -3,7 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import type { AuthState, TokenPayload, UserRole } from "@/types";
 
 interface AuthStore extends AuthState {
-  setToken: (token: string) => void;
+  setAuth: (token: string, mustChangePassword: boolean) => void;
   clearAuth: () => void;
 }
 
@@ -18,27 +18,37 @@ function parseToken(token: string): { role: UserRole; userId: string } | null {
 }
 
 const storedToken = sessionStorage.getItem("accessToken");
+const storedMustChange = sessionStorage.getItem("mustChangePassword") === "true";
 const initialParsed = storedToken ? parseToken(storedToken) : null;
 
 /**
  * Global authentication state.
  * Token is persisted in sessionStorage so it survives page refreshes
  * but is cleared when the browser tab is closed.
+ * mustChangePassword is also persisted so a refresh mid-flow keeps the redirect.
  */
 export const useAuthStore = create<AuthStore>((set) => ({
   accessToken: initialParsed ? storedToken : null,
   role: initialParsed?.role ?? null,
   userId: initialParsed?.userId ?? null,
+  mustChangePassword: initialParsed ? storedMustChange : false,
 
-  setToken: (token: string) => {
+  setAuth: (token: string, mustChangePassword: boolean) => {
     const parsed = parseToken(token);
     if (!parsed) return;
     sessionStorage.setItem("accessToken", token);
-    set({ accessToken: token, role: parsed.role, userId: parsed.userId });
+    sessionStorage.setItem("mustChangePassword", String(mustChangePassword));
+    set({
+      accessToken: token,
+      role: parsed.role,
+      userId: parsed.userId,
+      mustChangePassword,
+    });
   },
 
   clearAuth: () => {
     sessionStorage.removeItem("accessToken");
-    set({ accessToken: null, role: null, userId: null });
+    sessionStorage.removeItem("mustChangePassword");
+    set({ accessToken: null, role: null, userId: null, mustChangePassword: false });
   },
 }));

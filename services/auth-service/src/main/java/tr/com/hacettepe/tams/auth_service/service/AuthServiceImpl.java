@@ -8,10 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tr.com.hacettepe.tams.auth_service.config.JwtProperties;
 import tr.com.hacettepe.tams.auth_service.domain.RefreshToken;
-import tr.com.hacettepe.tams.auth_service.domain.Role;
 import tr.com.hacettepe.tams.auth_service.domain.User;
 import tr.com.hacettepe.tams.auth_service.dto.*;
-import tr.com.hacettepe.tams.auth_service.exception.ConflictException;
 import tr.com.hacettepe.tams.auth_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.auth_service.exception.UnauthorizedException;
 import tr.com.hacettepe.tams.auth_service.repository.RefreshTokenRepository;
@@ -40,45 +38,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
-        if (request.role() == Role.ADMIN) {
-            throw new UnauthorizedException("ADMIN accounts cannot be self-registered");
-        }
-        if (userRepository.existsByEmail(request.email())) {
-            throw new ConflictException("Email already in use: " + request.email());
-        }
-        if (userRepository.existsByUsername(request.username())) {
-            throw new ConflictException("Username already in use: " + request.username());
-        }
-        if (request.role() == Role.STUDENT) {
-            if (request.studentNumber() == null || request.studentNumber().isBlank()) {
-                throw new IllegalArgumentException("studentNumber is required for STUDENT role");
-            }
-            if (userRepository.existsByStudentNumber(request.studentNumber())) {
-                throw new ConflictException("Student number already in use: " + request.studentNumber());
-            }
-        }
-
-        User user = User.builder()
-                .username(request.username())
-                .email(request.email())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .role(request.role())
-                .studentNumber(request.studentNumber())
-                .build();
-
-        user = userRepository.save(user);
-        return issueTokenPair(user);
-    }
-
-    @Override
-    @Transactional
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
 
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailOrUsername(request.email(), request.email())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return issueTokenPair(user);
@@ -95,7 +60,6 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Refresh token has expired — please log in again");
         }
 
-        // Rotate: delete the used token, issue a new pair
         refreshTokenRepository.delete(stored);
         return issueTokenPair(stored.getUser());
     }
@@ -113,8 +77,25 @@ public class AuthServiceImpl implements AuthService {
             return new TokenValidationResponse(null, null, false);
         }
         UUID userId = jwtUtil.extractUserId(token);
-        Role role = jwtUtil.extractRole(token);
+        tr.com.hacettepe.tams.auth_service.domain.Role role = jwtUtil.extractRole(token);
         return new TokenValidationResponse(userId, role, true);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(UUID userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        refreshTokenRepository.deleteAllByUser(user);
     }
 
     // ── private helpers ──────────────────────────────────────────────────────
@@ -133,7 +114,8 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.of(accessToken, rawRefreshToken,
-                jwtProperties.accessExpirationMs(), user.getId(), user.getRole(), user.getStudentNumber());
+                jwtProperties.accessExpirationMs(), user.getId(), user.getRole(),
+                user.getStudentNumber(), user.isMustChangePassword());
     }
 
     private String stripBearer(String header) {

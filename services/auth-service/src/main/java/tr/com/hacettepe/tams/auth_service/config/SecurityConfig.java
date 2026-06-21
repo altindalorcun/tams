@@ -15,13 +15,16 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import tr.com.hacettepe.tams.auth_service.security.JwtAuthFilter;
 import tr.com.hacettepe.tams.auth_service.security.UserDetailsServiceImpl;
 
 /**
  * Security configuration for the auth-service.
- * Auth endpoints and internal cluster endpoints are open; everything
- * else requires authentication. CSRF is disabled because this is a
- * stateless JWT API.
+ * Public endpoints are limited to the auth flow (login, refresh, logout).
+ * Admin user management requires a valid JWT with ROLE_ADMIN.
+ * Password change requires any valid JWT.
+ * CSRF is disabled because this is a stateless JWT API.
  */
 @Configuration
 @EnableWebSecurity
@@ -30,6 +33,7 @@ import tr.com.hacettepe.tams.auth_service.security.UserDetailsServiceImpl;
 public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
+    private final JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -37,14 +41,20 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout"
+                        ).permitAll()
                         .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                                 "/api-docs/**", "/api-docs.yaml").permitAll()
+                        .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .authenticationProvider(authenticationProvider());
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
