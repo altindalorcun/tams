@@ -3,6 +3,7 @@
 **/application-local.properties
 
 # ─── Java / Maven ────────────────────────────────────────────────────────────
+.m2/
 target/
 *.class
 *.jar
