@@ -61,6 +61,9 @@ public class CategoryResult {
     @Column(name = "missing_mandatory_courses", columnDefinition = "TEXT[]")
     private String[] missingMandatoryCourses = new String[0];
 
+    @Column(name = "cohort_skipped", nullable = false)
+    private boolean cohortSkipped = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMPTZ")
     private OffsetDateTime createdAt;

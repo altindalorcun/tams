@@ -27,7 +27,7 @@ class GraduationEngineTest {
 
     @BeforeEach
     void setUp() {
-        engine = new GraduationEngine(new GpaCalculator());
+        engine = new GraduationEngine(new GpaCalculator(), new EnrollmentYearParser());
     }
 
     // ── Helper factories ──────────────────────────────────────────────────────
@@ -38,23 +38,24 @@ class GraduationEngineTest {
 
     private RuleCourseDto ruleCourse(String code, double credit, double ects, boolean mandatory) {
         return new RuleCourseDto(code, "Course " + code,
-                BigDecimal.valueOf(credit), BigDecimal.valueOf(ects), mandatory);
+                BigDecimal.valueOf(credit), BigDecimal.valueOf(ects), mandatory, null, null);
     }
 
     private RuleCategoryDto category(String name, double minCredit, double minEcts,
                                      int minCount, List<RuleCourseDto> courses) {
         return new RuleCategoryDto(UUID.randomUUID(), name,
-                BigDecimal.valueOf(minCredit), BigDecimal.valueOf(minEcts), minCount, courses);
+                BigDecimal.valueOf(minCredit), BigDecimal.valueOf(minEcts), minCount,
+                null, null, null, null, null, courses, List.of());
     }
 
     private ParsedTranscriptMessage transcript(List<ParsedCourse> courses) {
         return new ParsedTranscriptMessage(
                 "student-ref-abc", "job-1", "teacher-1", "dept-1",
-                List.of(new ParsedSemester("Fall 2023", courses)));
+                List.of(new ParsedSemester("Fall 2023", courses)), null);
     }
 
     private RuleSetResponse ruleSet(List<RuleCategoryDto> categories) {
-        return new RuleSetResponse(UUID.randomUUID(), "Computer Engineering", categories);
+        return new RuleSetResponse(UUID.randomUUID(), "Computer Engineering", null, false, categories, List.of());
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -250,7 +251,7 @@ class GraduationEngineTest {
                 course("BBM202", 3, 6, true)
         ));
         var msg = new ParsedTranscriptMessage("ref", "job-1", "t-1", "d-1",
-                List.of(semester1, semester2));
+                List.of(semester1, semester2), null);
 
         EngineResult result = engine.evaluate(msg, ruleSet(List.of()));
 

@@ -38,7 +38,10 @@ public class DepartmentService {
         if (departmentRepository.existsByCode(request.code())) {
             throw new DuplicateResourceException("Department code already taken: " + request.code());
         }
-        Department saved = departmentRepository.save(new Department(request.name(), request.code(), request.description()));
+        Department saved = departmentRepository.save(new Department(
+                request.name(), request.code(), request.description(),
+                request.minTotalEcts(),
+                request.blockOnAnyFGrade() != null && request.blockOnAnyFGrade()));
         return DepartmentResponse.from(saved);
     }
 
@@ -66,6 +69,8 @@ public class DepartmentService {
         department.setName(request.name());
         department.setCode(request.code());
         department.setDescription(request.description());
+        department.setMinTotalEcts(request.minTotalEcts());
+        department.setBlockOnAnyFGrade(request.blockOnAnyFGrade() != null && request.blockOnAnyFGrade());
         return DepartmentResponse.from(departmentRepository.save(department));
     }
 

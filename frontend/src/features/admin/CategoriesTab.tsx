@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,14 +18,20 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
   getCategoryCourses, getCourses, addCourseToCategory, removeCourseFromCategory,
+  addPrefixLimit, deletePrefixLimit,
 } from "@/api/ruleApi";
-import type { Category, CreateCategoryRequest, CategoryCourse } from "@/types";
+import type { Category, CreateCategoryRequest, CategoryCourse, PrefixLimit } from "@/types";
 
 const catSchema = z.object({
   name: z.string().min(1, "Kategori adı zorunludur"),
   minCourseCount: z.coerce.number().min(1, "En az 1 ders gereklidir"),
   minCredit: z.coerce.number().optional(),
   minEcts: z.coerce.number().optional(),
+  appliesFromYear: z.coerce.number().int().positive().optional().or(z.literal("")),
+  appliesToYear: z.coerce.number().int().positive().optional().or(z.literal("")),
+  conditionCourseCodes: z.string().optional(),
+  minCourseCountIfMet: z.coerce.number().int().min(0).optional().or(z.literal("")),
+  minEctsIfMet: z.coerce.number().min(0).optional().or(z.literal("")),
 });
 type CatFormValues = z.infer<typeof catSchema>;
 
@@ -39,18 +46,45 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
   const form = useForm<CatFormValues>({
     resolver: zodResolver(catSchema),
     values: initial
-      ? { name: initial.name, minCourseCount: initial.minCourseCount, minCredit: initial.minCredit, minEcts: initial.minEcts }
-      : { name: "", minCourseCount: 1, minCredit: undefined, minEcts: undefined },
+      ? {
+          name: initial.name,
+          minCourseCount: initial.minCourseCount,
+          minCredit: initial.minCredit,
+          minEcts: initial.minEcts,
+          appliesFromYear: initial.appliesFromYear ?? ("" as const),
+          appliesToYear: initial.appliesToYear ?? ("" as const),
+          conditionCourseCodes: initial.conditionCourseCodes?.join(", ") ?? "",
+          minCourseCountIfMet: initial.minCourseCountIfMet ?? ("" as const),
+          minEctsIfMet: initial.minEctsIfMet ?? ("" as const),
+        }
+      : {
+          name: "", minCourseCount: 1, minCredit: undefined, minEcts: undefined,
+          appliesFromYear: "" as const, appliesToYear: "" as const,
+          conditionCourseCodes: "", minCourseCountIfMet: "" as const, minEctsIfMet: "" as const,
+        },
   });
 
   async function onSubmit(v: CatFormValues) {
-    await onSave({ name: v.name, minCourseCount: v.minCourseCount, minCredit: v.minCredit || undefined, minEcts: v.minEcts || undefined });
+    const parsedCodes = v.conditionCourseCodes
+      ? v.conditionCourseCodes.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean)
+      : [];
+    await onSave({
+      name: v.name,
+      minCourseCount: v.minCourseCount,
+      minCredit: v.minCredit || undefined,
+      minEcts: v.minEcts || undefined,
+      appliesFromYear: v.appliesFromYear === "" || v.appliesFromYear === undefined ? null : Number(v.appliesFromYear),
+      appliesToYear: v.appliesToYear === "" || v.appliesToYear === undefined ? null : Number(v.appliesToYear),
+      conditionCourseCodes: parsedCodes.length > 0 ? parsedCodes : null,
+      minCourseCountIfMet: v.minCourseCountIfMet === "" || v.minCourseCountIfMet === undefined ? null : Number(v.minCourseCountIfMet),
+      minEctsIfMet: v.minEctsIfMet === "" || v.minEctsIfMet === undefined ? null : Number(v.minEctsIfMet),
+    });
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm shadow-xl">
+      <DialogContent className="max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{initial ? "Kategoriyi Düzenle" : "Yeni Kategori"}</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
@@ -68,12 +102,162 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
                 <FormItem><FormLabel>Min. AKTS <span className="text-muted-foreground text-xs">(isteğe bağlı)</span></FormLabel><FormControl><Input type="number" min={0} placeholder="—" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
+            <Separator />
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kohort Aralığı</p>
+            <FormDescription className="text-xs -mt-2">Bu kategori yalnızca belirtilen kayıt yılı aralığındaki öğrencilere uygulanır. Boş bırakırsanız sınır yoktur.</FormDescription>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="appliesFromYear" render={({ field }) => (
+                <FormItem><FormLabel>Başlangıç Yılı</FormLabel><FormControl><Input type="number" placeholder="örn. 2015" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="appliesToYear" render={({ field }) => (
+                <FormItem><FormLabel>Bitiş Yılı</FormLabel><FormControl><Input type="number" placeholder="örn. 2025" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+            <Separator />
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Koşullu Eşikler</p>
+            <FormDescription className="text-xs -mt-2">
+              Öğrenci bu ders kodlarından herhangi birini geçmişse alternatif eşikler uygulanır.
+              Boş bırakılırsa koşullu eşik kullanılmaz.
+            </FormDescription>
+            <FormField control={form.control} name="conditionCourseCodes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Koşul Ders Kodları <span className="text-muted-foreground text-xs">(virgülle ayırın)</span></FormLabel>
+                <FormControl><Input placeholder="örn. BBM384, BBM461" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="minCourseCountIfMet" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alt. Min. Ders <span className="text-muted-foreground text-xs">(koşul karşılanınca)</span></FormLabel>
+                  <FormControl><Input type="number" min={0} placeholder="—" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="minEctsIfMet" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alt. Min. AKTS <span className="text-muted-foreground text-xs">(koşul karşılanınca)</span></FormLabel>
+                  <FormControl><Input type="number" min={0} placeholder="—" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
             <DialogFooter className="pt-2">
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>{initial ? "Kaydet" : "Ekle"}</Button>
             </DialogFooter>
           </form>
         </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const prefixLimitSchema = z.object({
+  courseCodePrefix: z.string().min(1, "Prefix zorunludur").max(10, "En fazla 10 karakter"),
+  maxCount: z.coerce.number().int().min(1, "En az 1 olmalıdır"),
+});
+type PrefixLimitFormValues = z.infer<typeof prefixLimitSchema>;
+
+interface PrefixLimitsDialogProps {
+  catId: string;
+  catName: string;
+  prefixLimits: PrefixLimit[];
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+function PrefixLimitsDialog({ catId, catName, prefixLimits, open, onOpenChange }: PrefixLimitsDialogProps) {
+  const qc = useQueryClient();
+
+  const form = useForm<PrefixLimitFormValues>({
+    resolver: zodResolver(prefixLimitSchema),
+    defaultValues: { courseCodePrefix: "", maxCount: 3 },
+  });
+
+  const addMut = useMutation({
+    mutationFn: (data: PrefixLimitFormValues) =>
+      addPrefixLimit(catId, { courseCodePrefix: data.courseCodePrefix.toUpperCase(), maxCount: data.maxCount }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      form.reset();
+      toast.success("Prefix limiti eklendi.");
+    },
+    onError: () => toast.error("Prefix limiti eklenemedi."),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: (limitId: string) => deletePrefixLimit(catId, limitId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Prefix limiti silindi.");
+    },
+    onError: () => toast.error("Silme işlemi başarısız."),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg shadow-xl">
+        <DialogHeader>
+          <DialogTitle>{catName} — Prefix Limitleri</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Belirtilen ön eke sahip derslerden en fazla kaç tanesi bu kategoriye sayılabileceğini tanımlayın.
+        </p>
+
+        {prefixLimits.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4 border rounded-md">
+            Henüz prefix limiti tanımlanmamış.
+          </p>
+        ) : (
+          <div className="rounded-md border divide-y">
+            {prefixLimits.map((limit) => (
+              <div key={limit.id} className="flex items-center justify-between px-3 py-2 hover:bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="font-mono text-xs">{limit.courseCodePrefix}</Badge>
+                  <span className="text-sm text-muted-foreground">en fazla <span className="font-medium text-foreground">{limit.maxCount}</span> ders</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-destructive"
+                  onClick={() => removeMut.mutate(limit.id)}
+                  disabled={removeMut.isPending}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Separator />
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Yeni Limit Ekle</p>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => addMut.mutate(v))} className="flex gap-3 items-end">
+            <FormField control={form.control} name="courseCodePrefix" render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Ders Kodu Prefixi</FormLabel>
+                <FormControl><Input placeholder="örn. SEC" className="uppercase" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="maxCount" render={({ field }) => (
+              <FormItem className="w-28">
+                <FormLabel>Maks. Ders</FormLabel>
+                <FormControl><Input type="number" min={1} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" disabled={addMut.isPending} className="mb-0.5">
+              <Plus className="h-4 w-4 mr-1" />Ekle
+            </Button>
+          </form>
+        </Form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Kapat</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -177,6 +361,7 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
   const [editTarget, setEditTarget] = useState<Category | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Category | undefined>();
   const [poolCat, setPoolCat] = useState<Category | undefined>();
+  const [prefixLimitCat, setPrefixLimitCat] = useState<Category | undefined>();
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ["categories", departmentId],
@@ -234,12 +419,13 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
                   <TableHead className="text-right">Min. Ders</TableHead>
                   <TableHead className="text-right">Min. Kredi</TableHead>
                   <TableHead className="text-right">Min. AKTS</TableHead>
+                  <TableHead>Kohort Aralığı</TableHead>
                   <TableHead className="w-32 text-right">İşlemler</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {categories?.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Bu bölüme ait kategori yok.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Bu bölüme ait kategori yok.</TableCell></TableRow>
                 )}
                 {categories?.map((cat) => (
                   <TableRow key={cat.id} className="hover:bg-muted/50 transition-colors duration-150">
@@ -247,10 +433,18 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
                     <TableCell className="text-right tabular-nums">{cat.minCourseCount}</TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">{cat.minCredit ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">{cat.minEcts ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {cat.appliesFromYear || cat.appliesToYear
+                        ? `${cat.appliesFromYear ?? "∞"} – ${cat.appliesToYear ?? "∞"}`
+                        : "—"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => setPoolCat(cat)} aria-label="Ders havuzu" title="Ders havuzu">
                           <BookOpen className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setPrefixLimitCat(cat)} aria-label="Prefix limitleri" title="Prefix limitleri">
+                          <Filter className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => { setEditTarget(cat); setDialogOpen(true); }} aria-label="Düzenle">
                           <Pencil className="h-4 w-4" />
@@ -279,6 +473,15 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
       />
       {poolCat && (
         <CoursesPoolDialog catId={poolCat.id} catName={poolCat.name} open={!!poolCat} onOpenChange={(v) => { if (!v) setPoolCat(undefined); }} />
+      )}
+      {prefixLimitCat && (
+        <PrefixLimitsDialog
+          catId={prefixLimitCat.id}
+          catName={prefixLimitCat.name}
+          prefixLimits={prefixLimitCat.prefixLimits ?? []}
+          open={!!prefixLimitCat}
+          onOpenChange={(v) => { if (!v) setPrefixLimitCat(undefined); }}
+        />
       )}
     </Card>
   );

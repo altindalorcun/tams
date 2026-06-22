@@ -1,10 +1,19 @@
+export interface ExemptionRule {
+  id: string;
+  requiredCourseCodes: string[];
+  exemptedCourseCode: string;
+}
+
 export interface Department {
   id: string;
   name: string;
   code: string;
   description?: string;
+  minTotalEcts?: number | null;
+  blockOnAnyFGrade: boolean;
   createdAt?: string;
   updatedAt?: string;
+  exemptionRules?: ExemptionRule[];
 }
 
 export interface Course {
@@ -15,6 +24,12 @@ export interface Course {
   ects: number;
 }
 
+export interface PrefixLimit {
+  id: string;
+  courseCodePrefix: string;
+  maxCount: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -23,6 +38,12 @@ export interface Category {
   minCredit?: number;
   minEcts?: number;
   description?: string;
+  appliesFromYear?: number | null;
+  appliesToYear?: number | null;
+  conditionCourseCodes?: string[] | null;
+  minCourseCountIfMet?: number | null;
+  minEctsIfMet?: number | null;
+  prefixLimits?: PrefixLimit[];
 }
 
 export interface DepartmentCourse {
@@ -51,6 +72,16 @@ export interface CreateDepartmentRequest {
   name: string;
   code: string;
   description?: string;
+  minTotalEcts?: number | null;
+  blockOnAnyFGrade?: boolean;
+}
+
+export interface UpdateDepartmentRequest {
+  name: string;
+  code: string;
+  description?: string;
+  minTotalEcts?: number | null;
+  blockOnAnyFGrade?: boolean;
 }
 
 export interface CreateCourseRequest {
@@ -66,4 +97,19 @@ export interface CreateCategoryRequest {
   minCredit?: number;
   minEcts?: number;
   description?: string;
+  appliesFromYear?: number | null;
+  appliesToYear?: number | null;
+  conditionCourseCodes?: string[] | null;
+  minCourseCountIfMet?: number | null;
+  minEctsIfMet?: number | null;
+}
+
+export interface CreateExemptionRuleRequest {
+  requiredCourseCodes: string[];
+  exemptedCourseCode: string;
+}
+
+export interface CreatePrefixLimitRequest {
+  courseCodePrefix: string;
+  maxCount: number;
 }

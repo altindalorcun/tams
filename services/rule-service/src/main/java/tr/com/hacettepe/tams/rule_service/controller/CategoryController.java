@@ -94,4 +94,24 @@ public class CategoryController {
         categoryService.removeCourse(catId, courseId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/api/v1/categories/{catId}/prefix-limits")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Add a course-code prefix limit to a graduation category")
+    public ResponseEntity<PrefixLimitDto> addPrefixLimit(@PathVariable UUID catId,
+                                                         @Valid @RequestBody CreatePrefixLimitRequest request) {
+        PrefixLimitDto created = categoryService.addPrefixLimit(catId, request);
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/categories/{catId}/prefix-limits/{limitId}")
+                .buildAndExpand(catId, created.id()).toUri();
+        return ResponseEntity.created(location).body(created);
+    }
+
+    @DeleteMapping("/api/v1/categories/{catId}/prefix-limits/{limitId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Remove a course-code prefix limit from a graduation category")
+    public ResponseEntity<Void> removePrefixLimit(@PathVariable UUID catId, @PathVariable UUID limitId) {
+        categoryService.removePrefixLimit(catId, limitId);
+        return ResponseEntity.noContent().build();
+    }
 }

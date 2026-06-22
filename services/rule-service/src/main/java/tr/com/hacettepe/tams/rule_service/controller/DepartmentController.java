@@ -40,7 +40,7 @@ public class DepartmentController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') || hasRole('TEACHER')")
     @Operation(summary = "List all departments")
     public ResponseEntity<List<DepartmentResponse>> findAll() {
         return ResponseEntity.ok(departmentService.findAll());

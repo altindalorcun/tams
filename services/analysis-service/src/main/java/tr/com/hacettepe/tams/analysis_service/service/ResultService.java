@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.TranscriptMetadataDto;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisResult;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisStatus;
 import tr.com.hacettepe.tams.analysis_service.domain.CategoryResult;
@@ -16,6 +17,7 @@ import tr.com.hacettepe.tams.analysis_service.exception.ResourceNotFoundExceptio
 import tr.com.hacettepe.tams.analysis_service.repository.AnalysisResultRepository;
 import tr.com.hacettepe.tams.analysis_service.service.dto.CategoryEvaluation;
 import tr.com.hacettepe.tams.analysis_service.service.dto.EngineResult;
+import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -35,6 +37,7 @@ import java.util.List;
 public class ResultService {
 
     private final AnalysisResultRepository analysisResultRepository;
+    private final EnrollmentYearParser enrollmentYearParser;
 
     /**
      * Transitions a PENDING result to COMPLETED: stores department name, GPA, all
@@ -64,8 +67,10 @@ public class ResultService {
         result.setStatus(AnalysisStatus.COMPLETED);
         result.setCompletedAt(OffsetDateTime.now());
 
+        applyEnrollmentFields(result, parsed.metadata());
         attachCategoryResults(result, engineOut.categoryEvaluations());
         attachTranscriptCourses(result, parsed);
+        applyGlobalCheckSummary(result, engineOut.globalChecks());
 
         analysisResultRepository.save(result);
         log.info("Analysis completed: jobId={}, eligible={}, gpa={}", jobId, engineOut.eligible(), engineOut.gpa());
@@ -102,6 +107,20 @@ public class ResultService {
         return "*".repeat(studentNumber.length() - 4) + studentNumber.substring(studentNumber.length() - 4);
     }
 
+    /**
+     * Populates {@code enrollmentYear} and {@code enrollmentTerm} on the result entity
+     * using the registration date from the transcript metadata.
+     * Silently skips when metadata or registration date is absent.
+     */
+    private void applyEnrollmentFields(AnalysisResult result, TranscriptMetadataDto metadata) {
+        if (metadata == null || metadata.registrationDate() == null) {
+            return;
+        }
+        enrollmentYearParser.parse(metadata.registrationDate())
+                .ifPresent(result::setEnrollmentYear);
+        result.setEnrollmentTerm(enrollmentYearParser.parseTerm(metadata.registrationDate()));
+    }
+
     private void attachCategoryResults(AnalysisResult result, List<CategoryEvaluation> evaluations) {
         for (CategoryEvaluation eval : evaluations) {
             CategoryResult cr = new CategoryResult();
@@ -116,7 +135,27 @@ public class ResultService {
             cr.setRequiredCourseCount(eval.requiredCourseCount());
             cr.setEarnedCourseCount(eval.earnedCourseCount());
             cr.setMissingMandatoryCourses(eval.missingMandatoryCourses().toArray(String[]::new));
+            cr.setCohortSkipped(eval.cohortSkipped());
             result.getCategoryResults().add(cr);
+        }
+    }
+
+    /**
+     * Writes a summary of any failed global checks (ECTS threshold, fail-grade block) into the
+     * result's errorMessage field so the frontend can display the reasons for ineligibility.
+     * Only adds content when at least one global check failed; prefixes entries with
+     * {@code [GLOBAL_CHECK]} to distinguish them from technical failure messages.
+     */
+    private void applyGlobalCheckSummary(AnalysisResult result, List<GlobalCheckResult> globalChecks) {
+        if (globalChecks == null || globalChecks.isEmpty()) {
+            return;
+        }
+        List<String> failedDetails = globalChecks.stream()
+                .filter(gc -> !gc.passed())
+                .map(gc -> "[" + gc.checkType().name() + "] " + gc.detail())
+                .toList();
+        if (!failedDetails.isEmpty()) {
+            result.setErrorMessage(String.join("; ", failedDetails));
         }
     }
 

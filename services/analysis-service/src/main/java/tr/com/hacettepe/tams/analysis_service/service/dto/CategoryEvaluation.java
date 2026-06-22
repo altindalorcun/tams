@@ -19,6 +19,7 @@ import java.util.UUID;
  * @param requiredCourseCount    minimum course count threshold from the rule set
  * @param earnedCourseCount      number of passed courses in this category's pool
  * @param missingMandatoryCourses course codes that are mandatory but not yet passed
+ * @param cohortSkipped           true when this category does not apply to the student's enrollment year
  */
 public record CategoryEvaluation(
         UUID categoryId,
@@ -30,5 +31,6 @@ public record CategoryEvaluation(
         BigDecimal earnedEcts,
         int requiredCourseCount,
         int earnedCourseCount,
-        List<String> missingMandatoryCourses
+        List<String> missingMandatoryCourses,
+        boolean cohortSkipped
 ) {}

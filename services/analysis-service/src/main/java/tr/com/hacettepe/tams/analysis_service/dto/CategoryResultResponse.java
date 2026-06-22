@@ -34,7 +34,9 @@ public record CategoryResultResponse(
         @Schema(description = "Number of courses passed in this category's pool", example = "3")
         int earnedCourseCount,
         @Schema(description = "Course codes that are mandatory but not yet passed", example = "[\"CS101\", \"CS201\"]")
-        List<String> missingMandatoryCourses
+        List<String> missingMandatoryCourses,
+        @Schema(description = "True when this category does not apply to the student's enrollment cohort")
+        boolean cohortSkipped
 ) {
     /**
      * Factory method that maps a {@link CategoryResult} entity to this response record.
@@ -53,7 +55,8 @@ public record CategoryResultResponse(
                 cr.getEarnedEcts(),
                 cr.getRequiredCourseCount(),
                 cr.getEarnedCourseCount(),
-                missing
+                missing,
+                cr.isCohortSkipped()
         );
     }
 }

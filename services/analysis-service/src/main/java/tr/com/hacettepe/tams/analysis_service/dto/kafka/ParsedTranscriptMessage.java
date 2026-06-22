@@ -8,13 +8,15 @@ import java.util.stream.Collectors;
 /**
  * PII-free transcript payload consumed from the {@code transcript.parsed} Kafka topic.
  * Mirrors the {@code ParsedTranscript} model in parser-service.
+ * The {@code metadata} field is optional and may be null when parser-service omits it.
  */
 public record ParsedTranscriptMessage(
         @JsonProperty("student_ref") String studentRef,
         @JsonProperty("job_id") String jobId,
         @JsonProperty("teacher_id") String teacherId,
         @JsonProperty("department_id") String departmentId,
-        List<ParsedSemester> semesters
+        List<ParsedSemester> semesters,
+        TranscriptMetadataDto metadata
 ) {
     /**
      * Returns a flat list of all courses across all semesters,

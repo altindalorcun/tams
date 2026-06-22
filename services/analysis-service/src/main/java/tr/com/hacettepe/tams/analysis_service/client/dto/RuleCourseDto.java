@@ -11,5 +11,7 @@ public record RuleCourseDto(
         String courseName,
         BigDecimal credit,
         BigDecimal ects,
-        boolean isMandatory
+        boolean isMandatory,
+        Integer mandatoryFromYear,
+        Integer mandatoryToYear
 ) {}

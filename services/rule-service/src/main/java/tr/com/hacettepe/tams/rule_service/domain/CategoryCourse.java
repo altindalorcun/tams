@@ -34,6 +34,12 @@ public class CategoryCourse {
     @Column(name = "is_mandatory", nullable = false)
     private boolean isMandatory = false;
 
+    @Column(name = "mandatory_from_year")
+    private Integer mandatoryFromYear;
+
+    @Column(name = "mandatory_to_year")
+    private Integer mandatoryToYear;
+
     public CategoryCourse(Category category, Course course, boolean isMandatory) {
         this.id = new CategoryCourseId(category.getId(), course.getId());
         this.category = category;

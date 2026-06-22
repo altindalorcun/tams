@@ -1,5 +1,6 @@
 package tr.com.hacettepe.tams.rule_service.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,5 +11,8 @@ import java.util.UUID;
 public record RuleSetResponse(
         UUID departmentId,
         String departmentName,
-        List<RuleCategoryDto> categories
+        BigDecimal minTotalEcts,
+        boolean blockOnAnyFGrade,
+        List<RuleCategoryDto> categories,
+        List<ExemptionRuleDto> exemptionRules
 ) {}

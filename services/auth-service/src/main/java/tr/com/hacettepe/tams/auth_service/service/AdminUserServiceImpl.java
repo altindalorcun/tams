@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements AdminUserService {
 
-    static final String DEFAULT_PASSWORD = "Tams2024!";
+    static final String DEFAULT_PASSWORD = "Tams2026!";
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;

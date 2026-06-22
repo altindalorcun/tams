@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
+
 /** Request body for updating an existing department. */
 @Schema(description = "Request body for updating an existing department")
 public record UpdateDepartmentRequest(
@@ -14,5 +16,11 @@ public record UpdateDepartmentRequest(
         @NotBlank @Size(max = 20) String code,
 
         @Schema(description = "Updated description", example = "Department of Electrical and Electronics Engineering")
-        String description
+        String description,
+
+        @Schema(description = "Minimum total ECTS required to graduate; null means no threshold", example = "240")
+        BigDecimal minTotalEcts,
+
+        @Schema(description = "Whether a single F grade blocks graduation eligibility", example = "false")
+        Boolean blockOnAnyFGrade
 ) {}

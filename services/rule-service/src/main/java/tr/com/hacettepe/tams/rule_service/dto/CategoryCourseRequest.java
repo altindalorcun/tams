@@ -14,5 +14,13 @@ public record CategoryCourseRequest(
 
         @Schema(description = "When true the student must pass this specific course regardless of other thresholds",
                 example = "false")
-        boolean isMandatory
+        boolean isMandatory,
+
+        @Schema(description = "First enrollment year for which this course is mandatory (null = no lower bound)",
+                example = "2017")
+        Integer mandatoryFromYear,
+
+        @Schema(description = "Last enrollment year for which this course is mandatory (null = no upper bound)",
+                example = "2025")
+        Integer mandatoryToYear
 ) {}

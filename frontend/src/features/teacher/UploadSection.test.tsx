@@ -27,7 +27,7 @@ function renderUpload(onResultReady = vi.fn()) {
 describe("UploadSection", () => {
   beforeEach(() => {
     vi.mocked(ruleApi.getDepartments).mockResolvedValue([
-      { id: "dept-1", name: "Bilgisayar Mühendisliği", code: "BBM" },
+      { id: "dept-1", name: "Bilgisayar Mühendisliği", code: "BBM", blockOnAnyFGrade: false },
     ]);
   });
 

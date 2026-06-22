@@ -76,7 +76,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 201 Created under a department")
     void create_validRequest_returns201() throws Exception {
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Teknik Seçmeli", "electives", new BigDecimal("12.00"), new BigDecimal("18.00"), 4);
+                "Teknik Seçmeli", "electives", new BigDecimal("12.00"), new BigDecimal("18.00"), 4, null, null, null, null, null);
 
         mockMvc.perform(post(categoriesUrl())
                         .header("Authorization", "Bearer " + adminToken)
@@ -93,7 +93,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 400 when minCredit is negative")
     void create_negativeMinCredit_returns400() throws Exception {
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Bad", null, new BigDecimal("-1.00"), new BigDecimal("18.00"), 4);
+                "Bad", null, new BigDecimal("-1.00"), new BigDecimal("18.00"), 4, null, null, null, null, null);
 
         mockMvc.perform(post(categoriesUrl())
                         .header("Authorization", "Bearer " + adminToken)
@@ -106,7 +106,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 401 without a token")
     void create_noToken_returns401() throws Exception {
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null);
 
         mockMvc.perform(post(categoriesUrl())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,7 +118,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 403 with a TEACHER token")
     void create_teacherToken_returns403() throws Exception {
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null);
 
         mockMvc.perform(post(categoriesUrl())
                         .header("Authorization", "Bearer " + bearerToken("TEACHER"))
@@ -132,7 +132,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     void create_duplicateName_returns409() throws Exception {
         persistCategory("Teknik Seçmeli");
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Teknik Seçmeli", null, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+                "Teknik Seçmeli", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null);
 
         mockMvc.perform(post(categoriesUrl())
                         .header("Authorization", "Bearer " + adminToken)
@@ -145,7 +145,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 404 when the department does not exist")
     void create_unknownDepartment_returns404() throws Exception {
         CreateCategoryRequest request = new CreateCategoryRequest(
-                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+                "Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/departments/" + UNKNOWN_ID + "/categories")
                         .header("Authorization", "Bearer " + adminToken)
@@ -190,7 +190,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     void update_returnsUpdated() throws Exception {
         Category cat = persistCategory("Teknik Seçmeli");
         UpdateCategoryRequest request = new UpdateCategoryRequest(
-                "Teknik Seçmeli v2", "updated", new BigDecimal("20.00"), new BigDecimal("30.00"), 6);
+                "Teknik Seçmeli v2", "updated", new BigDecimal("20.00"), new BigDecimal("30.00"), 6, null, null, null, null, null);
 
         mockMvc.perform(put(categoriesUrl() + "/" + cat.getId())
                         .header("Authorization", "Bearer " + adminToken)
@@ -205,7 +205,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("PUT — 404 for unknown category")
     void update_notFound_returns404() throws Exception {
         UpdateCategoryRequest request = new UpdateCategoryRequest(
-                "X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+                "X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null);
 
         mockMvc.perform(put(categoriesUrl() + "/" + UNKNOWN_ID)
                         .header("Authorization", "Bearer " + adminToken)
@@ -234,7 +234,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = persistCourseInPool("BIL401");
         String url = "/api/v1/categories/" + cat.getId() + "/courses";
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), true);
+        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), true, null, null);
 
         mockMvc.perform(post(url)
                         .header("Authorization", "Bearer " + adminToken)
@@ -264,7 +264,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = courseRepository.save(
                 new Course("BIL402", "Outside Pool", new BigDecimal("3.00"), new BigDecimal("5.00")));
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false);
+        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false, null, null);
 
         mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
                         .header("Authorization", "Bearer " + adminToken)
@@ -279,7 +279,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = persistCourseInPool("BIL403");
         String url = "/api/v1/categories/" + cat.getId() + "/courses";
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false);
+        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false, null, null);
 
         mockMvc.perform(post(url)
                         .header("Authorization", "Bearer " + adminToken)
@@ -298,7 +298,7 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("Category courses — 404 when adding an unknown course")
     void categoryCourses_unknownCourse_returns404() throws Exception {
         Category cat = persistCategory("Teknik Seçmeli");
-        CategoryCourseRequest request = new CategoryCourseRequest(UUID.fromString(UNKNOWN_ID), false);
+        CategoryCourseRequest request = new CategoryCourseRequest(UUID.fromString(UNKNOWN_ID), false, null, null);
 
         mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
                         .header("Authorization", "Bearer " + adminToken)

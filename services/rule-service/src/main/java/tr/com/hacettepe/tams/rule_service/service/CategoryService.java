@@ -5,12 +5,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tr.com.hacettepe.tams.rule_service.domain.Category;
 import tr.com.hacettepe.tams.rule_service.domain.CategoryCourse;
+import tr.com.hacettepe.tams.rule_service.domain.CategoryPrefixLimit;
 import tr.com.hacettepe.tams.rule_service.domain.Course;
 import tr.com.hacettepe.tams.rule_service.domain.Department;
 import tr.com.hacettepe.tams.rule_service.dto.*;
 import tr.com.hacettepe.tams.rule_service.exception.ConflictException;
 import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
+import tr.com.hacettepe.tams.rule_service.dto.ExemptionRuleDto;
 import tr.com.hacettepe.tams.rule_service.repository.*;
 
 import java.util.List;
@@ -28,9 +30,11 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryCourseRepository categoryCourseRepository;
+    private final CategoryPrefixLimitRepository categoryPrefixLimitRepository;
     private final DepartmentRepository departmentRepository;
     private final CourseRepository courseRepository;
     private final DepartmentCourseRepository departmentCourseRepository;
+    private final ExemptionRuleRepository exemptionRuleRepository;
 
     @Transactional
     public CategoryResponse create(UUID departmentId, CreateCategoryRequest request) {
@@ -39,9 +43,15 @@ public class CategoryService {
             throw new DuplicateResourceException(
                     "Category '" + request.name() + "' already exists in this department");
         }
-        Category saved = categoryRepository.save(new Category(
+        Category category = new Category(
                 department, request.name(), request.description(),
-                request.minCredit(), request.minEcts(), request.minCourseCount()));
+                request.minCredit(), request.minEcts(), request.minCourseCount());
+        category.setAppliesFromYear(request.appliesFromYear());
+        category.setAppliesToYear(request.appliesToYear());
+        category.setConditionCourseCodes(toArray(request.conditionCourseCodes()));
+        category.setMinCourseCountIfMet(request.minCourseCountIfMet());
+        category.setMinEctsIfMet(request.minEctsIfMet());
+        Category saved = categoryRepository.save(category);
         return CategoryResponse.from(saved);
     }
 
@@ -73,6 +83,11 @@ public class CategoryService {
         category.setMinCredit(request.minCredit());
         category.setMinEcts(request.minEcts());
         category.setMinCourseCount(request.minCourseCount());
+        category.setAppliesFromYear(request.appliesFromYear());
+        category.setAppliesToYear(request.appliesToYear());
+        category.setConditionCourseCodes(toArray(request.conditionCourseCodes()));
+        category.setMinCourseCountIfMet(request.minCourseCountIfMet());
+        category.setMinEctsIfMet(request.minEctsIfMet());
         return CategoryResponse.from(categoryRepository.save(category));
     }
 
@@ -100,8 +115,10 @@ public class CategoryService {
                     "Course " + course.getCourseCode() + " is already in this category");
         }
 
-        CategoryCourse saved = categoryCourseRepository.save(
-                new CategoryCourse(category, course, request.isMandatory()));
+        CategoryCourse cc = new CategoryCourse(category, course, request.isMandatory());
+        cc.setMandatoryFromYear(request.mandatoryFromYear());
+        cc.setMandatoryToYear(request.mandatoryToYear());
+        CategoryCourse saved = categoryCourseRepository.save(cc);
         return CategoryCourseResponse.from(saved);
     }
 
@@ -133,7 +150,17 @@ public class CategoryService {
         List<RuleCategoryDto> categoryDtos = categories.stream()
                 .map(RuleCategoryDto::from)
                 .toList();
-        return new RuleSetResponse(department.getId(), department.getName(), categoryDtos);
+        List<ExemptionRuleDto> exemptionDtos = exemptionRuleRepository.findByDepartmentId(departmentId)
+                .stream()
+                .map(ExemptionRuleDto::from)
+                .toList();
+        return new RuleSetResponse(
+                department.getId(),
+                department.getName(),
+                department.getMinTotalEcts(),
+                department.isBlockOnAnyFGrade(),
+                categoryDtos,
+                exemptionDtos);
     }
 
     private Department getDepartmentOrThrow(UUID id) {
@@ -145,5 +172,38 @@ public class CategoryService {
         return categoryRepository.findByIdAndDepartmentId(categoryId, departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Category not found in department: " + categoryId));
+    }
+
+    @Transactional
+    public PrefixLimitDto addPrefixLimit(UUID categoryId, CreatePrefixLimitRequest request) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+        CategoryPrefixLimit limit = new CategoryPrefixLimit(
+                category,
+                request.courseCodePrefix().toUpperCase(),
+                request.maxCount()
+        );
+        return PrefixLimitDto.from(categoryPrefixLimitRepository.save(limit));
+    }
+
+    @Transactional
+    public void removePrefixLimit(UUID categoryId, UUID limitId) {
+        if (!categoryRepository.existsById(categoryId)) {
+            throw new ResourceNotFoundException("Category not found: " + categoryId);
+        }
+        CategoryPrefixLimit limit = categoryPrefixLimitRepository.findById(limitId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prefix limit not found: " + limitId));
+        if (!limit.getCategory().getId().equals(categoryId)) {
+            throw new ResourceNotFoundException("Prefix limit does not belong to category: " + categoryId);
+        }
+        categoryPrefixLimitRepository.delete(limit);
+    }
+
+    /** Converts a nullable list of course codes to a String array, normalising each code to upper-case. */
+    private String[] toArray(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return new String[0];
+        }
+        return codes.stream().map(String::toUpperCase).toArray(String[]::new);
     }
 }

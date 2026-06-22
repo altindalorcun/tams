@@ -9,7 +9,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +27,10 @@ import java.util.UUID;
  * </ul>
  * Additionally, courses flagged {@code is_mandatory} in {@link CategoryCourse} must each be passed
  * individually regardless of the above thresholds.
+ *
+ * <p>Conditional thresholds: if the student has passed at least one course whose code appears in
+ * {@code conditionCourseCodes}, the engine uses {@code minCourseCountIfMet} / {@code minEctsIfMet}
+ * instead of the base thresholds (when those fields are non-null).
  */
 @Entity
 @Table(
@@ -59,6 +65,21 @@ public class Category {
     @Column(name = "min_course_count", nullable = false)
     private int minCourseCount = 0;
 
+    @Column(name = "applies_from_year")
+    private Integer appliesFromYear;
+
+    @Column(name = "applies_to_year")
+    private Integer appliesToYear;
+
+    @Column(name = "condition_course_codes", columnDefinition = "TEXT[]")
+    private String[] conditionCourseCodes = new String[0];
+
+    @Column(name = "min_course_count_if_met")
+    private Integer minCourseCountIfMet;
+
+    @Column(name = "min_ects_if_met", precision = 5, scale = 2)
+    private BigDecimal minEctsIfMet;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMPTZ")
     private OffsetDateTime createdAt;
@@ -69,6 +90,9 @@ public class Category {
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<CategoryCourse> categoryCourses = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CategoryPrefixLimit> prefixLimits = new ArrayList<>();
 
     public Category(Department department, String name, String description,
                     BigDecimal minCredit, BigDecimal minEcts, int minCourseCount) {

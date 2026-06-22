@@ -13,7 +13,9 @@ public record RuleCourseDto(
         String courseName,
         BigDecimal credit,
         BigDecimal ects,
-        boolean isMandatory
+        boolean isMandatory,
+        Integer mandatoryFromYear,
+        Integer mandatoryToYear
 ) {
     public static RuleCourseDto from(CategoryCourse cc) {
         return new RuleCourseDto(
@@ -21,7 +23,9 @@ public record RuleCourseDto(
                 cc.getCourse().getCourseName(),
                 cc.getCourse().getCredit(),
                 cc.getCourse().getEcts(),
-                cc.isMandatory()
+                cc.isMandatory(),
+                cc.getMandatoryFromYear(),
+                cc.getMandatoryToYear()
         );
     }
 }

@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -45,15 +46,33 @@ public class Department {
     @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMPTZ")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "min_total_ects", precision = 6, scale = 2)
+    private BigDecimal minTotalEcts;
+
+    @Column(name = "block_on_any_f_grade", nullable = false)
+    private boolean blockOnAnyFGrade = false;
+
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Category> categories = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<DepartmentCourse> departmentCourses = new LinkedHashSet<>();
 
+    @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ExemptionRule> exemptionRules = new java.util.ArrayList<>();
+
     public Department(String name, String code, String description) {
         this.name = name;
         this.code = code;
         this.description = description;
+    }
+
+    public Department(String name, String code, String description,
+                      BigDecimal minTotalEcts, boolean blockOnAnyFGrade) {
+        this.name = name;
+        this.code = code;
+        this.description = description;
+        this.minTotalEcts = minTotalEcts;
+        this.blockOnAnyFGrade = blockOnAnyFGrade;
     }
 }

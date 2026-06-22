@@ -68,7 +68,7 @@ class DepartmentServiceTest {
             when(departmentRepository.save(any(Department.class))).thenReturn(department);
 
             DepartmentResponse result = departmentService.create(
-                    new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "CS department"));
+                    new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "CS department", null, null));
 
             assertThat(result.name()).isEqualTo("Bilgisayar Mühendisliği");
             assertThat(result.description()).isEqualTo("CS department");
@@ -84,7 +84,7 @@ class DepartmentServiceTest {
             when(departmentRepository.existsByName("Bilgisayar Mühendisliği")).thenReturn(true);
 
             assertThatThrownBy(() -> departmentService.create(
-                    new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", null)))
+                    new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
 
             verify(departmentRepository, never()).save(any());
@@ -148,7 +148,7 @@ class DepartmentServiceTest {
             when(departmentRepository.save(any())).thenReturn(department);
 
             departmentService.update(DEPT_ID,
-                    new UpdateDepartmentRequest("Elektrik Mühendisliği", "EE", "EE department"));
+                    new UpdateDepartmentRequest("Elektrik Mühendisliği", "EE", "EE department", null, null));
 
             assertThat(department.getName()).isEqualTo("Elektrik Mühendisliği");
             assertThat(department.getDescription()).isEqualTo("EE department");
@@ -162,7 +162,7 @@ class DepartmentServiceTest {
             when(departmentRepository.save(any())).thenReturn(department);
 
             departmentService.update(DEPT_ID,
-                    new UpdateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "updated desc"));
+                    new UpdateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "updated desc", null, null));
 
             verify(departmentRepository, never()).existsByName(any());
             verify(departmentRepository).save(department);
@@ -175,7 +175,7 @@ class DepartmentServiceTest {
             when(departmentRepository.existsByName("Elektrik Mühendisliği")).thenReturn(true);
 
             assertThatThrownBy(() -> departmentService.update(DEPT_ID,
-                    new UpdateDepartmentRequest("Elektrik Mühendisliği", "EE", null)))
+                    new UpdateDepartmentRequest("Elektrik Mühendisliği", "EE", null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
 
             verify(departmentRepository, never()).save(any());
@@ -187,7 +187,7 @@ class DepartmentServiceTest {
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> departmentService.update(DEPT_ID,
-                    new UpdateDepartmentRequest("Anything", "ANY", null)))
+                    new UpdateDepartmentRequest("Anything", "ANY", null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }

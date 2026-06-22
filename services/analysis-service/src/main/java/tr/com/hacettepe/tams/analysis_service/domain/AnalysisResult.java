@@ -58,6 +58,12 @@ public class AnalysisResult {
     @Column(name = "gpa", precision = 4, scale = 2)
     private BigDecimal gpa;
 
+    @Column(name = "enrollment_year")
+    private Integer enrollmentYear;
+
+    @Column(name = "enrollment_term", length = 10)
+    private String enrollmentTerm;
+
     @Column(name = "error_message")
     private String errorMessage;
 

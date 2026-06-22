@@ -2,7 +2,9 @@ export type { UserRole, TokenPayload, AuthState, LoginRequest, LoginResponse, Ch
 export type { UserResponse, CreateUserRequest, UpdateUserRequest } from "./user";
 export type {
   Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
-  CreateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
+  CreateDepartmentRequest, UpdateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
+  ExemptionRule, CreateExemptionRuleRequest,
+  PrefixLimit, CreatePrefixLimitRequest,
 } from "./rules";
 export type {
   AnalysisStatus, TranscriptJobResponse, CategoryResult,

@@ -1,26 +1,36 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen, ShieldAlert } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   getDepartments, createDepartment, updateDepartment, deleteDepartment,
   getDepartmentCoursePool, addCourseToDepartment, removeCourseFromDepartment,
 } from "@/api/ruleApi";
-import type { Department, CreateDepartmentRequest, DepartmentCourse, DepartmentCoursePoolResponse } from "@/types";
+import type { Department, CreateDepartmentRequest, UpdateDepartmentRequest, DepartmentCourse, DepartmentCoursePoolResponse } from "@/types";
 
 const schema = z.object({
   name: z.string().min(1, "İsim zorunludur"),
   code: z.string().min(1, "Kod zorunludur"),
+  description: z.string().optional(),
+  minTotalEcts: z.coerce
+    .number({ invalid_type_error: "Geçerli bir sayı giriniz" })
+    .positive("Pozitif bir değer giriniz")
+    .optional()
+    .or(z.literal("")),
+  blockOnAnyFGrade: z.enum(["true", "false"]),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -28,23 +38,40 @@ interface DeptDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial?: Department;
-  onSave: (data: CreateDepartmentRequest) => Promise<void>;
+  onSave: (data: CreateDepartmentRequest | UpdateDepartmentRequest) => Promise<void>;
 }
 
 function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    values: initial ? { name: initial.name, code: initial.code } : { name: "", code: "" },
+    values: initial
+      ? {
+          name: initial.name,
+          code: initial.code,
+          description: initial.description ?? "",
+          minTotalEcts: initial.minTotalEcts ?? ("" as const),
+          blockOnAnyFGrade: initial.blockOnAnyFGrade ? "true" : "false",
+        }
+      : { name: "", code: "", description: "", minTotalEcts: "", blockOnAnyFGrade: "false" },
   });
 
   async function onSubmit(values: FormValues) {
-    await onSave(values);
+    const payload: CreateDepartmentRequest = {
+      name: values.name,
+      code: values.code,
+      description: values.description || undefined,
+      minTotalEcts: values.minTotalEcts !== "" && values.minTotalEcts !== undefined
+        ? Number(values.minTotalEcts)
+        : null,
+      blockOnAnyFGrade: values.blockOnAnyFGrade === "true",
+    };
+    await onSave(payload);
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm shadow-xl">
+      <DialogContent className="max-w-md shadow-xl">
         <DialogHeader>
           <DialogTitle>{initial ? "Bölümü Düzenle" : "Yeni Bölüm"}</DialogTitle>
         </DialogHeader>
@@ -64,6 +91,53 @@ function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
                 <FormMessage />
               </FormItem>
             )} />
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Açıklama <span className="text-muted-foreground font-normal">(opsiyonel)</span></FormLabel>
+                <FormControl><Input placeholder="Bölüm açıklaması..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <Separator />
+            <p className="text-sm font-medium text-muted-foreground">Küresel Mezuniyet Kuralları</p>
+
+            <FormField control={form.control} name="minTotalEcts" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Minimum Toplam ECTS <span className="text-muted-foreground font-normal">(opsiyonel)</span></FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="240"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormDescription>Boş bırakılırsa ECTS eşiği uygulanmaz.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="blockOnAnyFGrade" render={({ field }) => (
+              <FormItem>
+                <FormLabel>F Notu Engeli</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="false">Hayır — F notu mezuniyeti engellemez</SelectItem>
+                    <SelectItem value="true">Evet — Herhangi bir F notu mezuniyeti engeller</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+
             <DialogFooter className="pt-2">
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -246,7 +320,7 @@ export function DepartmentsTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CreateDepartmentRequest }) => updateDepartment(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateDepartmentRequest }) => updateDepartment(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["departments"] }); toast.success("Bölüm güncellendi."); },
     onError: () => toast.error("Güncelleme başarısız."),
   });
@@ -260,11 +334,11 @@ export function DepartmentsTab() {
   function openCreate() { setEditTarget(undefined); setDialogOpen(true); }
   function openEdit(d: Department) { setEditTarget(d); setDialogOpen(true); }
 
-  async function handleSave(data: CreateDepartmentRequest) {
+  async function handleSave(data: CreateDepartmentRequest | UpdateDepartmentRequest) {
     if (editTarget) {
-      await updateMut.mutateAsync({ id: editTarget.id, data });
+      await updateMut.mutateAsync({ id: editTarget.id, data: data as UpdateDepartmentRequest });
     } else {
-      await createMut.mutateAsync(data);
+      await createMut.mutateAsync(data as CreateDepartmentRequest);
     }
   }
 
@@ -289,13 +363,15 @@ export function DepartmentsTab() {
               <TableRow>
                 <TableHead>Bölüm Adı</TableHead>
                 <TableHead>Kod</TableHead>
+                <TableHead>Min. ECTS</TableHead>
+                <TableHead>F Notu Engeli</TableHead>
                 <TableHead className="w-32 text-right">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {departments?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                     Henüz bölüm eklenmemiş.
                   </TableCell>
                 </TableRow>
@@ -303,7 +379,22 @@ export function DepartmentsTab() {
               {departments?.map((d) => (
                 <TableRow key={d.id} className="hover:bg-muted/50 transition-colors duration-150">
                   <TableCell className="font-medium">{d.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{d.code}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{d.code}</TableCell>
+                  <TableCell className="text-sm">
+                    {d.minTotalEcts != null
+                      ? <span className="font-medium">{d.minTotalEcts}</span>
+                      : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    {d.blockOnAnyFGrade
+                      ? (
+                        <Badge variant="destructive" className="gap-1 text-xs">
+                          <ShieldAlert className="h-3 w-3" />
+                          Aktif
+                        </Badge>
+                      )
+                      : <span className="text-muted-foreground text-sm">—</span>}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => setPoolTarget(d)} aria-label="Ders havuzu" title="Ders Havuzu">

@@ -53,7 +53,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 201 Created with valid ADMIN token")
     void create_validRequest_returns201() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "CS");
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", "CS", null, null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -70,7 +70,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 400 when name is blank")
     void create_blankName_returns400() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("  ", "XX", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("  ", "XX", null, null, null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -82,7 +82,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 401 without a token")
     void create_noToken_returns401() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null, null, null);
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("POST — 403 with a TEACHER token")
     void create_teacherToken_returns403() throws Exception {
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Test", "TST", null, null, null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + bearerToken("TEACHER"))
@@ -106,7 +106,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @DisplayName("POST — 409 on duplicate name")
     void create_duplicateName_returns409() throws Exception {
         departmentRepository.save(new Department("Bilgisayar Mühendisliği", "BBM", null));
-        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", null);
+        CreateDepartmentRequest request = new CreateDepartmentRequest("Bilgisayar Mühendisliği", "BBM", null, null, null);
 
         mockMvc.perform(post(BASE_URL)
                         .header("Authorization", "Bearer " + adminToken)
@@ -150,7 +150,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @DisplayName("PUT — updates name and description")
     void update_returnsUpdated() throws Exception {
         Department saved = departmentRepository.save(new Department("Eski Ad", "EA", null));
-        UpdateDepartmentRequest request = new UpdateDepartmentRequest("Yeni Ad", "YA", "new");
+        UpdateDepartmentRequest request = new UpdateDepartmentRequest("Yeni Ad", "YA", "new", null, null);
 
         mockMvc.perform(put(BASE_URL + "/" + saved.getId())
                         .header("Authorization", "Bearer " + adminToken)
@@ -164,7 +164,7 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("PUT — 404 for unknown id")
     void update_notFound_returns404() throws Exception {
-        UpdateDepartmentRequest request = new UpdateDepartmentRequest("X", "XX", null);
+        UpdateDepartmentRequest request = new UpdateDepartmentRequest("X", "XX", null, null, null);
 
         mockMvc.perform(put(BASE_URL + "/" + UNKNOWN_ID)
                         .header("Authorization", "Bearer " + adminToken)

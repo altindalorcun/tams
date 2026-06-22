@@ -7,6 +7,14 @@ import java.util.UUID;
 /**
  * Graduation requirement category, as returned by
  * {@code GET /internal/rules/{departmentId}} on rule-service.
+ *
+ * <p>Conditional threshold fields: when any course in {@code conditionCourseCodes}
+ * is present in the student's passed courses, the engine substitutes
+ * {@code minCourseCountIfMet} / {@code minEctsIfMet} for the base thresholds
+ * (only when those fields are non-null).
+ *
+ * <p>Prefix limits: each entry in {@code prefixLimits} caps how many courses
+ * sharing that code prefix can count towards the category thresholds.
  */
 public record RuleCategoryDto(
         UUID id,
@@ -14,5 +22,11 @@ public record RuleCategoryDto(
         BigDecimal minCredit,
         BigDecimal minEcts,
         int minCourseCount,
-        List<RuleCourseDto> courses
+        Integer appliesFromYear,
+        Integer appliesToYear,
+        List<String> conditionCourseCodes,
+        Integer minCourseCountIfMet,
+        BigDecimal minEctsIfMet,
+        List<RuleCourseDto> courses,
+        List<PrefixLimitDto> prefixLimits
 ) {}

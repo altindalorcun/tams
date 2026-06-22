@@ -37,9 +37,11 @@ class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
     @Mock private CategoryCourseRepository categoryCourseRepository;
+    @Mock private CategoryPrefixLimitRepository categoryPrefixLimitRepository;
     @Mock private DepartmentRepository departmentRepository;
     @Mock private CourseRepository courseRepository;
     @Mock private DepartmentCourseRepository departmentCourseRepository;
+    @Mock private ExemptionRuleRepository exemptionRuleRepository;
 
     @InjectMocks private CategoryService categoryService;
 
@@ -74,7 +76,7 @@ class CategoryServiceTest {
 
             CategoryResponse result = categoryService.create(DEPT_ID,
                     new CreateCategoryRequest("Teknik Seçmeli", "desc",
-                            new BigDecimal("12.00"), new BigDecimal("18.00"), 5));
+                            new BigDecimal("12.00"), new BigDecimal("18.00"), 5, null, null, null, null, null));
 
             assertThat(result.name()).isEqualTo("Teknik Seçmeli");
             assertThat(result.minCourseCount()).isEqualTo(5);
@@ -89,7 +91,7 @@ class CategoryServiceTest {
 
             assertThatThrownBy(() -> categoryService.create(DEPT_ID,
                     new CreateCategoryRequest("Teknik Seçmeli", null,
-                            BigDecimal.ZERO, BigDecimal.ZERO, 5)))
+                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -100,7 +102,7 @@ class CategoryServiceTest {
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.create(DEPT_ID,
-                    new CreateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0)))
+                    new CreateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -175,7 +177,7 @@ class CategoryServiceTest {
 
             categoryService.update(DEPT_ID, CAT_ID,
                     new UpdateCategoryRequest("Teknik Seçmeli (v2)", "new desc",
-                            new BigDecimal("20.00"), new BigDecimal("30.00"), 7));
+                            new BigDecimal("20.00"), new BigDecimal("30.00"), 7, null, null, null, null, null));
 
             assertThat(category.getName()).isEqualTo("Teknik Seçmeli (v2)");
             assertThat(category.getMinCredit()).isEqualByComparingTo(new BigDecimal("20.00"));
@@ -193,7 +195,7 @@ class CategoryServiceTest {
 
             categoryService.update(DEPT_ID, CAT_ID,
                     new UpdateCategoryRequest("Teknik Seçmeli", "desc",
-                            BigDecimal.ZERO, BigDecimal.ZERO, 5));
+                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null));
 
             verify(categoryRepository, never()).existsByDepartmentIdAndName(any(), any());
         }
@@ -206,7 +208,7 @@ class CategoryServiceTest {
             when(categoryRepository.existsByDepartmentIdAndName(DEPT_ID, "Zorunlu")).thenReturn(true);
 
             assertThatThrownBy(() -> categoryService.update(DEPT_ID, CAT_ID,
-                    new UpdateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0)))
+                    new UpdateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -218,7 +220,7 @@ class CategoryServiceTest {
             when(categoryRepository.findByIdAndDepartmentId(CAT_ID, DEPT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.update(DEPT_ID, CAT_ID,
-                    new UpdateCategoryRequest("X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0)))
+                    new UpdateCategoryRequest("X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }
@@ -264,7 +266,7 @@ class CategoryServiceTest {
             when(categoryCourseRepository.save(any(CategoryCourse.class))).thenAnswer(i -> i.getArguments()[0]);
 
             CategoryCourseResponse result = categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, true));
+                    new CategoryCourseRequest(COURSE_ID, true, null, null));
 
             assertThat(result.courseCode()).isEqualTo("BIL401");
             assertThat(result.isMandatory()).isTrue();
@@ -277,7 +279,7 @@ class CategoryServiceTest {
             when(categoryRepository.findById(CAT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
 
@@ -288,7 +290,7 @@ class CategoryServiceTest {
             when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
 
@@ -300,7 +302,7 @@ class CategoryServiceTest {
             when(departmentCourseRepository.existsByIdDepartmentIdAndIdCourseId(DEPT_ID, COURSE_ID)).thenReturn(false);
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
                     .isInstanceOf(ConflictException.class);
             verify(categoryCourseRepository, never()).save(any());
         }
@@ -314,7 +316,7 @@ class CategoryServiceTest {
             when(categoryCourseRepository.existsByIdCategoryIdAndIdCourseId(CAT_ID, COURSE_ID)).thenReturn(true);
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, true)))
+                    new CategoryCourseRequest(COURSE_ID, true, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryCourseRepository, never()).save(any());
         }
@@ -385,6 +387,7 @@ class CategoryServiceTest {
             category.getCategoryCourses().add(new CategoryCourse(category, course, true));
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
             when(categoryRepository.findByDepartmentIdWithCourses(DEPT_ID)).thenReturn(List.of(category));
+            when(exemptionRuleRepository.findByDepartmentId(DEPT_ID)).thenReturn(List.of());
 
             RuleSetResponse result = categoryService.getRuleSet(DEPT_ID);
 

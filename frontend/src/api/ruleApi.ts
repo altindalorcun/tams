@@ -1,7 +1,9 @@
 import { axiosInstance } from "./axiosInstance";
 import type {
   Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
-  CreateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
+  CreateDepartmentRequest, UpdateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
+  ExemptionRule, CreateExemptionRuleRequest,
+  PrefixLimit, CreatePrefixLimitRequest,
 } from "@/types";
 
 // ── Departments ─────────────────────────────────────────────────────────────
@@ -21,7 +23,7 @@ export async function createDepartment(data: CreateDepartmentRequest): Promise<D
   return res.data;
 }
 
-export async function updateDepartment(id: string, data: CreateDepartmentRequest): Promise<Department> {
+export async function updateDepartment(id: string, data: UpdateDepartmentRequest): Promise<Department> {
   const res = await axiosInstance.put<Department>(`/api/v1/departments/${id}`, data);
   return res.data;
 }
@@ -103,4 +105,45 @@ export async function addCourseToCategory(catId: string, courseId: string, isMan
 
 export async function removeCourseFromCategory(catId: string, courseId: string): Promise<void> {
   await axiosInstance.delete(`/api/v1/categories/${catId}/courses/${courseId}`);
+}
+
+// ── Exemption Rules ───────────────────────────────────────────────────────────
+
+export async function getExemptionRules(departmentId: string): Promise<ExemptionRule[]> {
+  const res = await axiosInstance.get<ExemptionRule[]>(
+    `/api/v1/departments/${departmentId}/exemption-rules`,
+  );
+  return res.data;
+}
+
+export async function createExemptionRule(
+  departmentId: string,
+  data: CreateExemptionRuleRequest,
+): Promise<ExemptionRule> {
+  const res = await axiosInstance.post<ExemptionRule>(
+    `/api/v1/departments/${departmentId}/exemption-rules`,
+    data,
+  );
+  return res.data;
+}
+
+export async function deleteExemptionRule(id: string): Promise<void> {
+  await axiosInstance.delete(`/api/v1/exemption-rules/${id}`);
+}
+
+// ── Prefix Limits ─────────────────────────────────────────────────────────────
+
+export async function addPrefixLimit(
+  catId: string,
+  data: CreatePrefixLimitRequest,
+): Promise<PrefixLimit> {
+  const res = await axiosInstance.post<PrefixLimit>(
+    `/api/v1/categories/${catId}/prefix-limits`,
+    data,
+  );
+  return res.data;
+}
+
+export async function deletePrefixLimit(catId: string, limitId: string): Promise<void> {
+  await axiosInstance.delete(`/api/v1/categories/${catId}/prefix-limits/${limitId}`);
 }
