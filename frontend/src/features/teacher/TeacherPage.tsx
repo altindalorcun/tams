@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { UploadSection } from "./UploadSection";
 import { ResultCard, ResultCardSkeleton, HistoryTable } from "./ResultCard";
 import { getResult, getResults, getResultByJobId } from "@/api/analysisApi";
@@ -11,6 +19,8 @@ import { getResult, getResults, getResultByJobId } from "@/api/analysisApi";
 export function TeacherPage() {
   const [activeTab, setActiveTab] = useState<"upload" | "history">("upload");
   const [uploadJobId, setUploadJobId] = useState<string | null>(null);
+  const [showResultDialog, setShowResultDialog] = useState(false);
+  const [uploadSectionKey, setUploadSectionKey] = useState(0);
   const [historyResultId, setHistoryResultId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
 
@@ -19,6 +29,10 @@ export function TeacherPage() {
     queryFn: () => getResultByJobId(uploadJobId!),
     enabled: !!uploadJobId,
   });
+
+  useEffect(() => {
+    if (uploadResult) setShowResultDialog(true);
+  }, [uploadResult]);
 
   const { data: historyResult, isLoading: historyResultLoading } = useQuery({
     queryKey: ["result", historyResultId],
@@ -36,9 +50,37 @@ export function TeacherPage() {
     setUploadJobId(jobId);
   }
 
+  function handleDialogClose() {
+    setShowResultDialog(false);
+    setUploadJobId(null);
+    setUploadSectionKey((k) => k + 1);
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
       <h1 className="text-2xl font-semibold">Öğretmen Paneli</h1>
+
+      <Dialog open={showResultDialog} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Analiz Tamamlandı</DialogTitle>
+          </DialogHeader>
+
+          <div className="py-2">
+            {uploadResultLoading || !uploadResult ? (
+              <ResultCardSkeleton />
+            ) : (
+              <ResultCard result={uploadResult} />
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={handleDialogClose} disabled={uploadResultLoading || !uploadResult}>
+              Tamam
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "history")}>
         <TabsList>
@@ -46,19 +88,8 @@ export function TeacherPage() {
           <TabsTrigger value="history">Geçmiş Analizler</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upload" className="pt-6 space-y-6">
-          <UploadSection onResultReady={handleResultReady} />
-
-          {uploadJobId && (
-            <section className="space-y-4">
-              <h2 className="text-lg font-semibold">Analiz Sonucu</h2>
-              {uploadResultLoading || !uploadResult ? (
-                <ResultCardSkeleton />
-              ) : (
-                <ResultCard result={uploadResult} />
-              )}
-            </section>
-          )}
+        <TabsContent value="upload" className="pt-6">
+          <UploadSection key={uploadSectionKey} onResultReady={handleResultReady} />
         </TabsContent>
 
         <TabsContent value="history" className="pt-6 space-y-4">

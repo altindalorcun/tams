@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Upload, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -43,30 +43,35 @@ export function UploadSection({ onResultReady }: UploadSectionProps) {
     onError: () => toast.error("Yükleme başarısız. Lütfen tekrar deneyin."),
   });
 
-  useQuery({
-    queryKey: ["job-status", jobId],
-    queryFn: () => getJobStatus(jobId!),
-    enabled: !!jobId && jobStatus === "PENDING",
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "PENDING" ? POLL_INTERVAL_MS : false;
-    },
-    select: (data) => data,
-    gcTime: 0,
-    meta: {
-      onSuccess: (data: { status: AnalysisStatus; jobId: string }) => {
-        if (data.status !== "PENDING") {
-          setJobStatus(data.status);
-          if (data.status === "COMPLETED") {
-            toast.success("Analiz tamamlandı.");
-            onResultReady(data.jobId);
+  useEffect(() => {
+    if (!jobId || jobStatus !== "PENDING") return;
+
+    let active = true;
+
+    const check = async () => {
+      try {
+        const result = await getJobStatus(jobId);
+        if (!active) return;
+        if (result.status !== "PENDING") {
+          setJobStatus(result.status);
+          if (result.status === "COMPLETED") {
+            onResultReady(result.jobId);
           } else {
             toast.error("Analiz başarısız oldu.");
           }
         }
-      },
-    },
-  });
+      } catch {
+        // Hata durumunda sessizce tekrar dene
+      }
+    };
+
+    check();
+    const intervalId = setInterval(check, POLL_INTERVAL_MS);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [jobId, jobStatus]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
