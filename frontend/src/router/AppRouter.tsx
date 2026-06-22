@@ -6,6 +6,7 @@ import { ChangePasswordPage } from "@/features/auth/ChangePasswordPage";
 import { AdminPage } from "@/features/admin/AdminPage";
 import { UsersPage } from "@/features/admin/UsersPage";
 import { TeacherPage } from "@/features/teacher/TeacherPage";
+import { StudentHistoryPage } from "@/features/teacher/StudentHistoryPage";
 import { StudentResultPage } from "@/features/student/StudentResultPage";
 
 /** Lazy-loaded placeholder pages — will be replaced by feature implementations */
@@ -45,6 +46,7 @@ export function AppRouter() {
             </Route>
             <Route path="/teacher/*" element={<ProtectedRoute requiredRole="TEACHER" />}>
               <Route index element={<TeacherPage />} />
+              <Route path="history" element={<StudentHistoryPage />} />
             </Route>
             <Route path="/student/*" element={<ProtectedRoute requiredRole="STUDENT" />}>
               <Route path="results" element={<StudentResultPage />} />

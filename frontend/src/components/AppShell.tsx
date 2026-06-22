@@ -42,7 +42,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   TEACHER: [
     { label: "Transkript Yükle", to: "/teacher", icon: <Upload className="h-4 w-4" /> },
-    { label: "Öğrenci Geçmişi", to: "/teacher/history", icon: <GraduationCap className="h-4 w-4" /> },
+    { label: "Analiz Geçmişi", to: "/teacher/history", icon: <GraduationCap className="h-4 w-4" /> },
   ],
   STUDENT: [
     { label: "Mezuniyet Durumu", to: "/student/results", icon: <GraduationCap className="h-4 w-4" /> },
