@@ -35,8 +35,8 @@ export interface Category {
   name: string;
   departmentId: string;
   minCourseCount: number;
-  minCredit?: number;
-  minEcts?: number;
+  minCredit: number;
+  minEcts: number;
   description?: string;
   appliesFromYear?: number | null;
   appliesToYear?: number | null;
@@ -94,8 +94,8 @@ export interface CreateCourseRequest {
 export interface CreateCategoryRequest {
   name: string;
   minCourseCount: number;
-  minCredit?: number;
-  minEcts?: number;
+  minCredit: number;
+  minEcts: number;
   description?: string;
   appliesFromYear?: number | null;
   appliesToYear?: number | null;

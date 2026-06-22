@@ -224,9 +224,13 @@ public class GraduationEngine {
         BigDecimal requiredEcts = effectiveEcts != null ? effectiveEcts : BigDecimal.ZERO;
         int requiredCount = effectiveCount;
 
-        boolean creditOk = earnedCredit.compareTo(requiredCredit) >= 0;
-        boolean ectsOk = earnedEcts.compareTo(requiredEcts) >= 0;
-        boolean countOk = earnedCount >= requiredCount;
+        // A threshold of zero means "not enforced" — skip the check entirely.
+        boolean creditOk = requiredCredit.compareTo(BigDecimal.ZERO) == 0
+                || earnedCredit.compareTo(requiredCredit) >= 0;
+        boolean ectsOk = requiredEcts.compareTo(BigDecimal.ZERO) == 0
+                || earnedEcts.compareTo(requiredEcts) >= 0;
+        boolean countOk = requiredCount == 0
+                || earnedCount >= requiredCount;
         boolean mandatoryOk = missingMandatory.isEmpty();
 
         boolean satisfied = creditOk && ectsOk && countOk && mandatoryOk;

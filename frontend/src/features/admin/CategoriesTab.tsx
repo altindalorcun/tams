@@ -24,9 +24,9 @@ import type { Category, CreateCategoryRequest, CategoryCourse, PrefixLimit } fro
 
 const catSchema = z.object({
   name: z.string().min(1, "Kategori adı zorunludur"),
-  minCourseCount: z.coerce.number().min(1, "En az 1 ders gereklidir"),
-  minCredit: z.coerce.number().optional(),
-  minEcts: z.coerce.number().optional(),
+  minCourseCount: z.coerce.number().int().min(0),
+  minCredit: z.coerce.number().min(0),
+  minEcts: z.coerce.number().min(0),
   appliesFromYear: z.coerce.number().int().positive().optional().or(z.literal("")),
   appliesToYear: z.coerce.number().int().positive().optional().or(z.literal("")),
   conditionCourseCodes: z.string().optional(),
@@ -49,8 +49,8 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
       ? {
           name: initial.name,
           minCourseCount: initial.minCourseCount,
-          minCredit: initial.minCredit,
-          minEcts: initial.minEcts,
+          minCredit: initial.minCredit ?? 0,
+          minEcts: initial.minEcts ?? 0,
           appliesFromYear: initial.appliesFromYear ?? ("" as const),
           appliesToYear: initial.appliesToYear ?? ("" as const),
           conditionCourseCodes: initial.conditionCourseCodes?.join(", ") ?? "",
@@ -58,7 +58,7 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
           minEctsIfMet: initial.minEctsIfMet ?? ("" as const),
         }
       : {
-          name: "", minCourseCount: 1, minCredit: undefined, minEcts: undefined,
+          name: "", minCourseCount: 0, minCredit: 0, minEcts: 0,
           appliesFromYear: "" as const, appliesToYear: "" as const,
           conditionCourseCodes: "", minCourseCountIfMet: "" as const, minEctsIfMet: "" as const,
         },
@@ -71,8 +71,8 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
     await onSave({
       name: v.name,
       minCourseCount: v.minCourseCount,
-      minCredit: v.minCredit || undefined,
-      minEcts: v.minEcts || undefined,
+      minCredit: v.minCredit,
+      minEcts: v.minEcts,
       appliesFromYear: v.appliesFromYear === "" || v.appliesFromYear === undefined ? null : Number(v.appliesFromYear),
       appliesToYear: v.appliesToYear === "" || v.appliesToYear === undefined ? null : Number(v.appliesToYear),
       conditionCourseCodes: parsedCodes.length > 0 ? parsedCodes : null,
@@ -92,14 +92,29 @@ function CatDialog({ open, onOpenChange, initial, onSave }: CatDialogProps) {
               <FormItem><FormLabel>Kategori Adı</FormLabel><FormControl><Input placeholder="Zorunlu Dersler" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="minCourseCount" render={({ field }) => (
-              <FormItem><FormLabel>Minimum Ders Sayısı</FormLabel><FormControl><Input type="number" min={1} {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel>Minimum Ders Sayısı</FormLabel>
+                <FormControl><Input type="number" min={0} {...field} /></FormControl>
+                <FormDescription className="text-xs">0 girerseniz bu eşik dikkate alınmaz.</FormDescription>
+                <FormMessage />
+              </FormItem>
             )} />
             <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="minCredit" render={({ field }) => (
-                <FormItem><FormLabel>Min. Kredi <span className="text-muted-foreground text-xs">(isteğe bağlı)</span></FormLabel><FormControl><Input type="number" min={0} placeholder="—" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Min. Kredi</FormLabel>
+                  <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
+                  <FormDescription className="text-xs">0 = kontrol edilmez</FormDescription>
+                  <FormMessage />
+                </FormItem>
               )} />
               <FormField control={form.control} name="minEcts" render={({ field }) => (
-                <FormItem><FormLabel>Min. AKTS <span className="text-muted-foreground text-xs">(isteğe bağlı)</span></FormLabel><FormControl><Input type="number" min={0} placeholder="—" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Min. AKTS</FormLabel>
+                  <FormControl><Input type="number" min={0} placeholder="0" {...field} /></FormControl>
+                  <FormDescription className="text-xs">0 = kontrol edilmez</FormDescription>
+                  <FormMessage />
+                </FormItem>
               )} />
             </div>
             <Separator />
