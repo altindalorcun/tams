@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, KeyRound } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, Filter } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +33,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { matchesTextFilter } from "@/lib/textFilter";
 import {
   listUsers,
   createUser,
@@ -318,11 +320,46 @@ export function UsersPage() {
   const [editTarget, setEditTarget] = useState<UserResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserResponse | null>(null);
   const [resetTarget, setResetTarget] = useState<UserResponse | null>(null);
+  const [usernameFilter, setUsernameFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [studentNumberFilter, setStudentNumberFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const { data: users, isLoading, isError } = useQuery({
     queryKey: ["admin-users"],
     queryFn: listUsers,
   });
+
+  const filteredUsers = useMemo(() => {
+    return (users ?? []).filter((user) => {
+      if (!matchesTextFilter(user.username, usernameFilter)) return false;
+      if (!matchesTextFilter(ROLE_LABELS[user.role], roleFilter)) return false;
+      if (!matchesTextFilter(user.studentNumber ?? "", studentNumberFilter)) return false;
+      const statusLabel = user.isActive ? "Aktif" : "Pasif";
+      if (!matchesTextFilter(statusLabel, statusFilter)) return false;
+      return true;
+    });
+  }, [users, usernameFilter, roleFilter, studentNumberFilter, statusFilter]);
+
+  const hasActiveFilters =
+    usernameFilter.trim() !== ""
+    || roleFilter.trim() !== ""
+    || studentNumberFilter.trim() !== ""
+    || statusFilter.trim() !== "";
+
+  const activeFilterCount = [
+    usernameFilter.trim() !== "",
+    roleFilter.trim() !== "",
+    studentNumberFilter.trim() !== "",
+    statusFilter.trim() !== "",
+  ].filter(Boolean).length;
+
+  function clearFilters() {
+    setUsernameFilter("");
+    setRoleFilter("");
+    setStudentNumberFilter("");
+    setStatusFilter("");
+  }
 
   const createMutation = useMutation({
     mutationFn: (data: CreateUserRequest) => createUser(data),
@@ -365,13 +402,95 @@ export function UsersPage() {
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Kullanıcı Yönetimi</h1>
-        <Button
-          onClick={() => setCreateOpen(true)}
-          className="transition-colors duration-150"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Kullanıcı Ekle
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isLoading && !isError && (users?.length ?? 0) > 0 && (
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="transition-colors duration-150"
+                    aria-pressed={hasActiveFilters}
+                    aria-label="Kullanıcıları filtrele"
+                  />
+                }
+              >
+                <Filter className="mr-1 h-4 w-4" />
+                Filtre
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 shadow-md">
+                <PopoverHeader>
+                  <PopoverTitle>Kullanıcıları Filtrele</PopoverTitle>
+                </PopoverHeader>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="users-username-filter" className="text-sm font-medium text-muted-foreground">
+                      Kullanıcı Adı
+                    </label>
+                    <Input
+                      id="users-username-filter"
+                      placeholder="Kullanıcı adına göre filtrele"
+                      value={usernameFilter}
+                      onChange={(e) => setUsernameFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="users-role-filter" className="text-sm font-medium text-muted-foreground">
+                      Rol
+                    </label>
+                    <Input
+                      id="users-role-filter"
+                      placeholder="Rol adına göre filtrele"
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="users-student-number-filter" className="text-sm font-medium text-muted-foreground">
+                      Öğrenci No
+                    </label>
+                    <Input
+                      id="users-student-number-filter"
+                      className="font-mono"
+                      placeholder="Öğrenci numarasına göre filtrele"
+                      value={studentNumberFilter}
+                      onChange={(e) => setStudentNumberFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="users-status-filter" className="text-sm font-medium text-muted-foreground">
+                      Durum
+                    </label>
+                    <Input
+                      id="users-status-filter"
+                      placeholder="Duruma göre filtrele (Aktif/Pasif)"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    />
+                  </div>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">
+                      Temizle
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="transition-colors duration-150"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Kullanıcı Ekle
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -397,7 +516,13 @@ export function UsersPage() {
         </div>
       )}
 
-      {users && users.length > 0 && (
+      {users && users.length > 0 && filteredUsers.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          Filtreye uygun kullanıcı bulunamadı.
+        </p>
+      )}
+
+      {users && users.length > 0 && filteredUsers.length > 0 && (
         <div className="rounded-lg border shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
@@ -412,7 +537,7 @@ export function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow
                   key={user.id}
                   className="hover:bg-muted/50 transition-colors duration-150"
