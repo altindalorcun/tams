@@ -82,6 +82,7 @@ class AuthServiceImplTest {
 
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(response.userId()).isEqualTo(USER_ID);
+        assertThat(response.username()).isEqualTo("teacher1");
         verify(authenticationManager).authenticate(
                 new UsernamePasswordAuthenticationToken(req.email(), req.password())
         );
@@ -121,6 +122,7 @@ class AuthServiceImplTest {
         AuthResponse response = authService.refresh(new RefreshRequest(rawRefresh));
 
         assertThat(response.accessToken()).isEqualTo(ACCESS_TOKEN);
+        assertThat(response.username()).isEqualTo("teacher1");
         verify(refreshTokenRepository).delete(stored);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
     }

@@ -10,14 +10,15 @@ public record AuthResponse(
         String tokenType,
         long expiresIn,
         UUID userId,
+        String username,
         Role role,
         String studentNumber,
         boolean mustChangePassword
 ) {
     public static AuthResponse of(String accessToken, String refreshToken,
-                                   long expiresInMs, UUID userId, Role role,
+                                   long expiresInMs, UUID userId, String username, Role role,
                                    String studentNumber, boolean mustChangePassword) {
         return new AuthResponse(accessToken, refreshToken, "Bearer",
-                expiresInMs / 1000, userId, role, studentNumber, mustChangePassword);
+                expiresInMs / 1000, userId, username, role, studentNumber, mustChangePassword);
     }
 }

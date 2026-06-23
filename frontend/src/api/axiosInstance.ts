@@ -28,6 +28,8 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       sessionStorage.removeItem("accessToken");
+      sessionStorage.removeItem("mustChangePassword");
+      sessionStorage.removeItem("username");
       window.location.replace("/login");
     }
     return Promise.reject(error);

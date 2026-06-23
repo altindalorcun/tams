@@ -114,7 +114,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.of(accessToken, rawRefreshToken,
-                jwtProperties.accessExpirationMs(), user.getId(), user.getRole(),
+                jwtProperties.accessExpirationMs(), user.getId(), user.getUsername(), user.getRole(),
                 user.getStudentNumber(), user.isMustChangePassword());
     }
 

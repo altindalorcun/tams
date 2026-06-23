@@ -25,14 +25,16 @@ function renderLogin() {
 }
 
 describe("LoginPage", () => {
-  const mockSetToken = vi.fn();
+  const mockSetAuth = vi.fn();
 
   beforeEach(() => {
     vi.mocked(authStore.useAuthStore).mockReturnValue({
       accessToken: null,
       role: null,
       userId: null,
-      setToken: mockSetToken,
+      username: null,
+      mustChangePassword: false,
+      setAuth: mockSetAuth,
       clearAuth: vi.fn(),
     });
   });
@@ -48,15 +50,16 @@ describe("LoginPage", () => {
     renderLogin();
     await user.click(screen.getByRole("button", { name: /giriş yap/i }));
     await waitFor(() => {
-      expect(screen.getByText(/geçerli bir e-posta/i)).toBeInTheDocument();
+      expect(screen.getByText(/e-posta veya kullanıcı adı gereklidir/i)).toBeInTheDocument();
     });
   });
 
-  it("calls login API and sets token on success", async () => {
+  it("calls login API and sets auth on success", async () => {
     const user = userEvent.setup();
     vi.mocked(authApi.login).mockResolvedValueOnce({
       accessToken: "test-token",
       refreshToken: "refresh-token",
+      username: "admin",
       mustChangePassword: false,
     });
     renderLogin();
@@ -70,7 +73,7 @@ describe("LoginPage", () => {
         email: "admin@hacettepe.edu.tr",
         password: "password123",
       });
-      expect(mockSetToken).toHaveBeenCalledWith("test-token");
+      expect(mockSetAuth).toHaveBeenCalledWith("test-token", false, "admin");
     });
   });
 

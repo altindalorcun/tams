@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -77,6 +78,30 @@ const ROLE_LABELS: Record<UserRole, string> = {
   TEACHER: "Öğretim Üyesi",
   STUDENT: "Öğrenci",
 };
+
+const FILTERABLE_USER_ROLES = ["TEACHER", "STUDENT"] as const;
+type UserRoleFilter = (typeof FILTERABLE_USER_ROLES)[number];
+
+const USER_STATUS_ACTIVE = "ACTIVE" as const;
+const USER_STATUS_INACTIVE = "INACTIVE" as const;
+type UserStatusFilter = typeof USER_STATUS_ACTIVE | typeof USER_STATUS_INACTIVE;
+
+const STATUS_FILTER_LABELS: Record<UserStatusFilter, string> = {
+  ACTIVE: "Aktif",
+  INACTIVE: "Pasif",
+};
+
+const ROLE_FILTER_ITEMS = FILTERABLE_USER_ROLES.map((role) => ({
+  value: role,
+  label: ROLE_LABELS[role],
+}));
+
+const STATUS_FILTER_ITEMS = (
+  [USER_STATUS_ACTIVE, USER_STATUS_INACTIVE] as const
+).map((status) => ({
+  value: status,
+  label: STATUS_FILTER_LABELS[status],
+}));
 
 function RoleBadge({ role }: { role: UserRole }) {
   const variant =
@@ -321,9 +346,9 @@ export function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<UserResponse | null>(null);
   const [resetTarget, setResetTarget] = useState<UserResponse | null>(null);
   const [usernameFilter, setUsernameFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRoleFilter | null>(null);
   const [studentNumberFilter, setStudentNumberFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<UserStatusFilter | null>(null);
 
   const { data: users, isLoading, isError } = useQuery({
     queryKey: ["admin-users"],
@@ -333,32 +358,32 @@ export function UsersPage() {
   const filteredUsers = useMemo(() => {
     return (users ?? []).filter((user) => {
       if (!matchesTextFilter(user.username, usernameFilter)) return false;
-      if (!matchesTextFilter(ROLE_LABELS[user.role], roleFilter)) return false;
+      if (roleFilter !== null && user.role !== roleFilter) return false;
       if (!matchesTextFilter(user.studentNumber ?? "", studentNumberFilter)) return false;
-      const statusLabel = user.isActive ? "Aktif" : "Pasif";
-      if (!matchesTextFilter(statusLabel, statusFilter)) return false;
+      if (statusFilter === USER_STATUS_ACTIVE && !user.isActive) return false;
+      if (statusFilter === USER_STATUS_INACTIVE && user.isActive) return false;
       return true;
     });
   }, [users, usernameFilter, roleFilter, studentNumberFilter, statusFilter]);
 
   const hasActiveFilters =
     usernameFilter.trim() !== ""
-    || roleFilter.trim() !== ""
+    || roleFilter !== null
     || studentNumberFilter.trim() !== ""
-    || statusFilter.trim() !== "";
+    || statusFilter !== null;
 
   const activeFilterCount = [
     usernameFilter.trim() !== "",
-    roleFilter.trim() !== "",
+    roleFilter !== null,
     studentNumberFilter.trim() !== "",
-    statusFilter.trim() !== "",
+    statusFilter !== null,
   ].filter(Boolean).length;
 
   function clearFilters() {
     setUsernameFilter("");
-    setRoleFilter("");
+    setRoleFilter(null);
     setStudentNumberFilter("");
-    setStatusFilter("");
+    setStatusFilter(null);
   }
 
   const createMutation = useMutation({
@@ -444,12 +469,22 @@ export function UsersPage() {
                     <label htmlFor="users-role-filter" className="text-sm font-medium text-muted-foreground">
                       Rol
                     </label>
-                    <Input
-                      id="users-role-filter"
-                      placeholder="Rol adına göre filtrele"
+                    <Select
+                      items={ROLE_FILTER_ITEMS}
                       value={roleFilter}
-                      onChange={(e) => setRoleFilter(e.target.value)}
-                    />
+                      onValueChange={setRoleFilter}
+                    >
+                      <SelectTrigger id="users-role-filter" className="w-full">
+                        <SelectValue placeholder="Rol seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FILTERABLE_USER_ROLES.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {ROLE_LABELS[role]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="users-student-number-filter" className="text-sm font-medium text-muted-foreground">
@@ -467,12 +502,23 @@ export function UsersPage() {
                     <label htmlFor="users-status-filter" className="text-sm font-medium text-muted-foreground">
                       Durum
                     </label>
-                    <Input
-                      id="users-status-filter"
-                      placeholder="Duruma göre filtrele (Aktif/Pasif)"
+                    <Select
+                      items={STATUS_FILTER_ITEMS}
                       value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                    />
+                      onValueChange={setStatusFilter}
+                    >
+                      <SelectTrigger id="users-status-filter" className="w-full">
+                        <SelectValue placeholder="Durum seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={USER_STATUS_ACTIVE}>
+                          {STATUS_FILTER_LABELS.ACTIVE}
+                        </SelectItem>
+                        <SelectItem value={USER_STATUS_INACTIVE}>
+                          {STATUS_FILTER_LABELS.INACTIVE}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   {hasActiveFilters && (
                     <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">

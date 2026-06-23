@@ -57,7 +57,7 @@ export function LoginPage() {
   async function onSubmit(values: LoginFormValues) {
     try {
       const response = await login(values);
-      setAuth(response.accessToken, response.mustChangePassword);
+      setAuth(response.accessToken, response.mustChangePassword, response.username);
     } catch {
       toast.error("Giriş başarısız. E-posta/kullanıcı adı veya şifrenizi kontrol edin.");
     }

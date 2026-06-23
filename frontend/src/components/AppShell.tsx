@@ -3,14 +3,15 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   GraduationCap,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
   Settings,
   Upload,
+  User,
   Users,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +27,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuthStore } from "@/features/auth/authStore";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
+
+/** Fallback label when username is unavailable (e.g. legacy session). */
+const USERNAME_FALLBACK = "Kullanıcı";
 
 interface NavItem {
   label: string;
@@ -113,7 +117,7 @@ function SidebarContent({ role, collapsed }: SidebarContentProps) {
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { role, userId, clearAuth } = useAuthStore();
+  const { role, username, clearAuth } = useAuthStore();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -121,8 +125,14 @@ export function AppShell() {
     navigate("/login", { replace: true });
   }
 
+  function handleChangePassword() {
+    navigate("/change-password");
+  }
+
   const userRole = role ?? "STUDENT";
-  const userInitial = userId ? userId.slice(0, 2).toUpperCase() : "?";
+  const displayUsername = username ?? USERNAME_FALLBACK;
+  const roleLabel =
+    userRole === "ADMIN" ? "Yönetici" : userRole === "TEACHER" ? "Öğretmen" : "Öğrenci";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -176,28 +186,33 @@ export function AppShell() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button
-                    className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="max-w-[160px] gap-2 px-2 transition-colors duration-150"
                     aria-label="Kullanıcı menüsü"
+                    title={displayUsername}
                   />
                 }
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                    {userInitial}
-                  </AvatarFallback>
-                </Avatar>
+                <User className="h-4 w-4 shrink-0" />
+                <span className="truncate text-sm">{displayUsername}</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 shadow-md">
                 <div className="px-2 py-1.5">
-                  <p className="text-xs text-muted-foreground">
-                    {userRole === "ADMIN"
-                      ? "Yönetici"
-                      : userRole === "TEACHER"
-                        ? "Öğretmen"
-                        : "Öğrenci"}
+                  <p className="truncate text-sm font-medium" title={displayUsername}>
+                    {displayUsername}
                   </p>
+                  <p className="text-xs text-muted-foreground">{roleLabel}</p>
                 </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleChangePassword}
+                  className="cursor-pointer transition-colors duration-150"
+                >
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Şifre Değiştir
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}

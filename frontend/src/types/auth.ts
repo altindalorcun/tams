@@ -13,6 +13,7 @@ export interface AuthState {
   accessToken: string | null;
   role: UserRole | null;
   userId: string | null;
+  username: string | null;
   mustChangePassword: boolean;
 }
 
@@ -26,6 +27,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
+  username: string;
   mustChangePassword: boolean;
 }
 
