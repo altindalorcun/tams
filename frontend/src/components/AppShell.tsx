@@ -1,12 +1,15 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
+  ChevronDown,
   GraduationCap,
   KeyRound,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
+  Scale,
   Settings,
   Upload,
   User,
@@ -31,10 +34,17 @@ import type { UserRole } from "@/types";
 /** Fallback label when username is unavailable (e.g. legacy session). */
 const USERNAME_FALLBACK = "Kullanıcı";
 
-interface NavItem {
+interface NavChildItem {
   label: string;
   to: string;
   icon: React.ReactNode;
+}
+
+interface NavItem {
+  label: string;
+  to?: string;
+  icon: React.ReactNode;
+  children?: NavChildItem[];
 }
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
@@ -42,6 +52,22 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Genel Bakış", to: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: "Bölümler", to: "/admin/departments", icon: <Settings className="h-4 w-4" /> },
     { label: "Dersler", to: "/admin/courses", icon: <BookOpen className="h-4 w-4" /> },
+    {
+      label: "Mezuniyet Şartları",
+      icon: <GraduationCap className="h-4 w-4" />,
+      children: [
+        {
+          label: "Mezuniyet Kategorileri",
+          to: "/admin/graduation-categories",
+          icon: <ListChecks className="h-4 w-4" />,
+        },
+        {
+          label: "Muafiyet Kuralları",
+          to: "/admin/exemption-rules",
+          icon: <Scale className="h-4 w-4" />,
+        },
+      ],
+    },
     { label: "Kullanıcılar", to: "/admin/users", icon: <Users className="h-4 w-4" /> },
   ],
   TEACHER: [
@@ -58,32 +84,103 @@ interface SidebarNavProps {
   collapsed: boolean;
 }
 
+function isNavGroupActive(children: NavChildItem[], pathname: string): boolean {
+  return children.some(
+    (child) => pathname === child.to || pathname.startsWith(`${child.to}/`),
+  );
+}
+
 function SidebarNav({ role, collapsed }: SidebarNavProps) {
   const items = NAV_ITEMS[role] ?? [];
+  const { pathname } = useLocation();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    items.forEach((item) => {
+      if (item.children && isNavGroupActive(item.children, pathname)) {
+        setOpenGroups((prev) => ({ ...prev, [item.label]: true }));
+      }
+    });
+  }, [pathname, items]);
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  const navLinkClassName = (isActive: boolean, indented = false) =>
+    cn(
+      "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150",
+      "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      isActive ? "bg-primary/10 text-primary font-medium" : "text-foreground/80",
+      collapsed && "justify-center px-2",
+      indented && !collapsed && "pl-9",
+    );
 
   return (
     <nav aria-label="Ana navigasyon" className="flex flex-col gap-1 px-2">
-      {items.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === "/admin" || item.to === "/teacher"}
-          className={({ isActive }) =>
-            cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150",
-              "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              isActive
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-foreground/80",
-              collapsed && "justify-center px-2",
-            )
-          }
-          title={collapsed ? item.label : undefined}
-        >
-          {item.icon}
-          {!collapsed && <span>{item.label}</span>}
-        </NavLink>
-      ))}
+      {items.map((item) => {
+        if (item.children) {
+          const isGroupActive = isNavGroupActive(item.children, pathname);
+          const isOpen = openGroups[item.label] ?? false;
+          const panelId = `nav-group-${item.label.replace(/\s+/g, "-").toLowerCase()}`;
+
+          return (
+            <div key={item.label} className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => toggleGroup(item.label)}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                className={cn(
+                  navLinkClassName(isGroupActive),
+                  "w-full cursor-pointer border-0 bg-transparent",
+                  !collapsed && "justify-between",
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="flex items-center gap-3">
+                  {item.icon}
+                  {!collapsed && <span>{item.label}</span>}
+                </span>
+                {!collapsed && (
+                  <ChevronDown
+                    className={cn("h-4 w-4 shrink-0", isOpen && "rotate-180")}
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+              {isOpen && (
+                <div id={panelId} role="group" aria-label={item.label} className="flex flex-col gap-0.5">
+                  {item.children.map((child) => (
+                    <NavLink
+                      key={child.to}
+                      to={child.to}
+                      className={({ isActive }) => navLinkClassName(isActive, !collapsed)}
+                      title={collapsed ? child.label : undefined}
+                    >
+                      {child.icon}
+                      {!collapsed && <span>{child.label}</span>}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to!}
+            end={item.to === "/admin" || item.to === "/teacher"}
+            className={({ isActive }) => navLinkClassName(isActive)}
+            title={collapsed ? item.label : undefined}
+          >
+            {item.icon}
+            {!collapsed && <span>{item.label}</span>}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
