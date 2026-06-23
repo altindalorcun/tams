@@ -4,14 +4,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tr.com.hacettepe.tams.rule_service.domain.Course;
+import tr.com.hacettepe.tams.rule_service.domain.DepartmentCourseId;
 import tr.com.hacettepe.tams.rule_service.dto.CourseResponse;
 import tr.com.hacettepe.tams.rule_service.dto.CreateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.dto.UpdateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.rule_service.repository.CourseRepository;
+import tr.com.hacettepe.tams.rule_service.repository.DepartmentCourseRepository;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -23,6 +28,7 @@ import java.util.UUID;
 public class CourseService {
 
     private final CourseRepository courseRepository;
+    private final DepartmentCourseRepository departmentCourseRepository;
 
     @Transactional
     public CourseResponse create(CreateCourseRequest request) {
@@ -31,19 +37,22 @@ public class CourseService {
         }
         Course saved = courseRepository.save(
                 new Course(request.courseCode(), request.courseName(), request.credit(), request.ects()));
-        return CourseResponse.from(saved);
+        return CourseResponse.from(saved, List.of());
     }
 
     @Transactional(readOnly = true)
     public List<CourseResponse> findAll() {
+        Map<UUID, List<UUID>> departmentIdsByCourseId = buildDepartmentIdsByCourseId();
         return courseRepository.findAll().stream()
-                .map(CourseResponse::from)
+                .map(course -> CourseResponse.from(course,
+                        departmentIdsByCourseId.getOrDefault(course.getId(), List.of())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public CourseResponse findById(UUID id) {
-        return CourseResponse.from(getCourseOrThrow(id));
+        Course course = getCourseOrThrow(id);
+        return CourseResponse.from(course, departmentCourseRepository.findDepartmentIdsByCourseId(id));
     }
 
     @Transactional
@@ -57,7 +66,8 @@ public class CourseService {
         course.setCourseName(request.courseName());
         course.setCredit(request.credit());
         course.setEcts(request.ects());
-        return CourseResponse.from(courseRepository.save(course));
+        Course saved = courseRepository.save(course);
+        return CourseResponse.from(saved, departmentCourseRepository.findDepartmentIdsByCourseId(id));
     }
 
     @Transactional
@@ -71,5 +81,13 @@ public class CourseService {
     Course getCourseOrThrow(UUID id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + id));
+    }
+
+    private Map<UUID, List<UUID>> buildDepartmentIdsByCourseId() {
+        Map<UUID, List<UUID>> map = new HashMap<>();
+        for (DepartmentCourseId id : departmentCourseRepository.findAllIds()) {
+            map.computeIfAbsent(id.getCourseId(), ignored -> new ArrayList<>()).add(id.getDepartmentId());
+        }
+        return map;
     }
 }

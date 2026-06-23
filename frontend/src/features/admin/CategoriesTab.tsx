@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { matchesTextFilter } from "@/lib/textFilter";
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
   getCategoryCourses, getCourses, addCourseToCategory, removeCourseFromCategory,
@@ -287,6 +289,10 @@ interface CoursesPoolDialogProps {
 
 function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDialogProps) {
   const qc = useQueryClient();
+  const [assignedCodeFilter, setAssignedCodeFilter] = useState("");
+  const [assignedNameFilter, setAssignedNameFilter] = useState("");
+  const [availableCodeFilter, setAvailableCodeFilter] = useState("");
+  const [availableNameFilter, setAvailableNameFilter] = useState("");
 
   const { data: allCourses = [] } = useQuery({ queryKey: ["courses"], queryFn: getCourses, enabled: open });
   const { data: catCourses = [], isLoading } = useQuery({
@@ -295,7 +301,70 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
     enabled: open,
   });
 
-  const assignedIds = new Set(catCourses.map((c: CategoryCourse) => c.courseId));
+  const assignedIds = useMemo(
+    () => new Set(catCourses.map((c: CategoryCourse) => c.courseId)),
+    [catCourses],
+  );
+
+  const filteredCatCourses = useMemo(() => {
+    return catCourses.filter((c: CategoryCourse) => {
+      if (!matchesTextFilter(c.courseCode, assignedCodeFilter)) return false;
+      if (!matchesTextFilter(c.courseName, assignedNameFilter)) return false;
+      return true;
+    });
+  }, [catCourses, assignedCodeFilter, assignedNameFilter]);
+
+  const availableCourses = useMemo(
+    () => allCourses.filter((c) => !assignedIds.has(c.id)),
+    [allCourses, assignedIds],
+  );
+
+  const filteredAvailableCourses = useMemo(() => {
+    return availableCourses.filter((c) => {
+      if (!matchesTextFilter(c.courseCode, availableCodeFilter)) return false;
+      if (!matchesTextFilter(c.courseName, availableNameFilter)) return false;
+      return true;
+    });
+  }, [availableCourses, availableCodeFilter, availableNameFilter]);
+
+  const hasAssignedFilters = assignedCodeFilter.trim() !== "" || assignedNameFilter.trim() !== "";
+  const hasAvailableFilters = availableCodeFilter.trim() !== "" || availableNameFilter.trim() !== "";
+
+  const assignedActiveFilterCount = [
+    assignedCodeFilter.trim() !== "",
+    assignedNameFilter.trim() !== "",
+  ].filter(Boolean).length;
+
+  const availableActiveFilterCount = [
+    availableCodeFilter.trim() !== "",
+    availableNameFilter.trim() !== "",
+  ].filter(Boolean).length;
+
+  function clearAllFilters() {
+    setAssignedCodeFilter("");
+    setAssignedNameFilter("");
+    setAvailableCodeFilter("");
+    setAvailableNameFilter("");
+  }
+
+  function clearAssignedFilters() {
+    setAssignedCodeFilter("");
+    setAssignedNameFilter("");
+  }
+
+  function clearAvailableFilters() {
+    setAvailableCodeFilter("");
+    setAvailableNameFilter("");
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) clearAllFilters();
+    onOpenChange(v);
+  }
+
+  useEffect(() => {
+    if (!open) clearAllFilters();
+  }, [open]);
 
   const addMut = useMutation({
     mutationFn: ({ courseId, isMandatory }: { courseId: string; isMandatory: boolean }) =>
@@ -311,17 +380,79 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl shadow-xl">
         <DialogHeader><DialogTitle>{catName} — Ders Havuzu</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-4 pt-2 min-h-[240px]">
-          {/* Left: assigned courses */}
           <div>
-            <p className="text-sm font-medium mb-2">Kategorideki Dersler</p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-sm font-medium">Kategorideki Dersler</p>
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 transition-colors duration-150"
+                      aria-pressed={hasAssignedFilters}
+                      aria-label="Kategorideki dersleri filtrele"
+                    />
+                  }
+                >
+                  <Filter className="mr-1 h-3.5 w-3.5" />
+                  Filtre
+                  {hasAssignedFilters && (
+                    <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                      {assignedActiveFilterCount}
+                    </Badge>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 shadow-md">
+                  <PopoverHeader>
+                    <PopoverTitle>Kategorideki Dersleri Filtrele</PopoverTitle>
+                  </PopoverHeader>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="category-pool-assigned-code-filter" className="text-sm font-medium text-muted-foreground">
+                        Ders Kodu
+                      </label>
+                      <Input
+                        id="category-pool-assigned-code-filter"
+                        className="font-mono"
+                        placeholder="Ders koduna göre filtrele"
+                        value={assignedCodeFilter}
+                        onChange={(e) => setAssignedCodeFilter(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="category-pool-assigned-name-filter" className="text-sm font-medium text-muted-foreground">
+                        Ders Adı
+                      </label>
+                      <Input
+                        id="category-pool-assigned-name-filter"
+                        placeholder="Ders adına göre filtrele"
+                        value={assignedNameFilter}
+                        onChange={(e) => setAssignedNameFilter(e.target.value)}
+                      />
+                    </div>
+                    {hasAssignedFilters && (
+                      <Button variant="ghost" onClick={clearAssignedFilters} className="self-start transition-colors duration-150">
+                        Temizle
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             {isLoading ? <Skeleton className="h-32 w-full" /> : (
               <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
-                {catCourses.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Ders yok</p>}
-                {catCourses.map((c: CategoryCourse) => (
+                {catCourses.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Ders yok</p>
+                )}
+                {catCourses.length > 0 && filteredCatCourses.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Filtreye uygun ders bulunamadı.</p>
+                )}
+                {filteredCatCourses.map((c: CategoryCourse) => (
                   <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
                     <div>
                       <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
@@ -336,14 +467,74 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
               </div>
             )}
           </div>
-          {/* Right: available courses to add */}
           <div>
-            <p className="text-sm font-medium mb-2">Eklenebilir Dersler</p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-sm font-medium">Eklenebilir Dersler</p>
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 transition-colors duration-150"
+                      aria-pressed={hasAvailableFilters}
+                      aria-label="Eklenebilir dersleri filtrele"
+                    />
+                  }
+                >
+                  <Filter className="mr-1 h-3.5 w-3.5" />
+                  Filtre
+                  {hasAvailableFilters && (
+                    <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                      {availableActiveFilterCount}
+                    </Badge>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 shadow-md">
+                  <PopoverHeader>
+                    <PopoverTitle>Eklenebilir Dersleri Filtrele</PopoverTitle>
+                  </PopoverHeader>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="category-pool-available-code-filter" className="text-sm font-medium text-muted-foreground">
+                        Ders Kodu
+                      </label>
+                      <Input
+                        id="category-pool-available-code-filter"
+                        className="font-mono"
+                        placeholder="Ders koduna göre filtrele"
+                        value={availableCodeFilter}
+                        onChange={(e) => setAvailableCodeFilter(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="category-pool-available-name-filter" className="text-sm font-medium text-muted-foreground">
+                        Ders Adı
+                      </label>
+                      <Input
+                        id="category-pool-available-name-filter"
+                        placeholder="Ders adına göre filtrele"
+                        value={availableNameFilter}
+                        onChange={(e) => setAvailableNameFilter(e.target.value)}
+                      />
+                    </div>
+                    {hasAvailableFilters && (
+                      <Button variant="ghost" onClick={clearAvailableFilters} className="self-start transition-colors duration-150">
+                        Temizle
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
-              {allCourses.filter((c) => !assignedIds.has(c.id)).length === 0 && (
+              {availableCourses.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Eklenecek ders yok</p>
               )}
-              {allCourses.filter((c) => !assignedIds.has(c.id)).map((c) => (
+              {availableCourses.length > 0 && filteredAvailableCourses.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Filtreye uygun ders bulunamadı.</p>
+              )}
+              {filteredAvailableCourses.map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
                   <div>
                     <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
@@ -358,7 +549,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
             </div>
           </div>
         </div>
-        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Kapat</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => handleOpenChange(false)}>Kapat</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -506,14 +697,76 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
  * Admin tab: manage graduation categories per department.
  */
 export function CategoriesTab() {
+  const [departmentNameFilter, setDepartmentNameFilter] = useState("");
+
   const { data: departments, isLoading } = useQuery({ queryKey: ["departments"], queryFn: getDepartments });
+
+  const filteredDepartments = useMemo(() => {
+    return (departments ?? []).filter((d) => matchesTextFilter(d.name, departmentNameFilter));
+  }, [departments, departmentNameFilter]);
+
+  const hasActiveFilters = departmentNameFilter.trim() !== "";
+
+  function clearFilters() {
+    setDepartmentNameFilter("");
+  }
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Mezuniyet Kategorileri</h2>
-      <p className="text-sm text-muted-foreground">
-        Her bölüm için mezuniyet kategorilerini ve ders havuzlarını yönetin.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Mezuniyet Kategorileri</h2>
+          <p className="text-sm text-muted-foreground">
+            Her bölüm için mezuniyet kategorilerini ve ders havuzlarını yönetin.
+          </p>
+        </div>
+        {!isLoading && (departments?.length ?? 0) > 0 && (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-colors duration-150 shrink-0"
+                  aria-pressed={hasActiveFilters}
+                  aria-label="Bölümleri filtrele"
+                />
+              }
+            >
+              <Filter className="mr-1 h-4 w-4" />
+              Filtre
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                  1
+                </Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 shadow-md">
+              <PopoverHeader>
+                <PopoverTitle>Bölümleri Filtrele</PopoverTitle>
+              </PopoverHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="category-department-name-filter" className="text-sm font-medium text-muted-foreground">
+                    Bölüm Adı
+                  </label>
+                  <Input
+                    id="category-department-name-filter"
+                    placeholder="Bölüm adına göre filtrele"
+                    value={departmentNameFilter}
+                    onChange={(e) => setDepartmentNameFilter(e.target.value)}
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">
+                    Temizle
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -521,9 +774,11 @@ export function CategoriesTab() {
         </div>
       ) : departments?.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">Önce Bölümler sekmesinden bir bölüm ekleyin.</p>
+      ) : filteredDepartments.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Filtreye uygun bölüm bulunamadı.</p>
       ) : (
         <div className="space-y-3">
-          {departments?.map((d) => (
+          {filteredDepartments.map((d) => (
             <DeptCategoryList key={d.id} departmentId={d.id} departmentName={d.name} />
           ))}
         </div>

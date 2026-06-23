@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { matchesTextFilter } from "@/lib/textFilter";
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { getDepartments, getExemptionRules, createExemptionRule, deleteExemptionRule } from "@/api/ruleApi";
 import type { ExemptionRule, CreateExemptionRuleRequest } from "@/types";
 
@@ -223,18 +225,80 @@ function DeptExemptionList({ departmentId, departmentName }: DeptExemptionListPr
  * Exemption rules grant implicit credit for a course when all prerequisite courses are passed.
  */
 export function ExemptionRulesTab() {
+  const [departmentNameFilter, setDepartmentNameFilter] = useState("");
+
   const { data: departments, isLoading } = useQuery({
     queryKey: ["departments"],
     queryFn: getDepartments,
   });
 
+  const filteredDepartments = useMemo(() => {
+    return (departments ?? []).filter((d) => matchesTextFilter(d.name, departmentNameFilter));
+  }, [departments, departmentNameFilter]);
+
+  const hasActiveFilters = departmentNameFilter.trim() !== "";
+
+  function clearFilters() {
+    setDepartmentNameFilter("");
+  }
+
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Muafiyet Kuralları</h2>
-      <p className="text-sm text-muted-foreground">
-        Belirli dersleri geçen öğrencilere başka derslerden otomatik muafiyet tanımlayın.
-        Örnek: FIZ103 + FIZ104 geçen öğrenci FIZ117'yi de geçmiş sayılır.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Muafiyet Kuralları</h2>
+          <p className="text-sm text-muted-foreground">
+            Belirli dersleri geçen öğrencilere başka derslerden otomatik muafiyet tanımlayın.
+            Örnek: FIZ103 + FIZ104 geçen öğrenci FIZ117'yi de geçmiş sayılır.
+          </p>
+        </div>
+        {!isLoading && (departments?.length ?? 0) > 0 && (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-colors duration-150 shrink-0"
+                  aria-pressed={hasActiveFilters}
+                  aria-label="Bölümleri filtrele"
+                />
+              }
+            >
+              <Filter className="mr-1 h-4 w-4" />
+              Filtre
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                  1
+                </Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 shadow-md">
+              <PopoverHeader>
+                <PopoverTitle>Bölümleri Filtrele</PopoverTitle>
+              </PopoverHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="exemption-department-name-filter" className="text-sm font-medium text-muted-foreground">
+                    Bölüm Adı
+                  </label>
+                  <Input
+                    id="exemption-department-name-filter"
+                    placeholder="Bölüm adına göre filtrele"
+                    value={departmentNameFilter}
+                    onChange={(e) => setDepartmentNameFilter(e.target.value)}
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">
+                    Temizle
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -244,9 +308,13 @@ export function ExemptionRulesTab() {
         <p className="text-sm text-muted-foreground text-center py-8">
           Önce Bölümler sekmesinden bir bölüm ekleyin.
         </p>
+      ) : filteredDepartments.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          Filtreye uygun bölüm bulunamadı.
+        </p>
       ) : (
         <div className="space-y-3">
-          {departments?.map((d) => (
+          {filteredDepartments.map((d) => (
             <DeptExemptionList key={d.id} departmentId={d.id} departmentName={d.name} />
           ))}
         </div>

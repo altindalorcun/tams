@@ -9,10 +9,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tr.com.hacettepe.tams.rule_service.AbstractIntegrationTest;
 import tr.com.hacettepe.tams.rule_service.domain.Course;
+import tr.com.hacettepe.tams.rule_service.domain.Department;
+import tr.com.hacettepe.tams.rule_service.domain.DepartmentCourse;
 import tr.com.hacettepe.tams.rule_service.dto.CreateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.dto.UpdateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.repository.CourseRepository;
 import tr.com.hacettepe.tams.rule_service.repository.DepartmentCourseRepository;
+import tr.com.hacettepe.tams.rule_service.repository.DepartmentRepository;
 
 import java.math.BigDecimal;
 
@@ -34,6 +37,7 @@ class CourseControllerIT extends AbstractIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private CourseRepository courseRepository;
     @Autowired private DepartmentCourseRepository departmentCourseRepository;
+    @Autowired private DepartmentRepository departmentRepository;
 
     private String adminToken;
 
@@ -41,6 +45,7 @@ class CourseControllerIT extends AbstractIntegrationTest {
     void setUp() {
         departmentCourseRepository.deleteAll();
         courseRepository.deleteAll();
+        departmentRepository.deleteAll();
         adminToken = bearerToken("ADMIN");
     }
 
@@ -58,7 +63,8 @@ class CourseControllerIT extends AbstractIntegrationTest {
                 .andExpect(header().string("Location", containsString("/api/v1/courses/")))
                 .andExpect(jsonPath("$.courseCode").value("MAT101"))
                 .andExpect(jsonPath("$.courseName").value("Calculus I"))
-                .andExpect(jsonPath("$.id").isNotEmpty());
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.departmentIds").isArray());
     }
 
     @Test
@@ -123,7 +129,23 @@ class CourseControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(get(BASE_URL).header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].courseCode").value("FIZ101"));
+                .andExpect(jsonPath("$[0].courseCode").value("FIZ101"))
+                .andExpect(jsonPath("$[0].departmentIds").isArray());
+    }
+
+    @Test
+    @DisplayName("GET list — includes departmentIds for linked courses")
+    void list_includesDepartmentIds() throws Exception {
+        Department dept = departmentRepository.save(new Department("Bilgisayar Mühendisliği", "BBM", null));
+        Course saved = courseRepository.save(new Course("FIZ101", "Physics I",
+                new BigDecimal("3.00"), new BigDecimal("4.00")));
+        departmentCourseRepository.save(new DepartmentCourse(dept, saved));
+
+        mockMvc.perform(get(BASE_URL).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].departmentIds", hasSize(1)))
+                .andExpect(jsonPath("$[0].departmentIds[0]").value(dept.getId().toString()));
     }
 
     @Test
@@ -135,7 +157,8 @@ class CourseControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(get(BASE_URL + "/" + saved.getId())
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.courseCode").value("KIM101"));
+                .andExpect(jsonPath("$.courseCode").value("KIM101"))
+                .andExpect(jsonPath("$.departmentIds").isArray());
     }
 
     @Test

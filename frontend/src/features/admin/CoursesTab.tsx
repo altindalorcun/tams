@@ -1,25 +1,35 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { getCourses, createCourse, updateCourse, deleteCourse } from "@/api/ruleApi";
+import { matchesTextFilter } from "@/lib/textFilter";
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import {
+  getCourses, createCourse, updateCourse, deleteCourse,
+  getDepartments, addCourseToDepartment, removeCourseFromDepartment,
+} from "@/api/ruleApi";
 import type { Course, CreateCourseRequest } from "@/types";
+
+const NONE_DEPARTMENT = "none";
 
 const schema = z.object({
   courseCode: z.string().min(1, "Ders kodu zorunludur"),
   courseName: z.string().min(1, "Ders adı zorunludur"),
   credit: z.coerce.number().min(0, "Kredi 0 veya üzeri olmalıdır"),
   ects: z.coerce.number().min(0, "AKTS 0 veya üzeri olmalıdır"),
+  departmentId: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -27,19 +37,52 @@ interface CourseDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial?: Course;
-  onSave: (data: CreateCourseRequest) => Promise<void>;
+  onSave: (data: CreateCourseRequest, departmentId?: string, initialDepartmentId?: string) => Promise<void>;
 }
 
 function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps) {
+  const initialDepartmentId = initial?.departmentIds?.[0] ?? NONE_DEPARTMENT;
+
+  const { data: departments, isLoading: departmentsLoading } = useQuery({
+    queryKey: ["departments"],
+    queryFn: getDepartments,
+    enabled: open,
+  });
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: initial
-      ? { courseCode: initial.courseCode, courseName: initial.courseName, credit: initial.credit, ects: initial.ects }
-      : { courseCode: "", courseName: "", credit: 0, ects: 0 },
+      ? {
+          courseCode: initial.courseCode,
+          courseName: initial.courseName,
+          credit: initial.credit,
+          ects: initial.ects,
+          departmentId: initialDepartmentId,
+        }
+      : { courseCode: "", courseName: "", credit: 0, ects: 0, departmentId: NONE_DEPARTMENT },
   });
 
+  const otherDepartmentIds = initial?.departmentIds?.slice(1) ?? [];
+  const otherDepartmentNames = departments
+    ?.filter((d) => otherDepartmentIds.includes(d.id))
+    .map((d) => d.name) ?? [];
+
+  const departmentSelectItems = [
+    { value: NONE_DEPARTMENT, label: "Bölüm seçilmedi" },
+    ...(departments ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ];
+
   async function onSubmit(values: FormValues) {
-    await onSave(values);
+    await onSave(
+      {
+        courseCode: values.courseCode,
+        courseName: values.courseName,
+        credit: values.credit,
+        ects: values.ects,
+      },
+      values.departmentId,
+      initialDepartmentId,
+    );
     onOpenChange(false);
   }
 
@@ -81,6 +124,41 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
                 </FormItem>
               )} />
             </div>
+            <FormField control={form.control} name="departmentId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bölüm</FormLabel>
+                {departmentsLoading ? (
+                  <Skeleton className="h-9 w-full" />
+                ) : (
+                  <Select
+                    items={departmentSelectItems}
+                    onValueChange={field.onChange}
+                    value={field.value ?? NONE_DEPARTMENT}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Bölüm seçilmedi" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={NONE_DEPARTMENT}>Bölüm seçilmedi</SelectItem>
+                      {departments?.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <FormDescription>
+                  Seçilirse ders bu bölümün havuzuna otomatik eklenir. Bölüm sayfasından da yönetilebilir.
+                </FormDescription>
+                {otherDepartmentNames.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Bu ders şu bölümlerde daha kayıtlı: {otherDepartmentNames.join(", ")}
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )} />
             <DialogFooter className="pt-2">
               <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>İptal</Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -102,35 +180,85 @@ export function CoursesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Course | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Course | undefined>();
+  const [courseCodeFilter, setCourseCodeFilter] = useState("");
+  const [courseNameFilter, setCourseNameFilter] = useState("");
 
   const { data: courses, isLoading } = useQuery({
     queryKey: ["courses"],
     queryFn: getCourses,
   });
 
+  const filteredCourses = useMemo(() => {
+    return (courses ?? []).filter((c) => {
+      if (!matchesTextFilter(c.courseCode, courseCodeFilter)) return false;
+      if (!matchesTextFilter(c.courseName, courseNameFilter)) return false;
+      return true;
+    });
+  }, [courses, courseCodeFilter, courseNameFilter]);
+
+  const hasActiveFilters = courseCodeFilter.trim() !== "" || courseNameFilter.trim() !== "";
+
+  const activeFilterCount = [
+    courseCodeFilter.trim() !== "",
+    courseNameFilter.trim() !== "",
+  ].filter(Boolean).length;
+
+  function clearFilters() {
+    setCourseCodeFilter("");
+    setCourseNameFilter("");
+  }
+
+  function invalidateCourseQueries() {
+    qc.invalidateQueries({ queryKey: ["courses"] });
+    qc.invalidateQueries({ queryKey: ["department-course-pool"] });
+  }
+
   const createMut = useMutation({
     mutationFn: createCourse,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["courses"] }); toast.success("Ders eklendi."); },
+    onSuccess: () => { invalidateCourseQueries(); toast.success("Ders eklendi."); },
     onError: () => toast.error("Ders eklenemedi."),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: string; data: CreateCourseRequest }) => updateCourse(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["courses"] }); toast.success("Ders güncellendi."); },
+    onSuccess: () => { invalidateCourseQueries(); toast.success("Ders güncellendi."); },
     onError: () => toast.error("Güncelleme başarısız."),
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteCourse,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["courses"] }); toast.success("Ders silindi."); setDeleteTarget(undefined); },
+    onSuccess: () => { invalidateCourseQueries(); toast.success("Ders silindi."); setDeleteTarget(undefined); },
     onError: () => toast.error("Silme işlemi başarısız."),
   });
 
-  async function handleSave(data: CreateCourseRequest) {
-    if (editTarget) {
-      await updateMut.mutateAsync({ id: editTarget.id, data });
-    } else {
-      await createMut.mutateAsync(data);
+  async function handleSave(
+    data: CreateCourseRequest,
+    departmentId?: string,
+    initialDepartmentId?: string,
+  ) {
+    const normalized = departmentId && departmentId !== NONE_DEPARTMENT ? departmentId : undefined;
+    const normalizedInitial = initialDepartmentId && initialDepartmentId !== NONE_DEPARTMENT
+      ? initialDepartmentId
+      : undefined;
+
+    const course = editTarget
+      ? await updateMut.mutateAsync({ id: editTarget.id, data })
+      : await createMut.mutateAsync(data);
+
+    const deptChanged = normalized !== normalizedInitial;
+    if (deptChanged) {
+      try {
+        if (normalizedInitial) {
+          await removeCourseFromDepartment(normalizedInitial, course.id);
+        }
+        if (normalized) {
+          await addCourseToDepartment(normalized, course.id);
+        }
+        invalidateCourseQueries();
+      } catch {
+        toast.error("Ders kaydedildi ancak bölüm bağlantısı güncellenemedi.");
+        throw new Error("Department link update failed");
+      }
     }
   }
 
@@ -138,10 +266,68 @@ export function CoursesTab() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Ders Kataloğu</h2>
-        <Button size="sm" onClick={() => { setEditTarget(undefined); setDialogOpen(true); }} className="transition-colors duration-150">
-          <Plus className="mr-1 h-4 w-4" />
-          Yeni Ders
-        </Button>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-colors duration-150"
+                  aria-pressed={hasActiveFilters}
+                  aria-label="Dersleri filtrele"
+                />
+              }
+            >
+              <Filter className="mr-1 h-4 w-4" />
+              Filtre
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 shadow-md">
+              <PopoverHeader>
+                <PopoverTitle>Dersleri Filtrele</PopoverTitle>
+              </PopoverHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="course-code-filter" className="text-sm font-medium text-muted-foreground">
+                    Ders Kodu
+                  </label>
+                  <Input
+                    id="course-code-filter"
+                    className="font-mono"
+                    placeholder="Ders koduna göre filtrele"
+                    value={courseCodeFilter}
+                    onChange={(e) => setCourseCodeFilter(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="course-name-filter" className="text-sm font-medium text-muted-foreground">
+                    Ders Adı
+                  </label>
+                  <Input
+                    id="course-name-filter"
+                    placeholder="Ders adına göre filtrele"
+                    value={courseNameFilter}
+                    onChange={(e) => setCourseNameFilter(e.target.value)}
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">
+                    Temizle
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" onClick={() => { setEditTarget(undefined); setDialogOpen(true); }} className="transition-colors duration-150">
+            <Plus className="mr-1 h-4 w-4" />
+            Yeni Ders
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -168,7 +354,14 @@ export function CoursesTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {courses?.map((c) => (
+              {courses && courses.length > 0 && filteredCourses.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    Filtreye uygun ders bulunamadı.
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredCourses.map((c) => (
                 <TableRow key={c.id} className="hover:bg-muted/50 transition-colors duration-150">
                   <TableCell className="font-mono text-sm">{c.courseCode}</TableCell>
                   <TableCell className="font-medium">{c.courseName}</TableCell>

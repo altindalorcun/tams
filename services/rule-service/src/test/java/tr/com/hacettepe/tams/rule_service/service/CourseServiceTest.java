@@ -8,12 +8,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tr.com.hacettepe.tams.rule_service.domain.Course;
+import tr.com.hacettepe.tams.rule_service.domain.DepartmentCourseId;
 import tr.com.hacettepe.tams.rule_service.dto.CourseResponse;
 import tr.com.hacettepe.tams.rule_service.dto.CreateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.dto.UpdateCourseRequest;
 import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.rule_service.repository.CourseRepository;
+import tr.com.hacettepe.tams.rule_service.repository.DepartmentCourseRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -33,14 +35,17 @@ import static org.mockito.Mockito.*;
 class CourseServiceTest {
 
     @Mock private CourseRepository courseRepository;
+    @Mock private DepartmentCourseRepository departmentCourseRepository;
     @InjectMocks private CourseService courseService;
 
     private Course course;
     private final UUID COURSE_ID = UUID.randomUUID();
+    private final UUID DEPT_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         course = new Course("MAT101", "Calculus I", new BigDecimal("4.00"), new BigDecimal("5.00"));
+        course.setId(COURSE_ID);
     }
 
     @Test
@@ -57,6 +62,7 @@ class CourseServiceTest {
         assertThat(result.courseName()).isEqualTo("Calculus I");
         assertThat(result.credit()).isEqualByComparingTo(new BigDecimal("4.00"));
         assertThat(result.ects()).isEqualByComparingTo(new BigDecimal("5.00"));
+        assertThat(result.departmentIds()).isEmpty();
         verify(courseRepository).save(any(Course.class));
     }
 
@@ -73,31 +79,40 @@ class CourseServiceTest {
     }
 
     @Test
-    @DisplayName("findAll: returns mapped list")
+    @DisplayName("findAll: returns mapped list with departmentIds")
     void findAll_returnsList() {
         Course other = new Course("FIZ101", "Physics I", new BigDecimal("3.00"), new BigDecimal("4.00"));
         when(courseRepository.findAll()).thenReturn(List.of(course, other));
+        when(departmentCourseRepository.findAllIds()).thenReturn(
+                List.of(new DepartmentCourseId(DEPT_ID, course.getId())));
 
         List<CourseResponse> results = courseService.findAll();
 
         assertThat(results).hasSize(2);
         assertThat(results).extracting(CourseResponse::courseCode).containsExactly("MAT101", "FIZ101");
+        assertThat(results.get(0).departmentIds()).containsExactly(DEPT_ID);
+        assertThat(results.get(1).departmentIds()).isEmpty();
     }
 
     @Test
     @DisplayName("findAll: empty repository returns empty list")
     void findAll_empty_returnsEmpty() {
         when(courseRepository.findAll()).thenReturn(List.of());
+        when(departmentCourseRepository.findAllIds()).thenReturn(List.of());
 
         assertThat(courseService.findAll()).isEmpty();
     }
 
     @Test
-    @DisplayName("findById: happy path returns response")
+    @DisplayName("findById: happy path returns response with departmentIds")
     void findById_happyPath() {
         when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course));
+        when(departmentCourseRepository.findDepartmentIdsByCourseId(COURSE_ID)).thenReturn(List.of(DEPT_ID));
 
-        assertThat(courseService.findById(COURSE_ID).courseCode()).isEqualTo("MAT101");
+        CourseResponse result = courseService.findById(COURSE_ID);
+
+        assertThat(result.courseCode()).isEqualTo("MAT101");
+        assertThat(result.departmentIds()).containsExactly(DEPT_ID);
     }
 
     @Test
@@ -115,8 +130,9 @@ class CourseServiceTest {
         when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course));
         when(courseRepository.existsByCourseCode("MAT102")).thenReturn(false);
         when(courseRepository.save(course)).thenReturn(course);
+        when(departmentCourseRepository.findDepartmentIdsByCourseId(COURSE_ID)).thenReturn(List.of(DEPT_ID));
 
-        courseService.update(COURSE_ID,
+        CourseResponse result = courseService.update(COURSE_ID,
                 new UpdateCourseRequest("MAT102", "Calculus II",
                         new BigDecimal("3.00"), new BigDecimal("4.00")));
 
@@ -124,6 +140,7 @@ class CourseServiceTest {
         assertThat(course.getCourseName()).isEqualTo("Calculus II");
         assertThat(course.getCredit()).isEqualByComparingTo(new BigDecimal("3.00"));
         assertThat(course.getEcts()).isEqualByComparingTo(new BigDecimal("4.00"));
+        assertThat(result.departmentIds()).containsExactly(DEPT_ID);
         verify(courseRepository).save(course);
     }
 
@@ -132,6 +149,7 @@ class CourseServiceTest {
     void update_sameCode_skipsDuplicateCheck() {
         when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course));
         when(courseRepository.save(course)).thenReturn(course);
+        when(departmentCourseRepository.findDepartmentIdsByCourseId(COURSE_ID)).thenReturn(List.of());
 
         courseService.update(COURSE_ID,
                 new UpdateCourseRequest("MAT101", "Calculus I (revised)",

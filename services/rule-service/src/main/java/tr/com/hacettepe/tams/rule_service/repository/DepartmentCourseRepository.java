@@ -19,4 +19,10 @@ public interface DepartmentCourseRepository extends JpaRepository<DepartmentCour
 
     @Query("SELECT dc.course FROM DepartmentCourse dc WHERE dc.id.departmentId = :departmentId")
     List<Course> findCoursesByDepartmentId(@Param("departmentId") UUID departmentId);
+
+    @Query("SELECT dc.id.departmentId FROM DepartmentCourse dc WHERE dc.id.courseId = :courseId")
+    List<UUID> findDepartmentIdsByCourseId(@Param("courseId") UUID courseId);
+
+    @Query("SELECT dc.id FROM DepartmentCourse dc")
+    List<DepartmentCourseId> findAllIds();
 }

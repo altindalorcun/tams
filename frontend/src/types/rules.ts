@@ -22,6 +22,7 @@ export interface Course {
   courseName: string;
   credit: number;
   ects: number;
+  departmentIds?: string[];
 }
 
 export interface PrefixLimit {

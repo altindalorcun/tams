@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, BookOpen, ShieldAlert } from "lucide-react";
+import { Plus, Pencil, Trash2, BookOpen, ShieldAlert, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { matchesTextFilter } from "@/lib/textFilter";
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, createDepartment, updateDepartment, deleteDepartment,
   getDepartmentCoursePool, addCourseToDepartment, removeCourseFromDepartment,
@@ -307,11 +309,33 @@ export function DepartmentsTab() {
   const [editTarget, setEditTarget] = useState<Department | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Department | undefined>();
   const [poolTarget, setPoolTarget] = useState<Department | undefined>();
+  const [nameFilter, setNameFilter] = useState("");
+  const [codeFilter, setCodeFilter] = useState("");
 
   const { data: departments, isLoading } = useQuery({
     queryKey: ["departments"],
     queryFn: getDepartments,
   });
+
+  const filteredDepartments = useMemo(() => {
+    return (departments ?? []).filter((d) => {
+      if (!matchesTextFilter(d.name, nameFilter)) return false;
+      if (!matchesTextFilter(d.code, codeFilter)) return false;
+      return true;
+    });
+  }, [departments, nameFilter, codeFilter]);
+
+  const hasActiveFilters = nameFilter.trim() !== "" || codeFilter.trim() !== "";
+
+  const activeFilterCount = [
+    nameFilter.trim() !== "",
+    codeFilter.trim() !== "",
+  ].filter(Boolean).length;
+
+  function clearFilters() {
+    setNameFilter("");
+    setCodeFilter("");
+  }
 
   const createMut = useMutation({
     mutationFn: createDepartment,
@@ -346,10 +370,68 @@ export function DepartmentsTab() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Bölümler</h2>
-        <Button size="sm" onClick={openCreate} className="transition-colors duration-150">
-          <Plus className="mr-1 h-4 w-4" />
-          Yeni Bölüm
-        </Button>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-colors duration-150"
+                  aria-pressed={hasActiveFilters}
+                  aria-label="Bölümleri filtrele"
+                />
+              }
+            >
+              <Filter className="mr-1 h-4 w-4" />
+              Filtre
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 shadow-md">
+              <PopoverHeader>
+                <PopoverTitle>Bölümleri Filtrele</PopoverTitle>
+              </PopoverHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="department-name-filter" className="text-sm font-medium text-muted-foreground">
+                    Bölüm Adı
+                  </label>
+                  <Input
+                    id="department-name-filter"
+                    placeholder="Bölüm adına göre filtrele"
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="department-code-filter" className="text-sm font-medium text-muted-foreground">
+                    Kod
+                  </label>
+                  <Input
+                    id="department-code-filter"
+                    className="font-mono"
+                    placeholder="Koda göre filtrele"
+                    value={codeFilter}
+                    onChange={(e) => setCodeFilter(e.target.value)}
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" onClick={clearFilters} className="self-start transition-colors duration-150">
+                    Temizle
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button size="sm" onClick={openCreate} className="transition-colors duration-150">
+            <Plus className="mr-1 h-4 w-4" />
+            Yeni Bölüm
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -376,7 +458,14 @@ export function DepartmentsTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {departments?.map((d) => (
+              {departments && departments.length > 0 && filteredDepartments.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    Filtreye uygun bölüm bulunamadı.
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredDepartments.map((d) => (
                 <TableRow key={d.id} className="hover:bg-muted/50 transition-colors duration-150">
                   <TableCell className="font-medium">{d.name}</TableCell>
                   <TableCell className="font-mono text-sm text-muted-foreground">{d.code}</TableCell>
