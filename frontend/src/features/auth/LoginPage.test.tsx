@@ -50,7 +50,7 @@ describe("LoginPage", () => {
     renderLogin();
     await user.click(screen.getByRole("button", { name: /giriş yap/i }));
     await waitFor(() => {
-      expect(screen.getByText(/e-posta veya kullanıcı adı gereklidir/i)).toBeInTheDocument();
+      expect(screen.getByText(/e-posta gereklidir/i)).toBeInTheDocument();
     });
   });
 

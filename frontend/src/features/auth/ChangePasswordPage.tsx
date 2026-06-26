@@ -14,7 +14,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/PasswordInput";
 import { LogoFull } from "@/components/brand/LogoFull";
 import { HacettepeLogo } from "@/components/brand/HacettepeLogo";
 import { useAuthStore } from "./authStore";
@@ -113,8 +113,7 @@ export function ChangePasswordPage() {
                   <FormItem>
                     <FormLabel>Mevcut Şifre</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
                         placeholder="••••••••"
                         autoComplete="current-password"
                         {...field}
@@ -131,8 +130,7 @@ export function ChangePasswordPage() {
                   <FormItem>
                     <FormLabel>Yeni Şifre</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
                         placeholder="En az 8 karakter"
                         autoComplete="new-password"
                         {...field}
@@ -149,8 +147,7 @@ export function ChangePasswordPage() {
                   <FormItem>
                     <FormLabel>Yeni Şifre (Tekrar)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
                         placeholder="••••••••"
                         autoComplete="new-password"
                         {...field}

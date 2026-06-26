@@ -7,7 +7,7 @@ interface HacettepeLogoProps {
 
 /**
  * Hacettepe University shield emblem.
- * Use in the /login page bottom-left corner at reduced opacity.
+ * Primary use: above the login page heading at full opacity; default styling suits secondary placements.
  */
 export function HacettepeLogo({ className }: HacettepeLogoProps) {
   return (

@@ -15,13 +15,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/PasswordInput";
 import { LogoFull } from "@/components/brand/LogoFull";
 import { HacettepeLogo } from "@/components/brand/HacettepeLogo";
 import { useAuthStore } from "./authStore";
 import { login } from "@/api/authApi";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "E-posta veya kullanıcı adı gereklidir"),
+  email: z.string().min(1, "E-posta gereklidir"),
   password: z.string().min(1, "Şifre gereklidir"),
 });
 
@@ -59,7 +60,7 @@ export function LoginPage() {
       const response = await login(values);
       setAuth(response.accessToken, response.mustChangePassword, response.username);
     } catch {
-      toast.error("Giriş başarısız. E-posta/kullanıcı adı veya şifrenizi kontrol edin.");
+      toast.error("Giriş başarısız. E-posta veya şifrenizi kontrol edin.");
     }
   }
 
@@ -71,16 +72,18 @@ export function LoginPage() {
       </section>
 
       {/* Right panel — form */}
-      <section className="flex flex-1 flex-col justify-between px-8 py-12 md:px-16 lg:px-24">
-        <div className="flex flex-col justify-center flex-1 max-w-sm w-full mx-auto">
+      <section className="flex flex-1 flex-col items-center justify-center px-8 py-12 md:px-16 lg:px-24">
+        <div className="max-w-sm w-full mx-auto">
           {/* Logo shown on mobile only */}
           <div className="flex justify-center mb-10 md:hidden">
             <LogoFull />
           </div>
 
+          <HacettepeLogo className="mx-auto mb-6 max-w-[80px] opacity-100" />
+
           <h1 className="text-2xl font-semibold mb-2">Giriş Yap</h1>
           <p className="text-sm text-muted-foreground mb-8">
-            Hesabınıza erişmek için e-posta/kullanıcı adı ve şifrenizi girin.
+            Hesabınıza erişmek için e-posta adresinizi ve şifrenizi girin.
           </p>
 
           <Form {...form}>
@@ -90,10 +93,10 @@ export function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-posta veya Kullanıcı Adı</FormLabel>
+                    <FormLabel>E-posta</FormLabel>
                     <FormControl>
                       <Input
-                        type="text"
+                        type="email"
                         placeholder="kullanici@hacettepe.edu.tr"
                         autoComplete="username"
                         {...field}
@@ -110,8 +113,7 @@ export function LoginPage() {
                   <FormItem>
                     <FormLabel>Şifre</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
+                      <PasswordInput
                         placeholder="••••••••"
                         autoComplete="current-password"
                         {...field}
@@ -137,11 +139,6 @@ export function LoginPage() {
               </Button>
             </form>
           </Form>
-        </div>
-
-        {/* Hacettepe logo bottom-left */}
-        <div className="flex items-end">
-          <HacettepeLogo />
         </div>
       </section>
     </div>
