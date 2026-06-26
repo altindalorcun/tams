@@ -142,9 +142,10 @@ export function ResultCardSkeleton() {
   );
 }
 
-export function HistoryTable({ results, isLoading, onSelect }: {
+export function HistoryTable({ results, isLoading, selectedResultId, onSelect }: {
   results: AnalysisResultSummary[];
   isLoading: boolean;
+  selectedResultId?: string | null;
   onSelect: (id: string) => void;
 }) {
   if (isLoading) {
@@ -172,7 +173,13 @@ export function HistoryTable({ results, isLoading, onSelect }: {
           {results.map((r) => (
             <TableRow
               key={r.id}
-              className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+              aria-selected={r.id === selectedResultId}
+              className={cn(
+                "cursor-pointer transition-colors duration-150",
+                r.id === selectedResultId
+                  ? "bg-muted hover:bg-muted"
+                  : "hover:bg-muted/50",
+              )}
               onClick={() => onSelect(r.id)}
             >
               <TableCell className="font-mono text-xs">{r.studentNumber ?? "—"}</TableCell>
