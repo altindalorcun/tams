@@ -31,7 +31,7 @@ class _FakeProducer:
 
 
 def _build_settings() -> Settings:
-    return Settings(pii_hash_salt="pipeline-test-salt", enable_consumer=False)
+    return Settings(enable_consumer=False)
 
 
 def test_handle_message_parses_and_publishes() -> None:
@@ -54,6 +54,7 @@ def test_handle_message_parses_and_publishes() -> None:
     assert transcript.job_id == "job-42"
     assert transcript.department_id == "dept-1"
     assert transcript.metadata.program_code == "356"
+    assert transcript.student_number == "21627208"
     assert len(transcript.courses) == 61
     assert "29837459164" not in transcript.model_dump_json()
 

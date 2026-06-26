@@ -21,8 +21,7 @@ import java.util.UUID;
  * <p>Access rules:
  * <ul>
  *   <li>TEACHER — can only see results they personally uploaded (teacherId matches).</li>
- *   <li>STUDENT — can only see results whose maskedStudentRef matches the value derived
- *       from their JWT {@code studentNumber} claim via {@link ResultService#maskStudentNumber}.</li>
+ *   <li>STUDENT — can only see results whose studentNumber matches their JWT claim.</li>
  * </ul>
  */
 @Service
@@ -33,19 +32,19 @@ public class ResultQueryService {
 
     /**
      * Returns a paginated list of result summaries for a given teacher.
-     * Optionally filters by a partial maskedStudentRef substring.
+     * Optionally filters by a partial student number substring.
      *
-     * @param teacherId  the authenticated teacher's UUID
-     * @param studentRef optional search token (partial maskedStudentRef)
-     * @param pageable   pagination and sort parameters
+     * @param teacherId     the authenticated teacher's UUID
+     * @param studentNumber optional search token (partial student number)
+     * @param pageable      pagination and sort parameters
      */
     @Transactional(readOnly = true)
     public Page<AnalysisResultSummaryResponse> listForTeacher(UUID teacherId,
-                                                              String studentRef,
+                                                              String studentNumber,
                                                               Pageable pageable) {
-        Page<AnalysisResult> page = StringUtils.hasText(studentRef)
-                ? analysisResultRepository.findByTeacherIdAndMaskedStudentRefContaining(
-                        teacherId, studentRef, pageable)
+        Page<AnalysisResult> page = StringUtils.hasText(studentNumber)
+                ? analysisResultRepository.findByTeacherIdAndStudentNumberContaining(
+                        teacherId, studentNumber, pageable)
                 : analysisResultRepository.findByTeacherId(teacherId, pageable);
 
         return page.map(AnalysisResultSummaryResponse::from);
@@ -54,12 +53,12 @@ public class ResultQueryService {
     /**
      * Returns the full detail of a result by its primary key.
      * A TEACHER may only read results they uploaded; a STUDENT may only read
-     * results whose maskedStudentRef matches the supplied token.
+     * results whose studentNumber matches the supplied value.
      *
-     * @param id        the UUID of the analysis result
-     * @param role      the caller's role (TEACHER or STUDENT)
-     * @param callerId  the authenticated user's UUID (used for TEACHER ownership check)
-     * @param studentRef the caller's masked student ref (used for STUDENT ownership check)
+     * @param id            the UUID of the analysis result
+     * @param role          the caller's role (TEACHER or STUDENT)
+     * @param callerId      the authenticated user's UUID (used for TEACHER ownership check)
+     * @param studentNumber the caller's student number (used for STUDENT ownership check)
      * @throws ResourceNotFoundException if no result exists with the given id
      * @throws UnauthorizedException     if the caller does not own this result
      */
@@ -67,11 +66,11 @@ public class ResultQueryService {
     public AnalysisResultDetailResponse getById(UUID id,
                                                 String role,
                                                 UUID callerId,
-                                                String studentRef) {
+                                                String studentNumber) {
         AnalysisResult result = analysisResultRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Result not found: " + id));
 
-        enforceOwnership(result, role, callerId, studentRef);
+        enforceOwnership(result, role, callerId, studentNumber);
 
         result.getCategoryResults().size();
         result.getTranscriptCourses().size();
@@ -98,19 +97,17 @@ public class ResultQueryService {
     }
 
     /**
-     * Returns the latest completed result for a student identified by their masked ref.
-     * The masked ref must be derived from the JWT {@code studentNumber} claim via
-     * {@link ResultService#maskStudentNumber} before calling this method.
+     * Returns the latest completed result for a student identified by their student number.
      *
-     * @param maskedStudentRef the student's masked identity token
-     * @throws ResourceNotFoundException if no result exists for this student ref
+     * @param studentNumber the student's Öğrenci No from the JWT claim
+     * @throws ResourceNotFoundException if no result exists for this student number
      */
     @Transactional(readOnly = true)
-    public AnalysisResultDetailResponse getLatestForStudent(String maskedStudentRef) {
+    public AnalysisResultDetailResponse getLatestForStudent(String studentNumber) {
         AnalysisResult result = analysisResultRepository
-                .findFirstByMaskedStudentRefOrderByCreatedAtDesc(maskedStudentRef)
+                .findFirstByStudentNumberOrderByCreatedAtDesc(studentNumber)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "No results found for the provided student reference"));
+                        "No results found for the provided student number"));
 
         result.getCategoryResults().size();
         result.getTranscriptCourses().size();
@@ -121,14 +118,14 @@ public class ResultQueryService {
     private void enforceOwnership(AnalysisResult result,
                                   String role,
                                   UUID callerId,
-                                  String studentRef) {
+                                  String studentNumber) {
         if ("TEACHER".equals(role)) {
             if (!result.getTeacherId().equals(callerId)) {
                 throw new UnauthorizedException("You do not have access to this result");
             }
         } else if ("STUDENT".equals(role)) {
-            if (!StringUtils.hasText(studentRef)
-                    || !studentRef.equals(result.getMaskedStudentRef())) {
+            if (!StringUtils.hasText(studentNumber)
+                    || !studentNumber.equals(result.getStudentNumber())) {
                 throw new UnauthorizedException("You do not have access to this result");
             }
         } else {

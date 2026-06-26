@@ -46,8 +46,8 @@ public class TranscriptParsedConsumer {
             ParsedTranscriptMessage message = objectMapper.readValue(
                     record.value(), ParsedTranscriptMessage.class);
 
-            log.info("Processing transcript.parsed: jobId={}, studentRef={}",
-                    message.jobId(), message.studentRef());
+            log.info("Processing transcript.parsed: jobId={}, studentNumber={}",
+                    message.jobId(), message.studentNumber());
 
             process(message);
             acknowledgment.acknowledge();

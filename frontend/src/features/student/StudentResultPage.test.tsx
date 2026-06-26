@@ -12,7 +12,7 @@ vi.mock("@/api/analysisApi");
 const MOCK_RESULT: AnalysisResult = {
   id: "result-1",
   jobId: "job-1",
-  maskedStudentRef: "abc123def456",
+  studentNumber: "21627208",
   departmentId: "dept-1",
   departmentName: "Bilgisayar Mühendisliği",
   status: "COMPLETED",

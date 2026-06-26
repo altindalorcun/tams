@@ -30,8 +30,8 @@ public class AnalysisResult {
     @Column(name = "job_id", nullable = false, unique = true, length = 36)
     private String jobId;
 
-    @Column(name = "masked_student_ref", length = 80)
-    private String maskedStudentRef;
+    @Column(name = "student_number", length = 20)
+    private String studentNumber;
 
     @Column(name = "teacher_id", nullable = false)
     private UUID teacherId;

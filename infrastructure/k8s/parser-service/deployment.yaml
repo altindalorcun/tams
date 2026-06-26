@@ -27,11 +27,6 @@ spec:
                 configMapKeyRef:
                   name: tams-config
                   key: KAFKA_BROKER
-            - name: PII_HASH_SALT
-              valueFrom:
-                secretKeyRef:
-                  name: tams-pii-salt
-                  key: PII_HASH_SALT
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:

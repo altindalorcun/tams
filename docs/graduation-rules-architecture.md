@@ -99,31 +99,22 @@ GPA hesaplama, transkript verisi üzerinde saf bir hesaplama işlemidir — veri
 
 ## 5. Öğrenci Self-Lookup: JWT `studentNumber` Claim
 
-### Mevcut Durum
+### Akış
 
-`GET /api/v1/results/me` endpoint'i şu an `?studentRef=` query param bekliyor. Bu anlamsız — öğrencinin kendi numarasını bilip URL'ye yazması gerekmeli.
-
-### Tasarlanan Çözüm
-
-1. Öğrenci kayıt sırasında `studentNumber`'ını girer (`RegisterRequest`'e eklenir).
+1. Admin öğrenci oluştururken `studentNumber` girer.
 2. auth-service bu değeri `users.student_number` kolonuna yazar.
 3. Token üretiminde `JwtUtil.generateAccessToken()`, `STUDENT` rolü için JWT'ye `"studentNumber"` claim'i ekler.
-4. analysis-service `getMyResult()` endpoint'i JWT'yi parse ederek `studentNumber`'ı çıkarır ve `maskedStudentRef` ile eşleştirir.
+4. parser-service transkript PDF'inden Öğrenci No'yu çıkarır ve `transcript.parsed` Kafka mesajına düz metin olarak yazar (`student_number`). TC Kimlik No yalnızca bellek içinde kalır.
+5. analysis-service `ResultService.completeResult()` ile `analysis_results.student_number` kolonuna düz metin yazar.
+6. `GET /api/v1/results/me` JWT'deki `studentNumber` ile birebir eşleşme yapar.
 
-### `maskedStudentRef` Eşleştirme
-
-Parser-service transkript PDF'inden öğrenci numarasını çıkarır ve `ResultService.completeResult()`'a iletir. `completeResult()` bu değeri maskeleyerek (ör. `20190001` → `****0001`) `analysis_results.masked_student_ref` kolonuna yazar.
-
-`getMyResult()` akışı:
 ```
-JWT["studentNumber"] = "20190001"
-    ↓ aynı masking
-"****0001"
-    ↓ WHERE masked_student_ref = '****0001'
+JWT["studentNumber"] = "21627208"
+    ↓ WHERE student_number = '21627208'
 en güncel AnalysisResult
 ```
 
-**Masking fonksiyonu `ResultService` içinde `private static` bir yardımcı metod olmalıdır** — hem persist ederken hem de lookup sırasında aynı metod çağrılır.
+Öğrenci numarası transkriptten çıkarılamazsa analiz tamamlanır ancak `student_number` null kalır; öğrenci eşleşmesi yapılamaz.
 
 ---
 

@@ -19,8 +19,8 @@ public record AnalysisResultDetailResponse(
         UUID id,
         @Schema(description = "Kafka job ID linking the upload to this result")
         String jobId,
-        @Schema(description = "SHA-256-derived masked student identifier — no raw PII")
-        String maskedStudentRef,
+        @Schema(description = "Öğrenci No extracted from the transcript")
+        String studentNumber,
         @Schema(description = "UUID of the department whose graduation rules were applied")
         UUID departmentId,
         @Schema(description = "Name of the department whose graduation rules were applied")
@@ -58,7 +58,7 @@ public record AnalysisResultDetailResponse(
         return new AnalysisResultDetailResponse(
                 r.getId(),
                 r.getJobId(),
-                r.getMaskedStudentRef(),
+                r.getStudentNumber(),
                 r.getDepartmentId(),
                 r.getDepartmentName(),
                 r.getStatus().name(),

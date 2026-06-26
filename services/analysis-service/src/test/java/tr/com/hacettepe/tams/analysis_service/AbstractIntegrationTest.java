@@ -68,21 +68,28 @@ public abstract class AbstractIntegrationTest {
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 
+    protected String bearerToken(String role, UUID userId) {
+        return bearerToken(role, userId, null);
+    }
+
     /**
      * Mints a signed JWT carrying the given role claim, valid for 15 minutes.
      *
-     * @param role   the role claim (e.g. {@code TEACHER}, {@code ADMIN}, {@code STUDENT})
-     * @param userId the UUID to use as the subject (the caller's userId in auth-service)
+     * @param role          the role claim (e.g. {@code TEACHER}, {@code ADMIN}, {@code STUDENT})
+     * @param userId        the UUID to use as the subject (the caller's userId in auth-service)
+     * @param studentNumber optional student number claim for STUDENT tokens
      * @return a compact JWT string ready for the {@code Authorization: Bearer} header
      */
-    protected String bearerToken(String role, UUID userId) {
+    protected String bearerToken(String role, UUID userId, String studentNumber) {
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(userId.toString())
                 .claim("role", role)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + TOKEN_VALIDITY_MS))
-                .signWith(key)
-                .compact();
+                .expiration(new Date(System.currentTimeMillis() + TOKEN_VALIDITY_MS));
+        if ("STUDENT".equals(role) && studentNumber != null) {
+            builder.claim("studentNumber", studentNumber);
+        }
+        return builder.signWith(key).compact();
     }
 }

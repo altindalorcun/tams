@@ -30,10 +30,10 @@ export async function getJobStatus(jobId: string): Promise<TranscriptJobResponse
 export async function getResults(
   page = 0,
   size = 20,
-  studentRef?: string,
+  studentNumber?: string,
 ): Promise<PageResponse<AnalysisResultSummary>> {
   const params = new URLSearchParams({ page: String(page), size: String(size) });
-  if (studentRef) params.set("studentRef", studentRef);
+  if (studentNumber) params.set("studentNumber", studentNumber);
   const res = await axiosInstance.get<PageResponse<AnalysisResultSummary>>(
     `/api/v1/results?${params}`,
   );

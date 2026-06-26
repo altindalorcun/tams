@@ -106,15 +106,14 @@ This checklist covers every step from an empty repository to a fully functional 
 - [x] **[AI]** Scaffold the full Python FastAPI project inside `services/parser-service/`: `requirements.txt` (fastapi, uvicorn, pdfplumber, pypdf, confluent-kafka, pydantic, pydantic-settings, python-dotenv; pytest for dev), complete `src/` directory layout (`main.py`, `config.py`, `consumer.py`, `producer.py`, `parser/pdf_parser.py`, `parser/models.py`, `parser/grades.py`, `pii/pii_masker.py`), `Dockerfile` (multi-stage: `python:3.12-slim`, non-root user `appuser`), `.env.example`, and `tests/` with a `fixtures/` directory for sample PDFs
 - [ ] In IntelliJ IDEA Ultimate: create a virtual environment (`python -m venv services/parser-service/.venv`); go to `File → Project Structure → SDKs → +` and add the `.venv/bin/python` interpreter; right-click `services/parser-service/src/` → **Mark Directory As → Sources Root**
 - [x] Implement `pii_masker.py`:
-  - Detect TC Kimlik No (11-digit number pattern) and Öğrenci No from parsed text
-  - Replace each with `sha256(PII_HASH_SALT + raw_value)` truncated to 16 hex chars
+  - Detect TC Kimlik No (11-digit number pattern) in publishable payloads via `contains_raw_pii()`
   - Unit-test this module in complete isolation — it must never log raw PII values
 - [x] Implement `pdf_parser.py`:
   - Accept PDF as `bytes` (never as file path)
   - Use `pdfplumber` to extract text and table data (`pypdf` as fallback engine)
   - Parse student & program metadata: full name, TC Kimlik No, Öğrenci No, faculty, program name + program code, study duration (years), program type (e.g. Lisans), graduation GPA, registration/graduation dates
   - Parse course rows grouped by semester (`1. Sınıf Güz`, etc.): code, name, credit, grade, ECTS, academic year (`Başarı Yılı`), and a derived `is_passed` flag
-  - Call `pii_masker` before returning any data (TC + Öğrenci No collapsed into `student_ref`; raw name kept only in the in-memory full model, never published)
+  - Publish plain `student_number` (Öğrenci No) to Kafka; keep TC Kimlik No and full name only in the in-memory full model
   - Return a `ParsedTranscript` Pydantic model
 - [x] Implement `consumer.py`: subscribe to `transcript.raw`, deserialize message, call parser, call producer
 - [x] Implement `producer.py`: publish `ParsedTranscript` JSON to `transcript.parsed`
@@ -146,9 +145,9 @@ This checklist covers every step from an empty repository to a fully functional 
   - Return `AnalysisResult` with overall eligibility flag and per-category deficiencies
 - [x] Implement `ResultService`: persist `AnalysisResult` and all `Deficiency` rows to the database
 - [x] Implement result query endpoints:
-  - `GET /api/v1/results` — Teacher: list all results for their uploaded students (paginated, searchable by student_ref)
+  - `GET /api/v1/results` — Teacher: list all results for their uploaded students (paginated, searchable by student_number)
   - `GET /api/v1/results/{id}` — Teacher or Student: get full result with deficiency details
-  - `GET /api/v1/results/me` — Student: get own latest result (matched by masked_student_ref)
+  - `GET /api/v1/results/me` — Student: get own latest result (matched by JWT studentNumber → student_number)
   - `GET /api/v1/transcripts/{jobId}/status` — poll analysis status (PENDING / COMPLETED / FAILED)
 - [x] Enforce Spring Security role guards on all endpoints
 - [x] Write unit tests for `GraduationEngine` covering: fully eligible, credit deficit, missing mandatory course, multiple category deficits

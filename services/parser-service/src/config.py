@@ -3,7 +3,7 @@
 All values are sourced from environment variables (or an optional local ``.env``
 file) so that no secret is ever hardcoded. Settings are resolved lazily via
 :func:`get_settings` to avoid import-time failures in test environments that do
-not provide a value for required secrets such as ``PII_HASH_SALT``.
+not provide Kafka broker settings.
 """
 
 from __future__ import annotations
@@ -38,10 +38,6 @@ class Settings(BaseSettings):
     # When False, the FastAPI app starts without launching the Kafka consumer
     # loop. Useful for tests and for running the service purely as an HTTP probe.
     enable_consumer: bool = True
-
-    # Secret used to deterministically mask PII. Has no default on purpose: a
-    # real value must be supplied via the environment in every deployment.
-    pii_hash_salt: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

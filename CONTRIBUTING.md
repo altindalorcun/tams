@@ -56,7 +56,6 @@ Key variables to fill in:
 | Variable | Description |
 |----------|-------------|
 | `JWT_SECRET` | HMAC-SHA256 signing key — min 32 bytes |
-| `PII_HASH_SALT` | Salt for TC / Öğrenci No hashing — never change after first use |
 | `KAFKA_CLUSTER_ID` | Base64-encoded UUID for KRaft Kafka |
 | `POSTGRES_*_PASSWORD` | Database passwords for the three PostgreSQL instances |
 | `ADMIN_SEED_EMAIL/USERNAME/PASSWORD` | Initial admin account created on first startup |

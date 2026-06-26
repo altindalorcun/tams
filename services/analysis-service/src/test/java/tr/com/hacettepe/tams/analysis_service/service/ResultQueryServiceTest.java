@@ -42,14 +42,14 @@ class ResultQueryServiceTest {
     private final UUID teacherId = UUID.randomUUID();
     private final UUID otherTeacherId = UUID.randomUUID();
     private final UUID departmentId = UUID.randomUUID();
-    private final String studentRef = "sha256:abc123def456";
+    private final String studentNumber = "21627208";
 
-    private AnalysisResult completedResult(UUID teacher, String maskedRef) {
+    private AnalysisResult completedResult(UUID teacher, String number) {
         AnalysisResult r = new AnalysisResult();
         r.setJobId(UUID.randomUUID().toString());
         r.setTeacherId(teacher);
         r.setDepartmentId(departmentId);
-        r.setMaskedStudentRef(maskedRef);
+        r.setStudentNumber(number);
         r.setStatus(AnalysisStatus.COMPLETED);
         r.setIsEligible(true);
         r.setTotalCredit(BigDecimal.valueOf(120));
@@ -57,11 +57,9 @@ class ResultQueryServiceTest {
         return r;
     }
 
-    // ── listForTeacher ────────────────────────────────────────────────────────
-
     @Test
-    void listForTeacher_withNoStudentRef_delegatesToUnfilteredQuery() {
-        Page<AnalysisResult> page = new PageImpl<>(List.of(completedResult(teacherId, studentRef)));
+    void listForTeacher_withNoStudentNumber_delegatesToUnfilteredQuery() {
+        Page<AnalysisResult> page = new PageImpl<>(List.of(completedResult(teacherId, studentNumber)));
         when(analysisResultRepository.findByTeacherId(eq(teacherId), any(Pageable.class)))
                 .thenReturn(page);
 
@@ -73,10 +71,10 @@ class ResultQueryServiceTest {
     }
 
     @Test
-    void listForTeacher_withStudentRef_delegatesToFilteredQuery() {
-        String partial = "abc";
-        Page<AnalysisResult> page = new PageImpl<>(List.of(completedResult(teacherId, studentRef)));
-        when(analysisResultRepository.findByTeacherIdAndMaskedStudentRefContaining(
+    void listForTeacher_withStudentNumber_delegatesToFilteredQuery() {
+        String partial = "2720";
+        Page<AnalysisResult> page = new PageImpl<>(List.of(completedResult(teacherId, studentNumber)));
+        when(analysisResultRepository.findByTeacherIdAndStudentNumberContaining(
                 eq(teacherId), eq(partial), any(Pageable.class)))
                 .thenReturn(page);
 
@@ -84,12 +82,12 @@ class ResultQueryServiceTest {
                 resultQueryService.listForTeacher(teacherId, partial, Pageable.unpaged());
 
         assertThat(result.getContent()).hasSize(1);
-        verify(analysisResultRepository).findByTeacherIdAndMaskedStudentRefContaining(
+        verify(analysisResultRepository).findByTeacherIdAndStudentNumberContaining(
                 eq(teacherId), eq(partial), any(Pageable.class));
     }
 
     @Test
-    void listForTeacher_blankStudentRef_treatedAsAbsent() {
+    void listForTeacher_blankStudentNumber_treatedAsAbsent() {
         Page<AnalysisResult> page = new PageImpl<>(List.of());
         when(analysisResultRepository.findByTeacherId(eq(teacherId), any(Pageable.class)))
                 .thenReturn(page);
@@ -99,11 +97,9 @@ class ResultQueryServiceTest {
         verify(analysisResultRepository).findByTeacherId(eq(teacherId), any(Pageable.class));
     }
 
-    // ── getById ───────────────────────────────────────────────────────────────
-
     @Test
     void getById_forTeacher_withOwnResult_returnsDetail() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
+        AnalysisResult r = completedResult(teacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
@@ -115,7 +111,7 @@ class ResultQueryServiceTest {
 
     @Test
     void getById_forTeacher_withAnotherTeachersResult_throwsUnauthorized() {
-        AnalysisResult r = completedResult(otherTeacherId, studentRef);
+        AnalysisResult r = completedResult(otherTeacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
@@ -133,20 +129,20 @@ class ResultQueryServiceTest {
     }
 
     @Test
-    void getById_forStudent_withMatchingRef_returnsDetail() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
+    void getById_forStudent_withMatchingNumber_returnsDetail() {
+        AnalysisResult r = completedResult(teacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
         AnalysisResultDetailResponse response =
-                resultQueryService.getById(id, "STUDENT", UUID.randomUUID(), studentRef);
+                resultQueryService.getById(id, "STUDENT", UUID.randomUUID(), studentNumber);
 
-        assertThat(response.maskedStudentRef()).isEqualTo(studentRef);
+        assertThat(response.studentNumber()).isEqualTo(studentNumber);
     }
 
     @Test
-    void getById_forStudent_withNullRef_throwsUnauthorized() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
+    void getById_forStudent_withNullNumber_throwsUnauthorized() {
+        AnalysisResult r = completedResult(teacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
@@ -155,19 +151,19 @@ class ResultQueryServiceTest {
     }
 
     @Test
-    void getById_forStudent_withWrongRef_throwsUnauthorized() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
+    void getById_forStudent_withWrongNumber_throwsUnauthorized() {
+        AnalysisResult r = completedResult(teacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
         assertThatThrownBy(() ->
-                resultQueryService.getById(id, "STUDENT", UUID.randomUUID(), "sha256:wrongvalue"))
+                resultQueryService.getById(id, "STUDENT", UUID.randomUUID(), "99999999"))
                 .isInstanceOf(UnauthorizedException.class);
     }
 
     @Test
     void getById_withUnknownRole_throwsUnauthorized() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
+        AnalysisResult r = completedResult(teacherId, studentNumber);
         UUID id = UUID.randomUUID();
         when(analysisResultRepository.findById(id)).thenReturn(Optional.of(r));
 
@@ -175,26 +171,24 @@ class ResultQueryServiceTest {
                 .isInstanceOf(UnauthorizedException.class);
     }
 
-    // ── getLatestForStudent ───────────────────────────────────────────────────
-
     @Test
     void getLatestForStudent_whenResultExists_returnsDetail() {
-        AnalysisResult r = completedResult(teacherId, studentRef);
-        when(analysisResultRepository.findFirstByMaskedStudentRefOrderByCreatedAtDesc(studentRef))
+        AnalysisResult r = completedResult(teacherId, studentNumber);
+        when(analysisResultRepository.findFirstByStudentNumberOrderByCreatedAtDesc(studentNumber))
                 .thenReturn(Optional.of(r));
 
-        AnalysisResultDetailResponse response = resultQueryService.getLatestForStudent(studentRef);
+        AnalysisResultDetailResponse response = resultQueryService.getLatestForStudent(studentNumber);
 
-        assertThat(response.maskedStudentRef()).isEqualTo(studentRef);
+        assertThat(response.studentNumber()).isEqualTo(studentNumber);
         assertThat(response.isEligible()).isTrue();
     }
 
     @Test
     void getLatestForStudent_whenNoResult_throwsResourceNotFound() {
-        when(analysisResultRepository.findFirstByMaskedStudentRefOrderByCreatedAtDesc(anyString()))
+        when(analysisResultRepository.findFirstByStudentNumberOrderByCreatedAtDesc(anyString()))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> resultQueryService.getLatestForStudent("sha256:unknown"))
+        assertThatThrownBy(() -> resultQueryService.getLatestForStudent("99999999"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

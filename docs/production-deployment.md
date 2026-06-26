@@ -155,9 +155,6 @@ Generate strong values for each secret:
 ```bash
 # JWT secret (minimum 256-bit)
 JWT_SECRET=$(openssl rand -base64 32)
-
-# PII hash salt — generate once, back up securely; changing this breaks existing hashes
-PII_HASH_SALT=$(openssl rand -base64 32)
 ```
 
 Apply each secret to the cluster (example for `tams-jwt-secret`):
@@ -176,7 +173,6 @@ Secrets to create (refer to `infrastructure/k8s/NOTES.md` — Section 2 for full
 | `tams-db-auth` | `host`, `user`, `password` |
 | `tams-db-rules` | `host`, `user`, `password` |
 | `tams-db-analysis` | `host`, `user`, `password` |
-| `tams-pii-salt` | `PII_HASH_SALT` |
 | `tams-admin-creds` | `email`, `username`, `password` |
 
 > **Recommendation:** Use a secrets manager (HashiCorp Vault, AWS Secrets Manager, or

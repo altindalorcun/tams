@@ -31,22 +31,22 @@ class ResultControllerIT extends AbstractIntegrationTest {
     private final UUID teacherId = UUID.randomUUID();
     private final UUID otherTeacherId = UUID.randomUUID();
     private final UUID departmentId = UUID.randomUUID();
-    private final String studentRef = "sha256:abcdef1234567890abcdef";
+    private final String studentNumber = "21627208";
 
     private AnalysisResult savedResult;
 
     @BeforeEach
     void seed() {
         analysisResultRepository.deleteAll();
-        savedResult = analysisResultRepository.save(completedResult(teacherId, studentRef));
+        savedResult = analysisResultRepository.save(completedResult(teacherId, studentNumber));
     }
 
-    private AnalysisResult completedResult(UUID teacher, String maskedRef) {
+    private AnalysisResult completedResult(UUID teacher, String number) {
         AnalysisResult r = new AnalysisResult();
         r.setJobId(UUID.randomUUID().toString());
         r.setTeacherId(teacher);
         r.setDepartmentId(departmentId);
-        r.setMaskedStudentRef(maskedRef);
+        r.setStudentNumber(number);
         r.setStatus(AnalysisStatus.COMPLETED);
         r.setIsEligible(true);
         r.setTotalCredit(new BigDecimal("120.00"));
@@ -54,8 +54,6 @@ class ResultControllerIT extends AbstractIntegrationTest {
         r.setCompletedAt(OffsetDateTime.now());
         return r;
     }
-
-    // ── GET /api/v1/results ───────────────────────────────────────────────────
 
     @Test
     void listResults_withTeacherRole_returns200WithOwnResults() throws Exception {
@@ -71,7 +69,7 @@ class ResultControllerIT extends AbstractIntegrationTest {
 
     @Test
     void listResults_withStudentRole_returns403() throws Exception {
-        String token = bearerToken("STUDENT", UUID.randomUUID());
+        String token = bearerToken("STUDENT", UUID.randomUUID(), studentNumber);
 
         mockMvc.perform(get("/api/v1/results")
                         .header("Authorization", "Bearer " + token))
@@ -94,13 +92,12 @@ class ResultControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void listResults_withStudentRefFilter_returnsMatchingResults() throws Exception {
-        // Save a second result with a different studentRef to confirm filtering
-        analysisResultRepository.save(completedResult(teacherId, "sha256:different000000000000"));
+    void listResults_withStudentNumberFilter_returnsMatchingResults() throws Exception {
+        analysisResultRepository.save(completedResult(teacherId, "20190001"));
         String token = bearerToken("TEACHER", teacherId);
 
         mockMvc.perform(get("/api/v1/results")
-                        .param("studentRef", "abcdef")
+                        .param("studentNumber", "2720")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1));
@@ -115,8 +112,6 @@ class ResultControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
     }
-
-    // ── GET /api/v1/results/{id} ──────────────────────────────────────────────
 
     @Test
     void getResult_teacherOwnerOfResult_returns200WithDetail() throws Exception {
@@ -151,28 +146,26 @@ class ResultControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void getResult_studentWithMatchingRef_returns200() throws Exception {
-        String token = bearerToken("STUDENT", UUID.randomUUID());
+    void getResult_studentWithMatchingNumber_returns200() throws Exception {
+        String token = bearerToken("STUDENT", UUID.randomUUID(), studentNumber);
 
         mockMvc.perform(get("/api/v1/results/{id}", savedResult.getId())
-                        .param("studentRef", studentRef)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.maskedStudentRef").value(studentRef));
+                .andExpect(jsonPath("$.studentNumber").value(studentNumber));
     }
 
     @Test
-    void getResult_studentWithMismatchedRef_returns403() throws Exception {
-        String token = bearerToken("STUDENT", UUID.randomUUID());
+    void getResult_studentWithMismatchedNumber_returns403() throws Exception {
+        String token = bearerToken("STUDENT", UUID.randomUUID(), "99999999");
 
         mockMvc.perform(get("/api/v1/results/{id}", savedResult.getId())
-                        .param("studentRef", "sha256:wrongref00000000000000")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void getResult_studentWithNoRef_returns403() throws Exception {
+    void getResult_studentWithNoClaim_returns403() throws Exception {
         String token = bearerToken("STUDENT", UUID.randomUUID());
 
         mockMvc.perform(get("/api/v1/results/{id}", savedResult.getId())
@@ -186,17 +179,14 @@ class ResultControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    // ── GET /api/v1/results/me ────────────────────────────────────────────────
-
     @Test
-    void getMyResult_studentWithKnownRef_returns200() throws Exception {
-        String token = bearerToken("STUDENT", UUID.randomUUID());
+    void getMyResult_studentWithKnownNumber_returns200() throws Exception {
+        String token = bearerToken("STUDENT", UUID.randomUUID(), studentNumber);
 
         mockMvc.perform(get("/api/v1/results/me")
-                        .param("studentRef", studentRef)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.maskedStudentRef").value(studentRef))
+                .andExpect(jsonPath("$.studentNumber").value(studentNumber))
                 .andExpect(jsonPath("$.isEligible").value(true));
     }
 
@@ -205,25 +195,31 @@ class ResultControllerIT extends AbstractIntegrationTest {
         String token = bearerToken("TEACHER", teacherId);
 
         mockMvc.perform(get("/api/v1/results/me")
-                        .param("studentRef", studentRef)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void getMyResult_unknownStudentRef_returns404() throws Exception {
-        String token = bearerToken("STUDENT", UUID.randomUUID());
+    void getMyResult_unknownStudentNumber_returns404() throws Exception {
+        String token = bearerToken("STUDENT", UUID.randomUUID(), "99999999");
 
         mockMvc.perform(get("/api/v1/results/me")
-                        .param("studentRef", "sha256:doesnotexist000000000")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void getMyResult_withoutAuthentication_returns401() throws Exception {
+    void getMyResult_withoutStudentNumberClaim_returns403() throws Exception {
+        String token = bearerToken("STUDENT", UUID.randomUUID());
+
         mockMvc.perform(get("/api/v1/results/me")
-                        .param("studentRef", studentRef))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getMyResult_withoutAuthentication_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/results/me"))
                 .andExpect(status().isUnauthorized());
     }
 }

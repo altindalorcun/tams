@@ -58,7 +58,7 @@ public class ResultService {
         AnalysisResult result = analysisResultRepository.findByJobId(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Analysis result not found for jobId=" + jobId));
 
-        result.setMaskedStudentRef(maskStudentNumber(parsed.studentRef()));
+        result.setStudentNumber(parsed.studentNumber());
         result.setIsEligible(engineOut.eligible());
         result.setTotalCredit(engineOut.totalCredit());
         result.setTotalEcts(engineOut.totalEcts());
@@ -91,20 +91,6 @@ public class ResultService {
             analysisResultRepository.save(result);
             log.warn("Analysis failed: jobId={}, reason={}", jobId, errorMessage);
         }, () -> log.error("Cannot fail unknown jobId={}", jobId));
-    }
-
-    /**
-     * Masks a student identifier by replacing all but the last four characters with asterisks.
-     * Used both when persisting the result and when performing JWT-based student lookup.
-     *
-     * @param studentNumber raw student number or already-masked identifier
-     * @return masked identifier, e.g. {@code "****0001"} for {@code "20190001"}
-     */
-    public static String maskStudentNumber(String studentNumber) {
-        if (studentNumber == null || studentNumber.length() <= 4) {
-            return studentNumber;
-        }
-        return "*".repeat(studentNumber.length() - 4) + studentNumber.substring(studentNumber.length() - 4);
     }
 
     /**

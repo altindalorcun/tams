@@ -5,9 +5,8 @@ from pathlib import Path
 import pytest
 
 from parser.pdf_parser import parse_transcript
-from pii.pii_masker import build_student_ref, contains_raw_pii
+from pii.pii_masker import contains_raw_pii
 
-_SALT = "unit-test-salt"
 _FIXTURE = Path(__file__).parent / "fixtures" / "sample_transcript.pdf"
 _EXPECTED_COURSE_COUNT = 61
 _EXPECTED_SEMESTER_COUNT = 9
@@ -19,7 +18,7 @@ def pdf_bytes() -> bytes:
 
 
 def test_metadata_is_extracted(pdf_bytes: bytes) -> None:
-    meta = parse_transcript(pdf_bytes, salt=_SALT).transcript.metadata
+    meta = parse_transcript(pdf_bytes).transcript.metadata
     assert meta.program_name == "BİLGİSAYAR MÜHENDİSLİĞİ"
     assert meta.program_code == "356"
     assert meta.faculty == "MÜHENDİSLİK FAKÜLTESİ"
@@ -34,14 +33,14 @@ def test_metadata_is_extracted(pdf_bytes: bytes) -> None:
 
 
 def test_identity_is_extracted(pdf_bytes: bytes) -> None:
-    identity = parse_transcript(pdf_bytes, salt=_SALT).identity
+    identity = parse_transcript(pdf_bytes).identity
     assert identity.full_name == "VOLKAN ERCİYAS"
     assert identity.tc_kimlik_no == "29837459164"
     assert identity.ogrenci_no == "21627208"
 
 
 def test_courses_and_semesters(pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(pdf_bytes).transcript
     assert len(transcript.semesters) == _EXPECTED_SEMESTER_COUNT
     assert len(transcript.courses) == _EXPECTED_COURSE_COUNT
 
@@ -56,18 +55,18 @@ def test_courses_and_semesters(pdf_bytes: bytes) -> None:
     assert bbm101.is_passed is True
 
 
-def test_student_ref_is_masked(pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(pdf_bytes, salt=_SALT).transcript
-    expected = build_student_ref("29837459164", "21627208", _SALT)
-    assert transcript.student_ref == expected
+def test_student_number_is_extracted(pdf_bytes: bytes) -> None:
+    transcript = parse_transcript(pdf_bytes).transcript
+    assert transcript.student_number == "21627208"
 
 
-def test_published_payload_contains_no_raw_pii(pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(pdf_bytes, salt=_SALT).transcript
+def test_published_payload_excludes_tc_and_name(pdf_bytes: bytes) -> None:
+    transcript = parse_transcript(pdf_bytes).transcript
     published = transcript.model_dump_json()
     assert "VOLKAN" not in published
     assert "29837459164" not in published
-    assert "21627208" not in published
+    assert transcript.student_number == "21627208"
+    assert "21627208" in published
     assert not contains_raw_pii(published)
 
 
@@ -75,7 +74,7 @@ def test_all_expected_course_codes_are_parsed(
     pdf_bytes: bytes, sample_expected: dict
 ) -> None:
     """Every course listed on the sample transcript must be captured exactly once."""
-    transcript = parse_transcript(pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(pdf_bytes).transcript
     parsed_codes = {course.course_code for course in transcript.courses}
     expected_codes = set(sample_expected["course_codes"])
     assert parsed_codes == expected_codes
@@ -84,7 +83,7 @@ def test_all_expected_course_codes_are_parsed(
 def test_semester_names_match_hacettepe_layout(
     pdf_bytes: bytes, sample_expected: dict
 ) -> None:
-    transcript = parse_transcript(pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(pdf_bytes).transcript
     assert [semester.name for semester in transcript.semesters] == [
         "1. Sınıf Güz",
         "1. Sınıf Bahar",

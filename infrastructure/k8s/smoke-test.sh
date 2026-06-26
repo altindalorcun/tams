@@ -228,15 +228,6 @@ stringData:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: tams-pii-salt
-  namespace: $NAMESPACE
-type: Opaque
-stringData:
-  PII_HASH_SALT: "smoke-test-pii-salt-minimum-256bit-placeholder-value-here-xxx"
----
-apiVersion: v1
-kind: Secret
-metadata:
   name: tams-admin-creds
   namespace: $NAMESPACE
 type: Opaque

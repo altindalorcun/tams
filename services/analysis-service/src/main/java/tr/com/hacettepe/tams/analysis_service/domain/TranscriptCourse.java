@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * Snapshot of a single course row taken from the parsed transcript.
- * Contains no PII — student identity lives only in {@link AnalysisResult#maskedStudentRef}.
+ * Contains no PII — student identity lives only in {@link AnalysisResult#studentNumber}.
  */
 @Entity
 @Table(name = "transcript_courses")

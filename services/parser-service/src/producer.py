@@ -26,11 +26,12 @@ class TranscriptProducer:
         )
 
     def publish(self, transcript: ParsedTranscript) -> None:
-        """Serialize and publish a parsed transcript keyed by its student ref."""
+        """Serialize and publish a parsed transcript keyed by student number or job id."""
         payload = transcript.model_dump_json().encode("utf-8")
+        message_key = transcript.student_number or transcript.job_id or ""
         self._producer.produce(
             topic=self._topic,
-            key=transcript.student_ref.encode("utf-8"),
+            key=message_key.encode("utf-8"),
             value=payload,
             on_delivery=self._on_delivery,
         )

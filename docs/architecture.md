@@ -320,7 +320,7 @@ flowchart TD
 
     User -->|"GET /api/v1/results/{id}\nor /api/v1/results/me"| APIGateway
     APIGateway -->|"JWT validated\nrole-checked → route"| AnalysisService
-    AnalysisService -->|"query by masked_student_ref\nor teacher_id"| AnalysisDB
+    AnalysisService -->|"query by student_number\nor teacher_id"| AnalysisDB
     AnalysisDB -->|"result + deficiencies"| AnalysisService
     AnalysisService -->|"JSON response"| APIGateway
     APIGateway -->|"forward response"| User
@@ -353,9 +353,9 @@ Raw PDF Content (in Kafka message, never on disk):
                ↓ parser-service processes in memory
 
 Published to transcript.parsed (Kafka):
-  student_ref  : "sha256:a3f1c9..."   ← deterministic hash of original TC+StudentNo
-  courses      : [ { code, name, credit, ects, grade, semester }, ... ]
-  (TC and Öğrenci No fields are permanently absent from all downstream data)
+  student_number : "21627208"   ← plain Öğrenci No (TC Kimlik No never published)
+  courses        : [ { code, name, credit, ects, grade, semester }, ... ]
+  (TC Kimlik No and student full name are permanently absent from all downstream data)
 ```
 
 ---
@@ -452,7 +452,7 @@ CREATE TABLE category_courses (
 -- One row per analysis run
 CREATE TABLE analysis_results (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    masked_student_ref  VARCHAR(80)  NOT NULL,   -- SHA-256 hash from parser-service
+    student_number      VARCHAR(20),              -- plain Öğrenci No from parser-service
     teacher_id          UUID         NOT NULL,   -- ID from auth-service
     department_id       UUID         NOT NULL,   -- rule-service department UUID selected at upload
     is_eligible         BOOLEAN      NOT NULL,
@@ -508,7 +508,7 @@ Internal endpoints (prefixed `/internal/`) are **not** exposed through the api-g
 | Topic                | Producer              | Consumer              | Payload                                      |
 |----------------------|-----------------------|-----------------------|----------------------------------------------|
 | `transcript.raw`     | analysis-service      | parser-service        | PDF bytes (Base64-encoded), jobId, teacherId |
-| `transcript.parsed`  | parser-service        | analysis-service      | Masked JSON: student_ref, courses[], jobId   |
+| `transcript.parsed`  | parser-service        | analysis-service      | JSON: student_number, courses[], jobId   |
 
 **Why Kafka for the upload pipeline:**
 - Decouples the slow PDF parsing step from the HTTP request/response cycle
@@ -681,7 +681,6 @@ Secrets:
   tams-db-auth         → POSTGRES_URL, POSTGRES_USER, POSTGRES_PASSWORD (auth-service)
   tams-db-rules        → POSTGRES_URL, POSTGRES_USER, POSTGRES_PASSWORD (rule-service)
   tams-db-analysis     → POSTGRES_URL, POSTGRES_USER, POSTGRES_PASSWORD (analysis-service)
-  tams-pii-salt        → PII_HASH_SALT (consumed only by parser-service)
 ```
 
 ---

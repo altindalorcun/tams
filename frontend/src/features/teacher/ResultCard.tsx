@@ -156,7 +156,7 @@ export function HistoryTable({ results, isLoading, onSelect }: {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Öğrenci Ref.</TableHead>
+            <TableHead>Öğrenci No</TableHead>
             <TableHead>Bölüm</TableHead>
             <TableHead className="text-right">GNO</TableHead>
             <TableHead>Durum</TableHead>
@@ -175,7 +175,7 @@ export function HistoryTable({ results, isLoading, onSelect }: {
               className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
               onClick={() => onSelect(r.id)}
             >
-              <TableCell className="font-mono text-xs">{r.maskedStudentRef}</TableCell>
+              <TableCell className="font-mono text-xs">{r.studentNumber ?? "—"}</TableCell>
               <TableCell>{r.departmentName}</TableCell>
               <TableCell className="text-right tabular-nums">{r.gpa.toFixed(2)}</TableCell>
               <TableCell>

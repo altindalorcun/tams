@@ -10,7 +10,9 @@ from __future__ import annotations
 import pytest
 
 from parser.pdf_parser import (
+    _extract_ogrenci_no,
     _extract_text_with_pdfplumber,
+    _extract_text_with_pypdf,
     _is_visible_text,
     _parse_courses,
     _parse_metadata,
@@ -20,7 +22,6 @@ from parser.pdf_parser import (
     parse_transcript,
 )
 
-_SALT = "invariant-salt"
 _KNOWN_TOTAL_CREDIT = 143.0
 
 
@@ -31,20 +32,20 @@ def test_course_ects_sum_matches_reported_total(
     sample_pdf_bytes: bytes, sample_expected: dict
 ) -> None:
     """Summing every parsed course's ECTS must equal the transcript's total."""
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     summed = sum(course.ects for course in transcript.courses)
     assert summed == pytest.approx(transcript.metadata.total_ects)
     assert summed == pytest.approx(sample_expected["total_ects"])
 
 
 def test_course_credit_sum_is_stable(sample_pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     summed = sum(course.credit for course in transcript.courses)
     assert summed == pytest.approx(_KNOWN_TOTAL_CREDIT)
 
 
 def test_every_course_has_valid_fields(sample_pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     for course in transcript.courses:
         assert course.course_code.strip()
         assert course.course_name.strip()
@@ -55,7 +56,7 @@ def test_every_course_has_valid_fields(sample_pdf_bytes: bytes) -> None:
 
 
 def test_no_duplicate_course_codes(sample_pdf_bytes: bytes) -> None:
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     codes = [course.course_code for course in transcript.courses]
     assert len(codes) == len(set(codes))
 
@@ -63,7 +64,7 @@ def test_no_duplicate_course_codes(sample_pdf_bytes: bytes) -> None:
 def test_every_semester_has_courses(
     sample_pdf_bytes: bytes, sample_expected: dict
 ) -> None:
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     assert len(transcript.semesters) == sample_expected["semester_count"]
     for semester in transcript.semesters:
         assert semester.courses, f"empty semester: {semester.name}"
@@ -71,7 +72,7 @@ def test_every_semester_has_courses(
 
 def test_both_columns_are_parsed(sample_pdf_bytes: bytes) -> None:
     """Courses from the left and the right column of the same row are captured."""
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     codes = {course.course_code for course in transcript.courses}
     # BBM101 (left) and BBM103 (right) share the first physical row.
     assert {"BBM101", "BBM103"}.issubset(codes)
@@ -79,14 +80,14 @@ def test_both_columns_are_parsed(sample_pdf_bytes: bytes) -> None:
 
 def test_watermark_and_bold_artifacts_are_removed(sample_pdf_bytes: bytes) -> None:
     """Names corrupted by the watermark in raw extraction must come out clean."""
-    transcript = parse_transcript(sample_pdf_bytes, salt=_SALT).transcript
+    transcript = parse_transcript(sample_pdf_bytes).transcript
     names = {course.course_name for course in transcript.courses}
     # In raw extraction these read "VERİ YAvPILARI", "MiANTIKSAL TASARIM", etc.
     assert "VERİ YAPILARI" in names
     assert "MANTIKSAL TASARIM" in names
     assert "PROBABILITY" in names
     # Bold-doubled TC ("2299883377...") must be de-duplicated back to 11 digits.
-    assert parse_transcript(sample_pdf_bytes, salt=_SALT).identity.tc_kimlik_no == "29837459164"
+    assert parse_transcript(sample_pdf_bytes).identity.tc_kimlik_no == "29837459164"
 
 
 def test_extracted_text_is_non_empty(sample_pdf_bytes: bytes) -> None:
@@ -163,6 +164,7 @@ def test_parse_courses_handles_two_columns_and_grades() -> None:
 
 def test_parse_metadata_two_column_layout() -> None:
     text = (
+        "T.C.Kimlik No : 11111111111 Öğrenci No : 21627208 Kayıt Nedeni : ÖSS\n"
         "Adı Soyadı : JOHN DOE Kayıt Tarihi : 01.01.2020\n"
         "Fakülte/Yüksekokul : SOME FACULTY (99) Mezuniyet Tarihi : 02.02.2024\n"
         "Program : SOME PROGRAM (123) Mezun Olduğu Dönem : 2023-2024 Güz\n"
@@ -171,6 +173,8 @@ def test_parse_metadata_two_column_layout() -> None:
     )
     metadata, identity = _parse_metadata(text)
     assert identity.full_name == "JOHN DOE"
+    assert identity.tc_kimlik_no == "11111111111"
+    assert identity.ogrenci_no == "21627208"
     assert metadata.program_name == "SOME PROGRAM"
     assert metadata.program_code == "123"
     assert metadata.faculty == "SOME FACULTY"
@@ -186,3 +190,42 @@ def test_parse_metadata_single_column_fallback() -> None:
     assert identity.full_name == "JANE ROE"
     assert metadata.program_name == "ANOTHER PROGRAM"
     assert metadata.program_code == "777"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ogrenci No : 21627208 Kayıt Nedeni : ÖSS",
+        "Öğrenci No :\n21627208",
+        "Öğrenci No\n: 21627208",
+        "Öğrenci No : N24114501 Kayıt Nedeni : YüksekLisans",
+    ],
+)
+def test_extract_ogrenci_no_handles_alternate_header_layouts(text: str) -> None:
+    expected = "N24114501" if "N24114501" in text else "21627208"
+    assert _extract_ogrenci_no(text) == expected
+
+
+def test_extract_ogrenci_no_from_columnar_pypdf_layout(sample_pdf_bytes: bytes) -> None:
+    text = _extract_text_with_pypdf(sample_pdf_bytes)
+    assert _extract_ogrenci_no(text) == "21627208"
+
+
+def test_parse_transcript_falls_back_to_pypdf_for_student_number(
+    sample_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When pdfplumber omits Öğrenci No, pypdf columnar layout still supplies it."""
+
+    def _pdfplumber_without_ogrenci(_pdf_bytes: bytes) -> str:
+        return (
+            "Program : BİLGİSAYAR MÜHENDİSLİĞİ (356) Mezun Olduğu Dönem : 2023-2024 Bahar\n"
+            "1. Sınıf Güz\n"
+            "BBM101 PROGRAMLAMAYA GİRİŞ I 16-17 3 6 D\n"
+        )
+
+    monkeypatch.setattr(
+        "parser.pdf_parser._extract_text_with_pdfplumber",
+        _pdfplumber_without_ogrenci,
+    )
+    result = parse_transcript(sample_pdf_bytes, job_id="job-fallback")
+    assert result.transcript.student_number == "21627208"

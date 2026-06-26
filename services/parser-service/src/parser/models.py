@@ -2,8 +2,9 @@
 
 Two layers exist on purpose:
 
-* :class:`ParsedTranscript` is the **PII-free** payload published to the
-  ``transcript.parsed`` Kafka topic. It carries only the masked ``student_ref``.
+* :class:`ParsedTranscript` is the publishable payload for the
+  ``transcript.parsed`` Kafka topic. It carries the plain ``student_number``
+  (Öğrenci No) but never TC Kimlik No or the student's full name.
 * :class:`FullTranscript` is the **in-memory only** result returned by the
   parser. It additionally embeds :class:`StudentIdentity`, which holds raw PII
   (full name, TC Kimlik No, Öğrenci No). This object must never be serialized to
@@ -61,9 +62,11 @@ class TranscriptMetadata(BaseModel):
 
 
 class ParsedTranscript(BaseModel):
-    """PII-free transcript payload published to ``transcript.parsed``."""
+    """Transcript payload published to ``transcript.parsed``."""
 
-    student_ref: str = Field(..., description="Deterministic masked student id")
+    student_number: str | None = Field(
+        default=None, description="Öğrenci No extracted from the transcript header"
+    )
     job_id: str | None = None
     teacher_id: str | None = None
     department_id: str | None = None

@@ -72,13 +72,16 @@ class TranscriptConsumer:
             pdf_bytes = base64.b64decode(message.pdf_base64)
             result = parse_transcript(
                 pdf_bytes,
-                salt=self._settings.pii_hash_salt,
                 job_id=message.job_id,
                 teacher_id=message.teacher_id,
                 department_id=message.department_id,
             )
             self._producer.publish(result.transcript)
-            logger.info("Processed transcript for job %s", message.job_id)
+            logger.info(
+                "Processed transcript for job %s: student_number_present=%s",
+                message.job_id,
+                bool(result.transcript.student_number),
+            )
         except Exception:  # noqa: BLE001 - isolate one bad message from the loop
             # The exception is logged without the payload to avoid leaking PII.
             logger.exception("Failed to process a transcript.raw message")

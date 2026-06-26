@@ -14,7 +14,6 @@ def test_health_endpoint_returns_ok() -> None:
 
 def test_consumer_disabled_when_configured(monkeypatch) -> None:
     monkeypatch.setenv("ENABLE_CONSUMER", "false")
-    monkeypatch.setenv("PII_HASH_SALT", "health-test-salt")
     main.get_settings.cache_clear()
     try:
         with TestClient(main.app) as client:

@@ -17,8 +17,8 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
 
     Page<AnalysisResult> findByTeacherId(UUID teacherId, Pageable pageable);
 
-    Page<AnalysisResult> findByTeacherIdAndMaskedStudentRefContaining(
-            UUID teacherId, String maskedStudentRef, Pageable pageable);
+    Page<AnalysisResult> findByTeacherIdAndStudentNumberContaining(
+            UUID teacherId, String studentNumber, Pageable pageable);
 
-    Optional<AnalysisResult> findFirstByMaskedStudentRefOrderByCreatedAtDesc(String maskedStudentRef);
+    Optional<AnalysisResult> findFirstByStudentNumberOrderByCreatedAtDesc(String studentNumber);
 }

@@ -50,7 +50,7 @@ class GraduationEngineTest {
 
     private ParsedTranscriptMessage transcript(List<ParsedCourse> courses) {
         return new ParsedTranscriptMessage(
-                "student-ref-abc", "job-1", "teacher-1", "dept-1",
+                "21627208", "job-1", "teacher-1", "dept-1",
                 List.of(new ParsedSemester("Fall 2023", courses)), null);
     }
 
@@ -250,7 +250,7 @@ class GraduationEngineTest {
                 course("BBM201", 4, 8, true),
                 course("BBM202", 3, 6, true)
         ));
-        var msg = new ParsedTranscriptMessage("ref", "job-1", "t-1", "d-1",
+        var msg = new ParsedTranscriptMessage("21627208", "job-1", "t-1", "d-1",
                 List.of(semester1, semester2), null);
 
         EngineResult result = engine.evaluate(msg, ruleSet(List.of()));

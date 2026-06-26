@@ -28,7 +28,6 @@ pytestmark = pytest.mark.integration
 
 _TOPIC_RAW = "transcript.raw"
 _TOPIC_PARSED = "transcript.parsed"
-_SALT = "integration-test-salt"
 _CONSUMER_READY_SECONDS = 3.0
 _MESSAGE_WAIT_SECONDS = 45.0
 
@@ -70,7 +69,6 @@ def _build_settings(bootstrap_servers: str) -> Settings:
         kafka_consumer_group=f"parser-integration-{uuid.uuid4()}",
         topic_raw=_TOPIC_RAW,
         topic_parsed=_TOPIC_PARSED,
-        pii_hash_salt=_SALT,
         enable_consumer=False,
     )
 
@@ -138,8 +136,7 @@ def test_raw_to_parsed_pipeline(kafka_bootstrap_servers: str) -> None:
     assert transcript.job_id == job_id
     assert transcript.teacher_id == "teacher-integration"
     assert transcript.department_id == "dept-integration"
-    assert transcript.student_ref
-    assert len(transcript.student_ref) == 16
+    assert transcript.student_number == SAMPLE_EXPECTED["ogrenci_no"]
 
     assert transcript.metadata.program_name == SAMPLE_EXPECTED["program_name"]
     assert transcript.metadata.program_code == SAMPLE_EXPECTED["program_code"]
@@ -156,7 +153,7 @@ def test_raw_to_parsed_pipeline(kafka_bootstrap_servers: str) -> None:
 
     assert "VOLKAN" not in published
     assert SAMPLE_EXPECTED["tc_kimlik_no"] not in published
-    assert SAMPLE_EXPECTED["ogrenci_no"] not in published
+    assert transcript.student_number == SAMPLE_EXPECTED["ogrenci_no"]
     assert not contains_raw_pii(published)
 
 
@@ -164,7 +161,6 @@ def test_settings_read_kafka_topic_env_aliases(monkeypatch: pytest.MonkeyPatch) 
     """Docker Compose uses KAFKA_TOPIC_* names; settings must accept them."""
     monkeypatch.setenv("KAFKA_TOPIC_RAW", "custom.raw")
     monkeypatch.setenv("KAFKA_TOPIC_PARSED", "custom.parsed")
-    monkeypatch.setenv("PII_HASH_SALT", "alias-test")
     settings = Settings()
     assert settings.topic_raw == "custom.raw"
     assert settings.topic_parsed == "custom.parsed"

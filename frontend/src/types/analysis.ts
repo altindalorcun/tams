@@ -21,7 +21,7 @@ export interface CategoryResult {
 export interface AnalysisResult {
   id: string;
   jobId: string;
-  maskedStudentRef: string;
+  studentNumber: string | null;
   departmentId: string;
   departmentName: string;
   status: AnalysisStatus;
@@ -38,7 +38,7 @@ export interface AnalysisResult {
 export interface AnalysisResultSummary {
   id: string;
   jobId: string;
-  maskedStudentRef: string;
+  studentNumber: string | null;
   departmentId: string;
   departmentName: string;
   status: AnalysisStatus;

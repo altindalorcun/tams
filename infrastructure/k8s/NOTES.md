@@ -28,7 +28,6 @@ Referans verilen Secret'lar ve beklenen key'leri:
 | `tams-db-auth`      | `host`, `user`, `password`       | auth-service                               |
 | `tams-db-rules`     | `host`, `user`, `password`       | rule-service                               |
 | `tams-db-analysis`  | `host`, `user`, `password`       | analysis-service                           |
-| `tams-pii-salt`     | `PII_HASH_SALT`                  | parser-service                             |
 | `tams-admin-creds`  | `email`, `username`, `password`  | auth-service                               |
 
 > **Not:** `tams-admin-creds`, `architecture.md`'deki resmi Secret listesinde yer almaz ancak `auth-service` başlangıçta admin kullanıcısını seed etmek için `ADMIN_SEED_EMAIL`, `ADMIN_SEED_USERNAME`, `ADMIN_SEED_PASSWORD` env var'larına ihtiyaç duyar. Bu Secret eksik olduğunda auth-service pod'u `CrashLoopBackOff` ile başarısız olur.
@@ -345,9 +344,9 @@ rg -n --type py \
 ```
 
 **Kontrol edilecekler:**
-- Ham TC Kimlik No veya Öğrenci No asla log'a yazılmamalı
-- Yalnızca maskelenmiş `student_ref` değeri (16 hex karakter) log'a yazılabilir
-- `parser-service/src/pii/pii_masker.py` testleri zaten bunu doğrular; bu adım diğer servislerde cross-check
+- Ham TC Kimlik No veya öğrenci adı asla log'a yazılmamalı
+- Öğrenci numarası (`student_number`) log'a yazılabilir
+- `parser-service` testleri publish edilen payload'da TC kalıntısı olmadığını doğrular
 
 ---
 

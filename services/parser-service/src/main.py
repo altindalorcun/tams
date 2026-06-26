@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TAMS — parser-service API",
-    description="Consumes raw transcript PDFs from Kafka, parses them, masks PII, and publishes structured results.",
+    description="Consumes raw transcript PDFs from Kafka, parses them, and publishes structured results.",
     version="1.0.0",
     lifespan=lifespan,
 )

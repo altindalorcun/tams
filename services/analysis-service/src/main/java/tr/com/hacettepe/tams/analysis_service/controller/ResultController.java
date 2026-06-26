@@ -23,7 +23,6 @@ import tr.com.hacettepe.tams.analysis_service.dto.AnalysisResultSummaryResponse;
 import tr.com.hacettepe.tams.analysis_service.exception.UnauthorizedException;
 import tr.com.hacettepe.tams.analysis_service.security.JwtUtil;
 import tr.com.hacettepe.tams.analysis_service.service.ResultQueryService;
-import tr.com.hacettepe.tams.analysis_service.service.ResultService;
 
 import java.util.UUID;
 
@@ -47,7 +46,7 @@ public class ResultController {
 
     @Operation(
             summary = "List analysis results for the authenticated teacher",
-            description = "Returns a paginated list of result summaries. Optionally filter by partial masked student reference.",
+            description = "Returns a paginated list of result summaries. Optionally filter by partial student number.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Page of results",
                             content = @Content(schema = @Schema(implementation = AnalysisResultSummaryResponse.class))),
@@ -60,18 +59,18 @@ public class ResultController {
     @GetMapping
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<Page<AnalysisResultSummaryResponse>> listResults(
-            @Parameter(description = "Optional partial masked student reference to search by")
-            @RequestParam(required = false) String studentRef,
+            @Parameter(description = "Optional partial student number to search by")
+            @RequestParam(required = false) String studentNumber,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             Authentication authentication) {
 
         UUID teacherId = UUID.fromString(authentication.getName());
-        return ResponseEntity.ok(resultQueryService.listForTeacher(teacherId, studentRef, pageable));
+        return ResponseEntity.ok(resultQueryService.listForTeacher(teacherId, studentNumber, pageable));
     }
 
     @Operation(
             summary = "Get full result detail by ID",
-            description = "TEACHER: accessible only for own uploads. STUDENT: accessible only for results matching their masked ref.",
+            description = "TEACHER: accessible only for own uploads. STUDENT: accessible only for results matching their student number.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Result detail",
                             content = @Content(schema = @Schema(implementation = AnalysisResultDetailResponse.class))),
@@ -87,13 +86,15 @@ public class ResultController {
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public ResponseEntity<AnalysisResultDetailResponse> getResult(
             @PathVariable UUID id,
-            @Parameter(description = "Required when caller is a STUDENT: the caller's masked student reference")
-            @RequestParam(required = false) String studentRef,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
 
         String role = extractRole(authentication);
         UUID callerId = UUID.fromString(authentication.getName());
-        return ResponseEntity.ok(resultQueryService.getById(id, role, callerId, studentRef));
+        String studentNumber = "STUDENT".equals(role)
+                ? extractStudentNumber(httpRequest)
+                : null;
+        return ResponseEntity.ok(resultQueryService.getById(id, role, callerId, studentNumber));
     }
 
     @Operation(
@@ -133,13 +134,17 @@ public class ResultController {
     @GetMapping("/me")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<AnalysisResultDetailResponse> getMyResult(HttpServletRequest httpRequest) {
-        String token = extractBearerToken(httpRequest);
+        String studentNumber = extractStudentNumber(httpRequest);
+        return ResponseEntity.ok(resultQueryService.getLatestForStudent(studentNumber));
+    }
+
+    private String extractStudentNumber(HttpServletRequest request) {
+        String token = extractBearerToken(request);
         String studentNumber = jwtUtil.extractStudentNumber(token);
         if (!StringUtils.hasText(studentNumber)) {
             throw new UnauthorizedException("JWT does not contain a studentNumber claim");
         }
-        String maskedRef = ResultService.maskStudentNumber(studentNumber);
-        return ResponseEntity.ok(resultQueryService.getLatestForStudent(maskedRef));
+        return studentNumber;
     }
 
     private String extractBearerToken(HttpServletRequest request) {

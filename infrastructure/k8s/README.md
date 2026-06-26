@@ -46,19 +46,13 @@ cp tams-jwt-secret.yaml.example tams-jwt-secret.yaml
 kubectl apply -f tams-jwt-secret.yaml
 rm tams-jwt-secret.yaml
 
-# 2. PII hash salt (parser-service only — never change after first use)
-cp tams-pii-salt.yaml.example tams-pii-salt.yaml
-# Edit tams-pii-salt.yaml — set PII_HASH_SALT
-kubectl apply -f tams-pii-salt.yaml
-rm tams-pii-salt.yaml
-
-# 3. Admin seed credentials (auth-service first-run only)
+# 2. Admin seed credentials (auth-service first-run only)
 cp tams-admin-creds.yaml.example tams-admin-creds.yaml
 # Edit tams-admin-creds.yaml — set email, username, password
 kubectl apply -f tams-admin-creds.yaml
 rm tams-admin-creds.yaml
 
-# 4. PostgreSQL credentials (one per database)
+# 3. PostgreSQL credentials (one per database)
 cp postgres/postgres-auth-secret.yaml.example postgres/postgres-auth-secret.yaml
 cp postgres/postgres-rules-secret.yaml.example postgres/postgres-rules-secret.yaml
 cp postgres/postgres-analysis-secret.yaml.example postgres/postgres-analysis-secret.yaml

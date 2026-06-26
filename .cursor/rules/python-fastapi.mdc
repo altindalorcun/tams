@@ -39,13 +39,11 @@ tests/
 
 ## PII Masking — Critical Rules
 
-- `pii/pii_masker.py` is the **only** place where raw PII values (TC Kimlik No, Öğrenci No) may exist, and only transiently.
-- No raw PII value may ever be:
+- `pii/pii_masker.py` is the **only** module that validates TC Kimlik No does not leak into published payloads (`contains_raw_pii`).
+- No raw TC Kimlik No value may ever be:
   - Logged (at any log level)
-  - Returned from `pii_masker.py`
-  - Assigned to a variable outside `pii_masker.py`
   - Published to any Kafka topic or stored in any database
-- The masking salt must be loaded from the `PII_HASH_SALT` environment variable at startup. Never default to an empty string.
+- Öğrenci No is published as plain `student_number` for JWT-based result matching.
 
 ## Configuration
 
