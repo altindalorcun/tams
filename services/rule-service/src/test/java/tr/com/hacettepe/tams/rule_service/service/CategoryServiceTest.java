@@ -76,11 +76,43 @@ class CategoryServiceTest {
 
             CategoryResponse result = categoryService.create(DEPT_ID,
                     new CreateCategoryRequest("Teknik Seçmeli", "desc",
-                            new BigDecimal("12.00"), new BigDecimal("18.00"), 5, null, null, null, null, null));
+                            new BigDecimal("12.00"), new BigDecimal("18.00"), 5, null, null, null, null, null, null));
 
             assertThat(result.name()).isEqualTo("Teknik Seçmeli");
             assertThat(result.minCourseCount()).isEqualTo(5);
             verify(categoryRepository).save(any(Category.class));
+        }
+
+        @Test
+        @DisplayName("happy path — maps conditional fields and prefix limits in response")
+        void create_withConditionalFieldsAndPrefixLimits() {
+            category.setAppliesFromYear(2015);
+            category.setAppliesToYear(2025);
+            category.setConditionCourseCodes(new String[]{"BBM384"});
+            category.setMinCourseCountIfMet(4);
+            category.setMinEctsIfMet(new BigDecimal("10.00"));
+            when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
+            when(categoryRepository.existsByDepartmentIdAndName(DEPT_ID, "Teknik Seçmeli")).thenReturn(false);
+            when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> {
+                Category saved = invocation.getArgument(0);
+                saved.setId(CAT_ID);
+                return saved;
+            });
+
+            CategoryResponse result = categoryService.create(DEPT_ID,
+                    new CreateCategoryRequest("Teknik Seçmeli", "desc",
+                            new BigDecimal("12.00"), new BigDecimal("18.00"), 5,
+                            2015, 2025, List.of("BBM384"), 4, new BigDecimal("10.00"),
+                            List.of(new CreatePrefixLimitRequest("SEC", 3))));
+
+            assertThat(result.appliesFromYear()).isEqualTo(2015);
+            assertThat(result.appliesToYear()).isEqualTo(2025);
+            assertThat(result.conditionCourseCodes()).containsExactly("BBM384");
+            assertThat(result.minCourseCountIfMet()).isEqualTo(4);
+            assertThat(result.minEctsIfMet()).isEqualByComparingTo(new BigDecimal("10.00"));
+            assertThat(result.prefixLimits()).hasSize(1);
+            assertThat(result.prefixLimits().get(0).courseCodePrefix()).isEqualTo("SEC");
+            assertThat(result.prefixLimits().get(0).maxCount()).isEqualTo(3);
         }
 
         @Test
@@ -91,7 +123,7 @@ class CategoryServiceTest {
 
             assertThatThrownBy(() -> categoryService.create(DEPT_ID,
                     new CreateCategoryRequest("Teknik Seçmeli", null,
-                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null)))
+                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -102,7 +134,7 @@ class CategoryServiceTest {
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.create(DEPT_ID,
-                    new CreateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
+                    new CreateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -177,7 +209,7 @@ class CategoryServiceTest {
 
             categoryService.update(DEPT_ID, CAT_ID,
                     new UpdateCategoryRequest("Teknik Seçmeli (v2)", "new desc",
-                            new BigDecimal("20.00"), new BigDecimal("30.00"), 7, null, null, null, null, null));
+                            new BigDecimal("20.00"), new BigDecimal("30.00"), 7, null, null, null, null, null, null));
 
             assertThat(category.getName()).isEqualTo("Teknik Seçmeli (v2)");
             assertThat(category.getMinCredit()).isEqualByComparingTo(new BigDecimal("20.00"));
@@ -195,9 +227,27 @@ class CategoryServiceTest {
 
             categoryService.update(DEPT_ID, CAT_ID,
                     new UpdateCategoryRequest("Teknik Seçmeli", "desc",
-                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null));
+                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null, null));
 
             verify(categoryRepository, never()).existsByDepartmentIdAndName(any(), any());
+        }
+
+        @Test
+        @DisplayName("update — replaces prefix limits")
+        void update_replacesPrefixLimits() {
+            when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
+            when(categoryRepository.findByIdAndDepartmentId(CAT_ID, DEPT_ID)).thenReturn(Optional.of(category));
+            when(categoryRepository.save(any(Category.class))).thenReturn(category);
+
+            categoryService.update(DEPT_ID, CAT_ID,
+                    new UpdateCategoryRequest("Teknik Seçmeli", "desc",
+                            BigDecimal.ZERO, BigDecimal.ZERO, 5, null, null, null, null, null,
+                            List.of(new CreatePrefixLimitRequest("BBM", 2))));
+
+            assertThat(category.getPrefixLimits()).hasSize(1);
+            assertThat(category.getPrefixLimits().get(0).getCourseCodePrefix()).isEqualTo("BBM");
+            assertThat(category.getPrefixLimits().get(0).getMaxCount()).isEqualTo(2);
+            verify(categoryRepository).save(category);
         }
 
         @Test
@@ -208,7 +258,7 @@ class CategoryServiceTest {
             when(categoryRepository.existsByDepartmentIdAndName(DEPT_ID, "Zorunlu")).thenReturn(true);
 
             assertThatThrownBy(() -> categoryService.update(DEPT_ID, CAT_ID,
-                    new UpdateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
+                    new UpdateCategoryRequest("Zorunlu", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryRepository, never()).save(any());
         }
@@ -220,7 +270,7 @@ class CategoryServiceTest {
             when(categoryRepository.findByIdAndDepartmentId(CAT_ID, DEPT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.update(DEPT_ID, CAT_ID,
-                    new UpdateCategoryRequest("X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null)))
+                    new UpdateCategoryRequest("X", null, BigDecimal.ZERO, BigDecimal.ZERO, 0, null, null, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }

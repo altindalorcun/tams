@@ -52,6 +52,7 @@ public class CategoryService {
         category.setMinCourseCountIfMet(request.minCourseCountIfMet());
         category.setMinEctsIfMet(request.minEctsIfMet());
         Category saved = categoryRepository.save(category);
+        syncPrefixLimits(saved, request.prefixLimits());
         return CategoryResponse.from(saved);
     }
 
@@ -88,6 +89,7 @@ public class CategoryService {
         category.setConditionCourseCodes(toArray(request.conditionCourseCodes()));
         category.setMinCourseCountIfMet(request.minCourseCountIfMet());
         category.setMinEctsIfMet(request.minEctsIfMet());
+        syncPrefixLimits(category, request.prefixLimits());
         return CategoryResponse.from(categoryRepository.save(category));
     }
 
@@ -205,5 +207,23 @@ public class CategoryService {
             return new String[0];
         }
         return codes.stream().map(String::toUpperCase).toArray(String[]::new);
+    }
+
+    /**
+     * Replaces all prefix limits on {@code category} with the entries from {@code limits}.
+     * Null or empty input clears existing limits.
+     */
+    private void syncPrefixLimits(Category category, List<CreatePrefixLimitRequest> limits) {
+        category.getPrefixLimits().clear();
+        if (limits == null || limits.isEmpty()) {
+            return;
+        }
+        for (CreatePrefixLimitRequest limit : limits) {
+            category.getPrefixLimits().add(new CategoryPrefixLimit(
+                    category,
+                    limit.courseCodePrefix().toUpperCase(),
+                    limit.maxCount()
+            ));
+        }
     }
 }

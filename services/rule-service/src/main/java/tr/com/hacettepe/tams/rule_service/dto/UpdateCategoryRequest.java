@@ -1,6 +1,7 @@
 package tr.com.hacettepe.tams.rule_service.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -41,5 +42,8 @@ public record UpdateCategoryRequest(
         @Min(0) Integer minCourseCountIfMet,
 
         @Schema(description = "Alternative min ECTS used when at least one condition course is passed (null = use base threshold)")
-        @PositiveOrZero BigDecimal minEctsIfMet
+        @PositiveOrZero BigDecimal minEctsIfMet,
+
+        @Schema(description = "Replaces all course-code prefix sub-limits for this category")
+        @Valid List<CreatePrefixLimitRequest> prefixLimits
 ) {}

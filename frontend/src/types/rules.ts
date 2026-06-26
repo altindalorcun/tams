@@ -103,6 +103,7 @@ export interface CreateCategoryRequest {
   conditionCourseCodes?: string[] | null;
   minCourseCountIfMet?: number | null;
   minEctsIfMet?: number | null;
+  prefixLimits?: CreatePrefixLimitRequest[];
 }
 
 export interface CreateExemptionRuleRequest {
