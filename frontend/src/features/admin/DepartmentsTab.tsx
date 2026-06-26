@@ -23,6 +23,22 @@ import {
 } from "@/api/ruleApi";
 import type { Department, CreateDepartmentRequest, UpdateDepartmentRequest, DepartmentCourse, DepartmentCoursePoolResponse } from "@/types";
 
+const BLOCK_ON_F_GRADE_VALUE_FALSE = "false" as const;
+const BLOCK_ON_F_GRADE_VALUE_TRUE = "true" as const;
+
+const BLOCK_ON_F_GRADE_LABELS: Record<
+  typeof BLOCK_ON_F_GRADE_VALUE_FALSE | typeof BLOCK_ON_F_GRADE_VALUE_TRUE,
+  string
+> = {
+  false: "Hayır — F notu mezuniyeti engellemez",
+  true: "Evet — Herhangi bir F notu mezuniyeti engeller",
+};
+
+const BLOCK_ON_F_GRADE_ITEMS = [
+  { value: BLOCK_ON_F_GRADE_VALUE_FALSE, label: BLOCK_ON_F_GRADE_LABELS.false },
+  { value: BLOCK_ON_F_GRADE_VALUE_TRUE, label: BLOCK_ON_F_GRADE_LABELS.true },
+];
+
 const schema = z.object({
   name: z.string().min(1, "İsim zorunludur"),
   code: z.string().min(1, "Kod zorunludur"),
@@ -125,15 +141,23 @@ function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
             <FormField control={form.control} name="blockOnAnyFGrade" render={({ field }) => (
               <FormItem>
                 <FormLabel>F Notu Engeli</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  items={BLOCK_ON_F_GRADE_ITEMS}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full [&_[data-slot=select-value]]:line-clamp-none">
                       <SelectValue />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="false">Hayır — F notu mezuniyeti engellemez</SelectItem>
-                    <SelectItem value="true">Evet — Herhangi bir F notu mezuniyeti engeller</SelectItem>
+                  <SelectContent alignItemWithTrigger={false} className="min-w-[22rem] w-max">
+                    <SelectItem value={BLOCK_ON_F_GRADE_VALUE_FALSE}>
+                      {BLOCK_ON_F_GRADE_LABELS.false}
+                    </SelectItem>
+                    <SelectItem value={BLOCK_ON_F_GRADE_VALUE_TRUE}>
+                      {BLOCK_ON_F_GRADE_LABELS.true}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
