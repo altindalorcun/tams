@@ -14,42 +14,43 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DepartmentCoursePicker } from "@/components/DepartmentCoursePicker";
 import { matchesTextFilter } from "@/lib/textFilter";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { getDepartments, getExemptionRules, createExemptionRule, deleteExemptionRule } from "@/api/ruleApi";
 import type { ExemptionRule, CreateExemptionRuleRequest } from "@/types";
 
 const exemptionSchema = z.object({
-  requiredCourseCodes: z.string().min(1, "En az bir ders kodu giriniz"),
-  exemptedCourseCode: z.string().min(1, "Muaf tutulan ders kodu zorunludur").max(20),
+  requiredCourseCodes: z.array(z.string()).min(1, "En az bir ders seçiniz"),
+  exemptedCourseCode: z.string().min(1, "Muaf tutulan ders seçiniz"),
 });
 type ExemptionFormValues = z.infer<typeof exemptionSchema>;
 
 interface AddDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  departmentId: string;
   onSave: (data: CreateExemptionRuleRequest) => Promise<void>;
 }
 
-function AddExemptionDialog({ open, onOpenChange, onSave }: AddDialogProps) {
+function AddExemptionDialog({ open, onOpenChange, departmentId, onSave }: AddDialogProps) {
   const form = useForm<ExemptionFormValues>({
     resolver: zodResolver(exemptionSchema),
-    defaultValues: { requiredCourseCodes: "", exemptedCourseCode: "" },
+    defaultValues: { requiredCourseCodes: [], exemptedCourseCode: "" },
   });
 
   async function onSubmit(v: ExemptionFormValues) {
-    const codes = v.requiredCourseCodes
-      .split(",")
-      .map((c) => c.trim().toUpperCase())
-      .filter(Boolean);
-    await onSave({ requiredCourseCodes: codes, exemptedCourseCode: v.exemptedCourseCode.toUpperCase() });
+    await onSave({
+      requiredCourseCodes: v.requiredCourseCodes,
+      exemptedCourseCode: v.exemptedCourseCode.toUpperCase(),
+    });
     form.reset();
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm shadow-xl">
+      <DialogContent className="max-w-md shadow-xl">
         <DialogHeader>
           <DialogTitle>Yeni Muafiyet Kuralı</DialogTitle>
         </DialogHeader>
@@ -57,12 +58,19 @@ function AddExemptionDialog({ open, onOpenChange, onSave }: AddDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
             <FormField control={form.control} name="requiredCourseCodes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Gerekli Ders Kodları</FormLabel>
+                <FormLabel>Gerekli Dersler</FormLabel>
                 <FormControl>
-                  <Input placeholder="örn. FIZ103, FIZ104" {...field} />
+                  <DepartmentCoursePicker
+                    mode="multiple"
+                    departmentId={departmentId}
+                    enabled={open}
+                    triggerLabel="Gerekli dersleri seç"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 </FormControl>
                 <FormDescription className="text-xs">
-                  Tüm bu dersler geçildiğinde muafiyet uygulanır. Virgülle ayırın.
+                  Tüm bu dersler geçildiğinde muafiyet uygulanır.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -71,7 +79,14 @@ function AddExemptionDialog({ open, onOpenChange, onSave }: AddDialogProps) {
               <FormItem>
                 <FormLabel>Muaf Tutulan Ders</FormLabel>
                 <FormControl>
-                  <Input placeholder="örn. FIZ117" {...field} />
+                  <DepartmentCoursePicker
+                    mode="single"
+                    departmentId={departmentId}
+                    enabled={open}
+                    triggerLabel="Muaf tutulan dersi seç"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                 </FormControl>
                 <FormDescription className="text-xs">
                   Bu ders, gerekli dersler tamamlandığında geçilmiş sayılır.
@@ -202,6 +217,7 @@ function DeptExemptionList({ departmentId, departmentName }: DeptExemptionListPr
       <AddExemptionDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        departmentId={departmentId}
         onSave={async (data) => { await createMut.mutateAsync(data); }}
       />
       <ConfirmDialog

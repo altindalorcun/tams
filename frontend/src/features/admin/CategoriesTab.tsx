@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen, Filter, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,15 +15,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DepartmentCoursePicker } from "@/components/DepartmentCoursePicker";
 import { YearPickerField } from "@/components/YearPickerField";
 import { matchesTextFilter } from "@/lib/textFilter";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
   getCategoryCourses, getCourses, addCourseToCategory, removeCourseFromCategory,
-  getDepartmentCourses,
 } from "@/api/ruleApi";
-import type { Category, CreateCategoryRequest, CategoryCourse, CreatePrefixLimitRequest, DepartmentCourse } from "@/types";
+import type { Category, CreateCategoryRequest, CategoryCourse, CreatePrefixLimitRequest } from "@/types";
 
 const prefixLimitEntrySchema = z.object({
   courseCodePrefix: z.string().min(1, "Prefix zorunludur").max(10, "En fazla 10 karakter"),
@@ -94,135 +94,6 @@ function toCreateCategoryRequest(v: CatFormValues): CreateCategoryRequest {
         }))
       : [],
   };
-}
-
-interface ConditionCoursePickerProps {
-  departmentId: string;
-  dialogOpen: boolean;
-  value: string[];
-  onChange: (codes: string[]) => void;
-}
-
-/** Multi-select picker for condition course codes from the department course pool. */
-function ConditionCoursePicker({ departmentId, dialogOpen, value, onChange }: ConditionCoursePickerProps) {
-  const [codeFilter, setCodeFilter] = useState("");
-  const [nameFilter, setNameFilter] = useState("");
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  const { data: courses = [], isLoading } = useQuery({
-    queryKey: ["department-courses", departmentId],
-    queryFn: () => getDepartmentCourses(departmentId),
-    enabled: dialogOpen,
-  });
-
-  const filteredCourses = useMemo(() => {
-    return courses.filter((c: DepartmentCourse) => {
-      if (!matchesTextFilter(c.courseCode, codeFilter)) return false;
-      if (!matchesTextFilter(c.courseName, nameFilter)) return false;
-      return true;
-    });
-  }, [courses, codeFilter, nameFilter]);
-
-  const selectedSet = useMemo(() => new Set(value), [value]);
-
-  function toggleCourse(code: string) {
-    const upper = code.toUpperCase();
-    if (selectedSet.has(upper)) {
-      onChange(value.filter((c) => c !== upper));
-    } else {
-      onChange([...value, upper]);
-    }
-  }
-
-  function removeCode(code: string) {
-    onChange(value.filter((c) => c !== code));
-  }
-
-  function handlePickerOpenChange(open: boolean) {
-    if (!open) {
-      setCodeFilter("");
-      setNameFilter("");
-    }
-    setPickerOpen(open);
-  }
-
-  return (
-    <div className="space-y-2">
-      <Popover open={pickerOpen} onOpenChange={handlePickerOpenChange}>
-        <PopoverTrigger
-          render={
-            <Button type="button" variant="outline" className="w-full justify-start font-normal">
-              Koşul dersleri seç
-              {value.length > 0 && (
-                <Badge variant="secondary" className="ml-auto">{value.length} seçili</Badge>
-              )}
-            </Button>
-          }
-        />
-        <PopoverContent align="start" className="w-96 shadow-md p-0">
-          <PopoverHeader className="px-4 pt-4">
-            <PopoverTitle>Bölüm Ders Havuzundan Seç</PopoverTitle>
-          </PopoverHeader>
-          <div className="flex flex-col gap-3 px-4 pb-4">
-            <Input
-              className="font-mono"
-              placeholder="Ders koduna göre filtrele"
-              value={codeFilter}
-              onChange={(e) => setCodeFilter(e.target.value)}
-            />
-            <Input
-              placeholder="Ders adına göre filtrele"
-              value={nameFilter}
-              onChange={(e) => setNameFilter(e.target.value)}
-            />
-            <div className="max-h-52 overflow-y-auto rounded-md border divide-y">
-              {isLoading && <p className="text-sm text-muted-foreground text-center py-4">Yükleniyor…</p>}
-              {!isLoading && courses.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4 px-2">
-                  Bu bölüme henüz ders eklenmemiş. Önce Bölümler sekmesinden ders havuzunu doldurun.
-                </p>
-              )}
-              {!isLoading && courses.length > 0 && filteredCourses.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Filtreye uygun ders bulunamadı.</p>
-              )}
-              {filteredCourses.map((c: DepartmentCourse) => {
-                const selected = selectedSet.has(c.courseCode.toUpperCase());
-                return (
-                  <button
-                    key={c.courseId}
-                    type="button"
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors duration-150 ${selected ? "bg-muted/50" : ""}`}
-                    onClick={() => toggleCourse(c.courseCode)}
-                  >
-                    {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" /> : <span className="w-3.5 shrink-0" />}
-                    <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                    <span className="truncate">{c.courseName}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((code) => (
-            <Badge key={code} variant="outline" className="font-mono text-xs gap-1 pr-1">
-              {code}
-              <button
-                type="button"
-                className="rounded-sm hover:bg-muted p-0.5"
-                aria-label={`${code} kodunu kaldır`}
-                onClick={() => removeCode(code)}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 interface PrefixLimitsSectionProps {
@@ -418,9 +289,11 @@ function CatDialog({ open, onOpenChange, departmentId, initial, onSave }: CatDia
               <FormItem>
                 <FormLabel>Koşul Ders Kodları</FormLabel>
                 <FormControl>
-                  <ConditionCoursePicker
+                  <DepartmentCoursePicker
+                    mode="multiple"
                     departmentId={departmentId}
-                    dialogOpen={open}
+                    enabled={open}
+                    triggerLabel="Koşul dersleri seç"
                     value={field.value}
                     onChange={field.onChange}
                   />
