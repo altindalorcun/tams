@@ -77,7 +77,7 @@ describe("LoginPage", () => {
     });
   });
 
-  it("shows error toast when login fails", async () => {
+  it("shows inline error when login fails", async () => {
     const user = userEvent.setup();
     vi.mocked(authApi.login).mockRejectedValueOnce(new Error("Unauthorized"));
     renderLogin();
@@ -87,7 +87,7 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: /giriş yap/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/giriş başarısız/i)).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(/e-posta veya şifre hatalı/i);
     });
   });
 });

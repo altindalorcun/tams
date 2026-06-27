@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -20,6 +20,8 @@ import { LogoFull } from "@/components/brand/LogoFull";
 import { HacettepeLogo } from "@/components/brand/HacettepeLogo";
 import { useAuthStore } from "./authStore";
 import { login } from "@/api/authApi";
+
+const LOGIN_INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı.";
 
 const loginSchema = z.object({
   email: z.string().min(1, "E-posta gereklidir"),
@@ -36,6 +38,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginPage() {
   const { accessToken, role, mustChangePassword, setAuth } = useAuthStore();
   const navigate = useNavigate();
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken || !role) return;
@@ -55,12 +58,17 @@ export function LoginPage() {
 
   const { isSubmitting } = form.formState;
 
+  function clearLoginError() {
+    setLoginError(null);
+  }
+
   async function onSubmit(values: LoginFormValues) {
+    setLoginError(null);
     try {
       const response = await login(values);
       setAuth(response.accessToken, response.mustChangePassword, response.username);
     } catch {
-      toast.error("Giriş başarısız. E-posta veya şifrenizi kontrol edin.");
+      setLoginError(LOGIN_INVALID_CREDENTIALS_MESSAGE);
     }
   }
 
@@ -86,6 +94,13 @@ export function LoginPage() {
             Hesabınıza erişmek için e-posta adresinizi ve şifrenizi girin.
           </p>
 
+          {loginError && (
+            <Alert variant="destructive" className="mb-4">
+              <TriangleAlert className="h-4 w-4" />
+              <AlertDescription>{loginError}</AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
               <FormField
@@ -100,6 +115,10 @@ export function LoginPage() {
                         placeholder="kullanici@hacettepe.edu.tr"
                         autoComplete="username"
                         {...field}
+                        onChange={(event) => {
+                          clearLoginError();
+                          field.onChange(event);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -117,6 +136,10 @@ export function LoginPage() {
                         placeholder="••••••••"
                         autoComplete="current-password"
                         {...field}
+                        onChange={(event) => {
+                          clearLoginError();
+                          field.onChange(event);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
