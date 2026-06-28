@@ -12,7 +12,7 @@ import tr.com.hacettepe.tams.rule_service.dto.*;
 import tr.com.hacettepe.tams.rule_service.exception.ConflictException;
 import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
-import tr.com.hacettepe.tams.rule_service.dto.ExemptionRuleDto;
+import tr.com.hacettepe.tams.rule_service.dto.CurriculumEquivalenceRuleDto;
 import tr.com.hacettepe.tams.rule_service.repository.*;
 
 import java.util.List;
@@ -34,7 +34,7 @@ public class CategoryService {
     private final DepartmentRepository departmentRepository;
     private final CourseRepository courseRepository;
     private final DepartmentCourseRepository departmentCourseRepository;
-    private final ExemptionRuleRepository exemptionRuleRepository;
+    private final CurriculumEquivalenceRuleRepository curriculumEquivalenceRuleRepository;
 
     @Transactional
     public CategoryResponse create(UUID departmentId, CreateCategoryRequest request) {
@@ -152,17 +152,17 @@ public class CategoryService {
         List<RuleCategoryDto> categoryDtos = categories.stream()
                 .map(RuleCategoryDto::from)
                 .toList();
-        List<ExemptionRuleDto> exemptionDtos = exemptionRuleRepository.findByDepartmentId(departmentId)
-                .stream()
-                .map(ExemptionRuleDto::from)
-                .toList();
+        List<CurriculumEquivalenceRuleDto> equivalenceDtos =
+                curriculumEquivalenceRuleRepository.findByDepartmentId(departmentId).stream()
+                        .map(CurriculumEquivalenceRuleDto::from)
+                        .toList();
         return new RuleSetResponse(
                 department.getId(),
                 department.getName(),
                 department.getMinTotalEcts(),
                 department.isBlockOnAnyFGrade(),
                 categoryDtos,
-                exemptionDtos);
+                equivalenceDtos);
     }
 
     private Department getDepartmentOrThrow(UUID id) {

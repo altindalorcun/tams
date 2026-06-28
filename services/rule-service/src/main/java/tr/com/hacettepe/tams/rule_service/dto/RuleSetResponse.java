@@ -14,5 +14,5 @@ public record RuleSetResponse(
         BigDecimal minTotalEcts,
         boolean blockOnAnyFGrade,
         List<RuleCategoryDto> categories,
-        List<ExemptionRuleDto> exemptionRules
+        List<CurriculumEquivalenceRuleDto> curriculumEquivalenceRules
 ) {}

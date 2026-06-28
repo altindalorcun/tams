@@ -59,7 +59,7 @@ public class Department {
     private Set<DepartmentCourse> departmentCourses = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL, orphanRemoval = true)
-    private java.util.List<ExemptionRule> exemptionRules = new java.util.ArrayList<>();
+    private java.util.List<CurriculumEquivalenceRule> curriculumEquivalenceRules = new java.util.ArrayList<>();
 
     public Department(String name, String code, String description) {
         this.name = name;

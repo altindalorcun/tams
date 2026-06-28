@@ -62,8 +62,8 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
           icon: <ListChecks className="h-4 w-4" />,
         },
         {
-          label: "Muafiyet Kuralları",
-          to: "/admin/exemption-rules",
+          label: "Müfredat Değişikliği Kuralları",
+          to: "/admin/curriculum-equivalence-rules",
           icon: <Scale className="h-4 w-4" />,
         },
       ],

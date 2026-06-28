@@ -2,7 +2,7 @@ import { axiosInstance } from "./axiosInstance";
 import type {
   Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
   CreateDepartmentRequest, UpdateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
-  ExemptionRule, CreateExemptionRuleRequest,
+  CurriculumEquivalenceRule, CreateCurriculumEquivalenceRuleRequest,
   PrefixLimit, CreatePrefixLimitRequest,
 } from "@/types";
 
@@ -107,28 +107,28 @@ export async function removeCourseFromCategory(catId: string, courseId: string):
   await axiosInstance.delete(`/api/v1/categories/${catId}/courses/${courseId}`);
 }
 
-// ── Exemption Rules ───────────────────────────────────────────────────────────
+// ── Curriculum Equivalence Rules ──────────────────────────────────────────────
 
-export async function getExemptionRules(departmentId: string): Promise<ExemptionRule[]> {
-  const res = await axiosInstance.get<ExemptionRule[]>(
-    `/api/v1/departments/${departmentId}/exemption-rules`,
+export async function getCurriculumEquivalenceRules(departmentId: string): Promise<CurriculumEquivalenceRule[]> {
+  const res = await axiosInstance.get<CurriculumEquivalenceRule[]>(
+    `/api/v1/departments/${departmentId}/curriculum-equivalence-rules`,
   );
   return res.data;
 }
 
-export async function createExemptionRule(
+export async function createCurriculumEquivalenceRule(
   departmentId: string,
-  data: CreateExemptionRuleRequest,
-): Promise<ExemptionRule> {
-  const res = await axiosInstance.post<ExemptionRule>(
-    `/api/v1/departments/${departmentId}/exemption-rules`,
+  data: CreateCurriculumEquivalenceRuleRequest,
+): Promise<CurriculumEquivalenceRule> {
+  const res = await axiosInstance.post<CurriculumEquivalenceRule>(
+    `/api/v1/departments/${departmentId}/curriculum-equivalence-rules`,
     data,
   );
   return res.data;
 }
 
-export async function deleteExemptionRule(id: string): Promise<void> {
-  await axiosInstance.delete(`/api/v1/exemption-rules/${id}`);
+export async function deleteCurriculumEquivalenceRule(departmentId: string, id: string): Promise<void> {
+  await axiosInstance.delete(`/api/v1/departments/${departmentId}/curriculum-equivalence-rules/${id}`);
 }
 
 // ── Prefix Limits ─────────────────────────────────────────────────────────────

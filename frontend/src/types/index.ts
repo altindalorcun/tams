@@ -3,7 +3,7 @@ export type { UserResponse, CreateUserRequest, UpdateUserRequest } from "./user"
 export type {
   Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
   CreateDepartmentRequest, UpdateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
-  ExemptionRule, CreateExemptionRuleRequest,
+  CurriculumEquivalenceRule, CurriculumEquivalenceRuleType, CreateCurriculumEquivalenceRuleRequest,
   PrefixLimit, CreatePrefixLimitRequest,
 } from "./rules";
 export type {

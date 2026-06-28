@@ -1,7 +1,24 @@
-export interface ExemptionRule {
+export type CurriculumEquivalenceRuleType =
+  | "PAIRWISE"
+  | "GROUP_LEGACY_TO_REPLACEMENT"
+  | "GROUP_REPLACEMENT_TO_LEGACY"
+  | "GROUP_MUTUAL";
+
+export interface CurriculumEquivalenceRule {
   id: string;
-  requiredCourseCodes: string[];
-  exemptedCourseCode: string;
+  ruleType: CurriculumEquivalenceRuleType;
+  legacyCourseCodes: string[];
+  replacementCourseCodes: string[];
+  effectiveFromYear?: number | null;
+  effectiveFromTerm?: "GUZ" | "BAHAR" | null;
+}
+
+export interface CreateCurriculumEquivalenceRuleRequest {
+  ruleType: CurriculumEquivalenceRuleType;
+  legacyCourseCodes: string[];
+  replacementCourseCodes: string[];
+  effectiveFromYear?: number | null;
+  effectiveFromTerm?: "GUZ" | "BAHAR" | null;
 }
 
 export interface Department {
@@ -13,7 +30,7 @@ export interface Department {
   blockOnAnyFGrade: boolean;
   createdAt?: string;
   updatedAt?: string;
-  exemptionRules?: ExemptionRule[];
+  curriculumEquivalenceRules?: CurriculumEquivalenceRule[];
 }
 
 export interface Course {
@@ -106,10 +123,6 @@ export interface CreateCategoryRequest {
   prefixLimits?: CreatePrefixLimitRequest[];
 }
 
-export interface CreateExemptionRuleRequest {
-  requiredCourseCodes: string[];
-  exemptedCourseCode: string;
-}
 
 export interface CreatePrefixLimitRequest {
   courseCodePrefix: string;

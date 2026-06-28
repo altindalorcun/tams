@@ -2,10 +2,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { CoursesTab } from "./CoursesTab";
 import { CategoriesTab } from "./CategoriesTab";
-import { ExemptionRulesTab } from "./ExemptionRulesTab";
+import { CurriculumEquivalenceRulesTab } from "./CurriculumEquivalenceRulesTab";
 
 /**
- * Admin dashboard: CRUD management for departments, courses, categories, and exemption rules.
+ * Admin dashboard: CRUD management for departments, courses, categories,
+ * and curriculum equivalence rules.
  */
 export function AdminPage() {
   return (
@@ -17,7 +18,7 @@ export function AdminPage() {
           <TabsTrigger value="departments">Bölümler</TabsTrigger>
           <TabsTrigger value="courses">Ders Kataloğu</TabsTrigger>
           <TabsTrigger value="categories">Mezuniyet Kategorileri</TabsTrigger>
-          <TabsTrigger value="exemptions">Muafiyet Kuralları</TabsTrigger>
+          <TabsTrigger value="equivalences">Müfredat Değişikliği Kuralları</TabsTrigger>
         </TabsList>
 
         <TabsContent value="departments" className="pt-6">
@@ -32,8 +33,8 @@ export function AdminPage() {
           <CategoriesTab />
         </TabsContent>
 
-        <TabsContent value="exemptions" className="pt-6">
-          <ExemptionRulesTab />
+        <TabsContent value="equivalences" className="pt-6">
+          <CurriculumEquivalenceRulesTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -2,7 +2,6 @@ package tr.com.hacettepe.tams.analysis_service.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import tr.com.hacettepe.tams.analysis_service.client.dto.ExemptionRuleDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.PrefixLimitDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCategoryDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCourseDto;
@@ -17,7 +16,6 @@ import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult.Glob
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +43,7 @@ public class GraduationEngine {
 
     private final GpaCalculator gpaCalculator;
     private final EnrollmentYearParser enrollmentYearParser;
+    private final CurriculumEquivalenceExpander equivalenceExpander;
 
     /**
      * Runs the graduation eligibility check.
@@ -61,22 +60,21 @@ public class GraduationEngine {
         Integer enrollmentYear = enrollmentYearParser.parse(registrationDate).orElse(null);
 
         // Index passed courses by code for O(1) lookup during category evaluation.
-        Set<String> rawPassedCodes = allCourses.stream()
+        // The map preserves the raw ParsedCourse so the expander can access the Başarı Yılı
+        // when checking effective-date boundaries for GROUP rules.
+        Map<String, ParsedCourse> rawPassedByCode = allCourses.stream()
                 .filter(ParsedCourse::isPassed)
-                .map(c -> c.courseCode().toUpperCase())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toMap(
+                        c -> c.courseCode().toUpperCase(),
+                        c -> c,
+                        (a, b) -> a));  // keep first if duplicate code
 
-        // Apply exemption rules: if all required codes are passed, add the exempted code.
-        Set<String> passedCourseCodes = new HashSet<>(rawPassedCodes);
-        List<ExemptionRuleDto> exemptions = ruleSet.exemptionRules() != null
-                ? ruleSet.exemptionRules() : List.of();
-        for (ExemptionRuleDto rule : exemptions) {
-            if (rule.requiredCourseCodes() != null
-                    && rule.requiredCourseCodes().stream()
-                            .allMatch(c -> passedCourseCodes.contains(c.toUpperCase()))) {
-                passedCourseCodes.add(rule.exemptedCourseCode().toUpperCase());
-            }
-        }
+        // Apply curriculum equivalence rules in a fixpoint loop so that chains of
+        // rules (e.g. A→B then B→C) are resolved correctly.
+        Set<String> passedCourseCodes = equivalenceExpander.expand(
+                rawPassedByCode,
+                ruleSet.curriculumEquivalenceRules() != null
+                        ? ruleSet.curriculumEquivalenceRules() : List.of());
 
         BigDecimal totalCredit = allCourses.stream()
                 .filter(ParsedCourse::isPassed)

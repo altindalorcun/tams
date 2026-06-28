@@ -17,6 +17,7 @@ import tr.com.hacettepe.tams.rule_service.exception.ConflictException;
 import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.rule_service.repository.*;
+import tr.com.hacettepe.tams.rule_service.repository.CurriculumEquivalenceRuleRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,7 +42,7 @@ class CategoryServiceTest {
     @Mock private DepartmentRepository departmentRepository;
     @Mock private CourseRepository courseRepository;
     @Mock private DepartmentCourseRepository departmentCourseRepository;
-    @Mock private ExemptionRuleRepository exemptionRuleRepository;
+    @Mock private CurriculumEquivalenceRuleRepository curriculumEquivalenceRuleRepository;
 
     @InjectMocks private CategoryService categoryService;
 
@@ -437,7 +438,7 @@ class CategoryServiceTest {
             category.getCategoryCourses().add(new CategoryCourse(category, course, true));
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
             when(categoryRepository.findByDepartmentIdWithCourses(DEPT_ID)).thenReturn(List.of(category));
-            when(exemptionRuleRepository.findByDepartmentId(DEPT_ID)).thenReturn(List.of());
+            when(curriculumEquivalenceRuleRepository.findByDepartmentId(DEPT_ID)).thenReturn(List.of());
 
             RuleSetResponse result = categoryService.getRuleSet(DEPT_ID);
 

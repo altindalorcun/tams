@@ -2,6 +2,7 @@ package tr.com.hacettepe.tams.analysis_service.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tr.com.hacettepe.tams.analysis_service.client.dto.CurriculumEquivalenceRuleDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCategoryDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCourseDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
@@ -27,13 +28,17 @@ class GraduationEngineTest {
 
     @BeforeEach
     void setUp() {
-        engine = new GraduationEngine(new GpaCalculator(), new EnrollmentYearParser());
+        AcademicYearParser academicYearParser = new AcademicYearParser();
+        engine = new GraduationEngine(
+                new GpaCalculator(),
+                new EnrollmentYearParser(),
+                new CurriculumEquivalenceExpander(academicYearParser));
     }
 
     // ── Helper factories ──────────────────────────────────────────────────────
 
     private ParsedCourse course(String code, double credit, double ects, boolean passed) {
-        return new ParsedCourse(code, "Course " + code, credit, ects, passed ? "AA" : "FF", "2023-24", passed);
+        return new ParsedCourse(code, "Course " + code, credit, ects, passed ? "AA" : "FF", "23-24", passed);
     }
 
     private RuleCourseDto ruleCourse(String code, double credit, double ects, boolean mandatory) {

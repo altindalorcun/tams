@@ -7,7 +7,7 @@ import { AdminPage } from "@/features/admin/AdminPage";
 import { CategoriesPage } from "@/features/admin/CategoriesPage";
 import { CoursesPage } from "@/features/admin/CoursesPage";
 import { DepartmentsPage } from "@/features/admin/DepartmentsPage";
-import { ExemptionRulesPage } from "@/features/admin/ExemptionRulesPage";
+import { CurriculumEquivalenceRulesPage } from "@/features/admin/CurriculumEquivalenceRulesPage";
 import { UsersPage } from "@/features/admin/UsersPage";
 import { TeacherPage } from "@/features/teacher/TeacherPage";
 import { StudentHistoryPage } from "@/features/teacher/StudentHistoryPage";
@@ -49,7 +49,7 @@ export function AppRouter() {
               <Route path="departments" element={<DepartmentsPage />} />
               <Route path="courses" element={<CoursesPage />} />
               <Route path="graduation-categories" element={<CategoriesPage />} />
-              <Route path="exemption-rules" element={<ExemptionRulesPage />} />
+              <Route path="curriculum-equivalence-rules" element={<CurriculumEquivalenceRulesPage />} />
               <Route path="users" element={<UsersPage />} />
             </Route>
             <Route path="/teacher/*" element={<ProtectedRoute requiredRole="TEACHER" />}>

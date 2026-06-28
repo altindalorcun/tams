@@ -214,25 +214,35 @@ flowchart TD
 
 ---
 
-### Faz 5 — Muafiyet Kuralları (Exemption Rules)
+### Faz 5 — Müfredat Değişikliği / Ders Eşdeğerliği Kuralları (Curriculum Equivalence Rules)
 
 #### Motivasyon
 
-FIZ103 ve FIZ104'ün **ikisini birden** geçen öğrenciler FIZ117'yi almak zorunda değildir. Bu "N ders birlikte başka bir dersin yerine geçer" ilişkisi mevcut veri modelinde temsil edilemiyor.
+Müfredat değişikliklerinde eski dersler yeni derslerle ikame edilir. Örneğin HAS222/HAS223 kaldırılmış ve MÜH103/MÜH104 eklenmiştir; BBM419 kaldırılmış, yerine BBM479+BBM480 gelmiştir; FİZ103+FİZ104 kaldırılmış, yerine FİZ117 eklenmiştir. Bu çok yönlü (bire bir, 1↔N, N→1) ilişkiler eski tek yönlü modeliyle temsil edilemiyordu.
 
-#### Yeni Tablo — `exemption_rules`
+#### Yeni Tablo — `curriculum_equivalence_rules`
 
 ```sql
-CREATE TABLE exemption_rules (
-    id                    UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    department_id         UUID         NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
-    required_course_codes TEXT[]       NOT NULL,   -- hepsinin geçilmiş olması şart (AND)
-    exempted_course_code  VARCHAR(20)  NOT NULL,
-    created_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE curriculum_equivalence_rules (
+    id                       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    department_id            UUID        NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+    rule_type                VARCHAR(30) NOT NULL,   -- PAIRWISE | GROUP_LEGACY_TO_REPLACEMENT | GROUP_REPLACEMENT_TO_LEGACY | GROUP_MUTUAL
+    legacy_course_codes      TEXT[]      NOT NULL,   -- müfredattan çıkarılan dersler
+    replacement_course_codes TEXT[]      NOT NULL,   -- müfredata eklenen dersler
+    effective_from_year      INTEGER,                -- örn. 2019 (2019-2020 akademik yılı)
+    effective_from_term      VARCHAR(10),            -- GUZ | BAHAR | NULL
+    created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX idx_exemption_rules_department_id ON exemption_rules (department_id);
 ```
+
+#### Kural Tipleri
+
+| Tip | Örnek | Davranış |
+|-----|-------|----------|
+| `PAIRWISE` | HAS222↔MÜH103, HAS223↔MÜH104 | Her `legacy[i]` ↔ `replacement[i]` bire bir çift yönlü. Etkin tarih yok sayılır. |
+| `GROUP_LEGACY_TO_REPLACEMENT` | FİZ103+FİZ104 → FİZ117 | Tüm eski dersler etkin tarihten önce geçildiyse tüm yeni dersler geçilmiş sayılır. |
+| `GROUP_REPLACEMENT_TO_LEGACY` | BBM479+BBM480 → BBM419 | Tüm yeni dersler geçildiyse tüm eski dersler geçilmiş sayılır. |
+| `GROUP_MUTUAL` | BBM419 ↔ BBM479+BBM480 | Her iki GROUP yönü birden uygulanır. |
 
 #### `RuleSetResponse` Güncellemesi
 
@@ -243,29 +253,42 @@ public record RuleSetResponse(
     BigDecimal minTotalEcts,
     boolean blockOnAnyFGrade,
     List<RuleCategoryDto> categories,
-    List<ExemptionRuleDto> exemptionRules   // YENİ
+    List<CurriculumEquivalenceRuleDto> curriculumEquivalenceRules
 ) {}
 
-public record ExemptionRuleDto(
+public record CurriculumEquivalenceRuleDto(
     UUID id,
-    List<String> requiredCourseCodes,
-    String exemptedCourseCode
+    String ruleType,
+    List<String> legacyCourseCodes,
+    List<String> replacementCourseCodes,
+    Integer effectiveFromYear,
+    String effectiveFromTerm
 ) {}
 ```
 
-#### Engine Davranışı
+#### Engine Davranışı (CurriculumEquivalenceExpander)
+
+Motor, `GraduationEngine.evaluate()` içinde kategori değerlendirmesinden önce `CurriculumEquivalenceExpander.expand()` çağırır. Bu metod, tüm kuralları değişiklik olmayıncaya kadar (fixpoint) tekrarlayarak uygular; zincirleme kurallar bu sayede doğru çalışır.
 
 ```mermaid
 flowchart TD
-    afterGlobal["Global kontroller sonrası"] --> exemptionLoop["Her ExemptionRule için:"]
-    exemptionLoop --> allRequired{"required_course_codes içindeki\ntümü passedCourseCodes'da?"}
-    allRequired -->|"Evet"| addExempt["passedCourseCodes'a exemptedCourseCode ekle\n(geçici kopya üzerinde)"]
-    allRequired -->|"Hayır"| nextRule["Sonraki kural"]
-    addExempt --> nextRule
-    nextRule --> catLoop["Kategori döngüsüne geç\n(genişletilmiş passedCourseCodes ile)"]
+    rawPassed["rawPassedByCode: Map<code, ParsedCourse>"] --> expander["CurriculumEquivalenceExpander.expand()"]
+    expander --> loop["Fixpoint döngüsü"]
+    loop --> pairwise["PAIRWISE: legacy_i ↔ replacement_i"]
+    loop --> legGrp["GROUP_LEGACY: tüm legacy before-effective → replacement ekle"]
+    loop --> repGrp["GROUP_REPLACEMENT: tüm replacement → legacy ekle"]
+    loop --> mutual["GROUP_MUTUAL: her iki GROUP yönü"]
+    pairwise --> loop
+    legGrp --> loop
+    repGrp --> loop
+    mutual --> loop
+    loop -->|"değişiklik yok"| expanded["genişletilmiş passedCourseCodes"]
+    expanded --> catLoop["Kategori değerlendirmesi"]
 ```
 
-> Önemli: Muafiyet uygulaması `passedCourseCodes`'un **geçici kopyası** üzerinde yapılır; orijinal küme değiştirilmez. Bu sayede `CategoryResult.earnedCourseCount` tutarlı kalır.
+**Başarı Yılı (Başarı Yılı) kullanımı:** GROUP_LEGACY kurallarında `AcademicYearParser`, transkriptteki `"YY-YY"` formatını parse ederek ilgili dersin `effectiveFromYear/Term` sınırından önce alınıp alınmadığını kontrol eder. PAIRWISE kurallarında bu kontrol yapılmaz.
+
+> Önemli: Genişletilmiş `passedCourseCodes` kümesi yalnızca kategori değerlendirmesinde kullanılır. `totalCredit`, `totalEcts` ve GPA her zaman ham transkript üzerinden hesaplanır.
 
 ---
 
@@ -349,10 +372,13 @@ departments
             ├── course_code_prefix  VARCHAR(10)
             └── max_count           INTEGER
 
-exemption_rules                                [FAZ 5]
+curriculum_equivalence_rules                   [FAZ 5]
 ├── department_id            UUID FK
-├── required_course_codes    TEXT[]
-└── exempted_course_code     VARCHAR(20)
+├── rule_type                VARCHAR(30) — PAIRWISE | GROUP_*
+├── legacy_course_codes      TEXT[]
+├── replacement_course_codes TEXT[]
+├── effective_from_year      INTEGER (nullable)
+└── effective_from_term      VARCHAR(10) GUZ | BAHAR (nullable)
 ```
 
 ### analysis-service (`tams_analysis`)
@@ -377,7 +403,7 @@ flowchart TD
     recordEctsFail --> globalF
     globalF -->|"Evet"| recordFFail["GlobalCheck F_GRADE: FAIL"]
     globalF -->|"Hayır"| exemptions
-    recordFFail --> exemptions["Muafiyet kurallarını uygula\n(passedCourseCodes kopyasını güncelle)"]
+    recordFFail --> exemptions["Müfredat eşdeğerlik kurallarını uygula\n(CurriculumEquivalenceExpander, fixpoint)"]
     exemptions --> catLoop["Her kategori için:"]
     catLoop --> cohortCheck{"Kategori bu kohort\niçin geçerli?"}
     cohortCheck -->|"Hayır"| skipCat["Atla (COHORT_SKIPPED)"]
@@ -414,10 +440,13 @@ flowchart TD
     "prefixLimits": [],
     "courses": [...]
   }],
-  "exemptionRules": [{
+  "curriculumEquivalenceRules": [{
     "id": "...",
-    "requiredCourseCodes": ["FIZ103", "FIZ104"],
-    "exemptedCourseCode": "FIZ117"
+    "ruleType": "GROUP_LEGACY_TO_REPLACEMENT",
+    "legacyCourseCodes": ["FIZ103", "FIZ104"],
+    "replacementCourseCodes": ["FIZ117"],
+    "effectiveFromYear": 2017,
+    "effectiveFromTerm": "GUZ"
   }]
 }
 ```
@@ -447,7 +476,8 @@ flowchart TD
 |-------|------------|---------|
 | Koşullu eşikler kategoride tutuldu | Ayrı `conditional_rules` tablosu | Mevcut category CRUD API'si üzerinden yönetilebilir, ek endpoint gerekmez |
 | Cohort: `applies_from_year` yıl olarak | Dönem string ("2015-GUZ") | Yıl karşılaştırması basit integer comparison; dönem sınırında (Güz/Bahar ayrımı) henüz gereksinim yok |
-| Muafiyet `passedCourseCodes` kopyasında | Ders sayısında muafiyet | Transkript immutable; engine sonuçlarında orijinal veriden sapma görünmez |
+| Eşdeğerlik genişletmesi `passedCourseCodes` kopyasında | Transkripti değiştirme | Transkript immutable; engine sonuçlarında orijinal veriden sapma görünmez |
+| Fixpoint döngüsü ile kural zinciri | Tek geçiş | Zincirleme kurallar (A→B, B→C) doğru çalışır; kural sayısı küçük (<20) olduğundan performans sorun değil |
 | SEC sub-limit prefix tablosunda | Kategoride hardcode | Farklı bölümlerde farklı prefix kuralları olabilir; genel çözüm daha az teknik borç bırakır |
 | `enrollment_term` `analysis_results`'ta | Hesaplanmayan | Tarihsel analiz ve debug için faydalı; her seferiden yeniden türetme gerekmez |
 
