@@ -35,6 +35,7 @@ const MOCK_RESULT: AnalysisResult = {
       missingMandatoryCourses: [],
     },
   ],
+  globalCheckResults: [],
 };
 
 const INELIGIBLE_RESULT: AnalysisResult = {
@@ -96,5 +97,34 @@ describe("StudentResultPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Zorunlu Dersler")).toBeInTheDocument();
     });
+  });
+
+  it("displays global department rules when configured", async () => {
+    vi.mocked(analysisApi.getMyResult).mockResolvedValueOnce({
+      ...MOCK_RESULT,
+      isEligible: false,
+      globalCheckResults: [
+        {
+          checkType: "TOTAL_ECTS",
+          passed: false,
+          requiredMinEcts: 240,
+          earnedEcts: 200,
+          failedCourseCodes: [],
+        },
+        {
+          checkType: "FAIL_GRADE",
+          passed: false,
+          requiredMinEcts: null,
+          earnedEcts: null,
+          failedCourseCodes: ["BBM202"],
+        },
+      ],
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText("Genel Bölüm Kuralları")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Toplam AKTS yetersiz \(200 \/ 240\)/i)).toBeInTheDocument();
+    expect(screen.getByText("BBM202")).toBeInTheDocument();
   });
 });

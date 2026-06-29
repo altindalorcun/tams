@@ -5,14 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedCourse;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedSemester;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedTranscriptMessage;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.TranscriptMetadataDto;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisResult;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisStatus;
 import tr.com.hacettepe.tams.analysis_service.domain.CategoryResult;
 import tr.com.hacettepe.tams.analysis_service.domain.TranscriptCourse;
-import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedCourse;
-import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedSemester;
-import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedTranscriptMessage;
 import tr.com.hacettepe.tams.analysis_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.analysis_service.repository.AnalysisResultRepository;
 import tr.com.hacettepe.tams.analysis_service.service.dto.CategoryEvaluation;
@@ -70,7 +70,7 @@ public class ResultService {
         applyEnrollmentFields(result, parsed.metadata());
         attachCategoryResults(result, engineOut.categoryEvaluations());
         attachTranscriptCourses(result, parsed);
-        applyGlobalCheckSummary(result, engineOut.globalChecks());
+        attachGlobalCheckResults(result, engineOut.globalChecks());
 
         analysisResultRepository.save(result);
         log.info("Analysis completed: jobId={}, eligible={}, gpa={}", jobId, engineOut.eligible(), engineOut.gpa());
@@ -126,22 +126,23 @@ public class ResultService {
         }
     }
 
-    /**
-     * Writes a summary of any failed global checks (ECTS threshold, fail-grade block) into the
-     * result's errorMessage field so the frontend can display the reasons for ineligibility.
-     * Only adds content when at least one global check failed; prefixes entries with
-     * {@code [GLOBAL_CHECK]} to distinguish them from technical failure messages.
-     */
-    private void applyGlobalCheckSummary(AnalysisResult result, List<GlobalCheckResult> globalChecks) {
+    private void attachGlobalCheckResults(AnalysisResult result, List<GlobalCheckResult> globalChecks) {
         if (globalChecks == null || globalChecks.isEmpty()) {
             return;
         }
-        List<String> failedDetails = globalChecks.stream()
-                .filter(gc -> !gc.passed())
-                .map(gc -> "[" + gc.checkType().name() + "] " + gc.detail())
-                .toList();
-        if (!failedDetails.isEmpty()) {
-            result.setErrorMessage(String.join("; ", failedDetails));
+        for (GlobalCheckResult check : globalChecks) {
+            tr.com.hacettepe.tams.analysis_service.domain.GlobalCheckResult entity =
+                    new tr.com.hacettepe.tams.analysis_service.domain.GlobalCheckResult();
+            entity.setResult(result);
+            entity.setCheckType(check.checkType().name());
+            entity.setPassed(check.passed());
+            entity.setDetail(check.detail());
+            entity.setRequiredMinEcts(check.requiredMinEcts());
+            entity.setEarnedEcts(check.earnedEcts());
+            entity.setFailedCourseCodes(check.failedCourseCodes() != null
+                    ? check.failedCourseCodes().toArray(String[]::new)
+                    : new String[0]);
+            result.getGlobalCheckResults().add(entity);
         }
     }
 

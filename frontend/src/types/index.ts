@@ -8,6 +8,6 @@ export type {
   PrefixLimit, CreatePrefixLimitRequest,
 } from "./rules";
 export type {
-  AnalysisStatus, TranscriptJobResponse, CategoryResult,
+  AnalysisStatus, TranscriptJobResponse, CategoryResult, GlobalCheckResult,
   AnalysisResult, AnalysisResultSummary, PageResponse,
 } from "./analysis";

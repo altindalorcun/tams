@@ -184,6 +184,17 @@ def test_parse_metadata_two_column_layout() -> None:
     assert metadata.graduation_term == "2023-2024 Güz"
 
 
+def test_parse_metadata_uses_weighted_gpa_when_graduation_average_label_missing() -> None:
+    text = (
+        "Program : SOME PROGRAM (123) Mezun Olduğu Dönem : 2023-2024 Güz\n"
+        "Program Türü : Lisans\n"
+        "Ağırlıklı Genel Not Ort. : 2,72\n"
+        "Hazırlık Durumu: Muaf\n"
+    )
+    metadata, _ = _parse_metadata(text)
+    assert metadata.graduation_gpa == pytest.approx(2.72)
+
+
 def test_parse_metadata_single_column_fallback() -> None:
     text = "Adı Soyadı : JANE ROE\nProgram : ANOTHER PROGRAM (777)\n"
     metadata, identity = _parse_metadata(text)

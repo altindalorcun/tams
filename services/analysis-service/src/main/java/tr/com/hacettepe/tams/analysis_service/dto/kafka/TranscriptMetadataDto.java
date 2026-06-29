@@ -7,5 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Fields may be absent when the parser-service could not extract them from the PDF.
  */
 public record TranscriptMetadataDto(
-        @JsonProperty("registration_date") String registrationDate
+        @JsonProperty("registration_date") String registrationDate,
+        @JsonProperty("graduation_gpa") Double graduationGpa
 ) {}

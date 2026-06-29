@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GlobalChecksSection } from "@/components/GlobalChecksSection";
 import { cn } from "@/lib/utils";
 import type { AnalysisResult, AnalysisResultSummary, CategoryResult } from "@/types";
 
@@ -118,6 +119,8 @@ export function ResultCard({ result, isLoading }: ResultCardProps) {
   return (
     <div className="space-y-6">
       <EligibilityBanner isEligible={result.isEligible} gpa={result.gpa} />
+
+      <GlobalChecksSection globalCheckResults={result.globalCheckResults ?? []} />
 
       <div>
         <h2 className="text-lg font-semibold mb-4">Kategori Detayları</h2>

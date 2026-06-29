@@ -8,12 +8,14 @@ import tr.com.hacettepe.tams.analysis_service.client.dto.RuleCourseDto;
 import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedCourse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedTranscriptMessage;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.TranscriptMetadataDto;
 import tr.com.hacettepe.tams.analysis_service.service.dto.CategoryEvaluation;
 import tr.com.hacettepe.tams.analysis_service.service.dto.EngineResult;
 import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult;
 import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult.GlobalCheckType;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -88,7 +90,7 @@ public class GraduationEngine {
                 .map(c -> BigDecimal.valueOf(c.ects()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal gpa = gpaCalculator.calculate(allCourses);
+        BigDecimal gpa = resolveGpa(transcript, allCourses);
 
         List<GlobalCheckResult> globalChecks = new ArrayList<>();
         boolean allSatisfied = true;
@@ -96,23 +98,46 @@ public class GraduationEngine {
         if (ruleSet.minTotalEcts() != null && totalEcts.compareTo(ruleSet.minTotalEcts()) < 0) {
             allSatisfied = false;
             globalChecks.add(new GlobalCheckResult(
-                    GlobalCheckType.TOTAL_ECTS, false,
-                    "Total ECTS " + totalEcts + " is below the required minimum of " + ruleSet.minTotalEcts()));
+                    GlobalCheckType.TOTAL_ECTS,
+                    false,
+                    "Total ECTS " + totalEcts + " is below the required minimum of " + ruleSet.minTotalEcts(),
+                    ruleSet.minTotalEcts(),
+                    totalEcts,
+                    List.of()));
         } else if (ruleSet.minTotalEcts() != null) {
             globalChecks.add(new GlobalCheckResult(
-                    GlobalCheckType.TOTAL_ECTS, true,
-                    "Total ECTS " + totalEcts + " meets the required minimum of " + ruleSet.minTotalEcts()));
+                    GlobalCheckType.TOTAL_ECTS,
+                    true,
+                    "Total ECTS " + totalEcts + " meets the required minimum of " + ruleSet.minTotalEcts(),
+                    ruleSet.minTotalEcts(),
+                    totalEcts,
+                    List.of()));
         }
 
-        if (ruleSet.blockOnAnyFGrade() && allCourses.stream().anyMatch(c -> !c.isPassed())) {
-            allSatisfied = false;
-            globalChecks.add(new GlobalCheckResult(
-                    GlobalCheckType.FAIL_GRADE, false,
-                    "Transcript contains one or more failed (F-grade) courses"));
-        } else if (ruleSet.blockOnAnyFGrade()) {
-            globalChecks.add(new GlobalCheckResult(
-                    GlobalCheckType.FAIL_GRADE, true,
-                    "No failed courses found in transcript"));
+        if (ruleSet.blockOnAnyFGrade()) {
+            List<String> failedCourseCodes = allCourses.stream()
+                    .filter(c -> !c.isPassed())
+                    .map(c -> c.courseCode().toUpperCase())
+                    .distinct()
+                    .toList();
+            if (!failedCourseCodes.isEmpty()) {
+                allSatisfied = false;
+                globalChecks.add(new GlobalCheckResult(
+                        GlobalCheckType.FAIL_GRADE,
+                        false,
+                        "Transcript contains one or more failed (F-grade) courses",
+                        null,
+                        null,
+                        failedCourseCodes));
+            } else {
+                globalChecks.add(new GlobalCheckResult(
+                        GlobalCheckType.FAIL_GRADE,
+                        true,
+                        "No failed courses found in transcript",
+                        null,
+                        null,
+                        List.of()));
+            }
         }
 
         List<CategoryEvaluation> evaluations = new ArrayList<>();
@@ -131,6 +156,22 @@ public class GraduationEngine {
         }
 
         return new EngineResult(allSatisfied, totalCredit, totalEcts, gpa, evaluations, globalChecks, enrollmentYear);
+    }
+
+    /**
+     * Resolves the cumulative GPA for display and persistence.
+     *
+     * <p>When the parser extracted {@code graduation_gpa} from the transcript header
+     * (Mezuniyet Ortalaması), that official value is preferred because it reflects the
+     * university's AKTS-weighted calculation. Falls back to {@link GpaCalculator} when
+     * the metadata field is absent.
+     */
+    private BigDecimal resolveGpa(ParsedTranscriptMessage transcript, List<ParsedCourse> allCourses) {
+        TranscriptMetadataDto metadata = transcript.metadata();
+        if (metadata != null && metadata.graduationGpa() != null) {
+            return BigDecimal.valueOf(metadata.graduationGpa()).setScale(2, RoundingMode.HALF_UP);
+        }
+        return gpaCalculator.calculate(allCourses);
     }
 
     /**

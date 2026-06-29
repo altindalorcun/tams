@@ -7,6 +7,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tr.com.hacettepe.tams.analysis_service.AbstractIntegrationTest;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisResult;
 import tr.com.hacettepe.tams.analysis_service.domain.AnalysisStatus;
+import tr.com.hacettepe.tams.analysis_service.domain.GlobalCheckResult;
 import tr.com.hacettepe.tams.analysis_service.repository.AnalysisResultRepository;
 
 import java.math.BigDecimal;
@@ -52,6 +53,16 @@ class ResultControllerIT extends AbstractIntegrationTest {
         r.setTotalCredit(new BigDecimal("120.00"));
         r.setTotalEcts(new BigDecimal("240.00"));
         r.setCompletedAt(OffsetDateTime.now());
+
+        GlobalCheckResult passedEctsCheck = new GlobalCheckResult();
+        passedEctsCheck.setResult(r);
+        passedEctsCheck.setCheckType("TOTAL_ECTS");
+        passedEctsCheck.setPassed(true);
+        passedEctsCheck.setDetail("Total ECTS 240 meets the required minimum of 240");
+        passedEctsCheck.setRequiredMinEcts(new BigDecimal("240.00"));
+        passedEctsCheck.setEarnedEcts(new BigDecimal("240.00"));
+        r.getGlobalCheckResults().add(passedEctsCheck);
+
         return r;
     }
 
@@ -123,7 +134,10 @@ class ResultControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.id").value(savedResult.getId().toString()))
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.isEligible").value(true))
-                .andExpect(jsonPath("$.deficiencies").isArray())
+                .andExpect(jsonPath("$.globalCheckResults").isArray())
+                .andExpect(jsonPath("$.globalCheckResults[0].checkType").value("TOTAL_ECTS"))
+                .andExpect(jsonPath("$.globalCheckResults[0].passed").value(true))
+                .andExpect(jsonPath("$.categoryResults").isArray())
                 .andExpect(jsonPath("$.courses").isArray());
     }
 

@@ -5,6 +5,7 @@ import tr.com.hacettepe.tams.analysis_service.domain.AnalysisResult;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,9 +36,15 @@ public record AnalysisResultSummaryResponse(
         @Schema(description = "Timestamp when the upload was received")
         OffsetDateTime createdAt,
         @Schema(description = "Timestamp when analysis completed; null while PENDING")
-        OffsetDateTime completedAt
+        OffsetDateTime completedAt,
+        @Schema(description = "Failed department-level global rule checks only")
+        List<GlobalCheckResultResponse> globalCheckResults
 ) {
     public static AnalysisResultSummaryResponse from(AnalysisResult r) {
+        List<GlobalCheckResultResponse> globalCheckResults = r.getGlobalCheckResults().stream()
+                .filter(check -> !check.isPassed())
+                .map(GlobalCheckResultResponse::from)
+                .toList();
         return new AnalysisResultSummaryResponse(
                 r.getId(),
                 r.getJobId(),
@@ -50,7 +57,8 @@ public record AnalysisResultSummaryResponse(
                 r.getTotalCredit(),
                 r.getTotalEcts(),
                 r.getCreatedAt(),
-                r.getCompletedAt()
+                r.getCompletedAt(),
+                globalCheckResults
         );
     }
 }

@@ -47,7 +47,10 @@ public class ResultQueryService {
                         teacherId, studentNumber, pageable)
                 : analysisResultRepository.findByTeacherId(teacherId, pageable);
 
-        return page.map(AnalysisResultSummaryResponse::from);
+        return page.map(result -> {
+            result.getGlobalCheckResults().size();
+            return AnalysisResultSummaryResponse.from(result);
+        });
     }
 
     /**
@@ -74,6 +77,7 @@ public class ResultQueryService {
 
         result.getCategoryResults().size();
         result.getTranscriptCourses().size();
+        result.getGlobalCheckResults().size();
 
         return AnalysisResultDetailResponse.from(result);
     }
@@ -92,6 +96,7 @@ public class ResultQueryService {
 
         result.getCategoryResults().size();
         result.getTranscriptCourses().size();
+        result.getGlobalCheckResults().size();
 
         return AnalysisResultDetailResponse.from(result);
     }
@@ -111,6 +116,7 @@ public class ResultQueryService {
 
         result.getCategoryResults().size();
         result.getTranscriptCourses().size();
+        result.getGlobalCheckResults().size();
 
         return AnalysisResultDetailResponse.from(result);
     }

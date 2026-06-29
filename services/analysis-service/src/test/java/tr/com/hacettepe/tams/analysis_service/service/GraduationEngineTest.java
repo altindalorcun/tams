@@ -12,6 +12,8 @@ import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedTranscriptMessage;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.TranscriptMetadataDto;
 import tr.com.hacettepe.tams.analysis_service.service.dto.CategoryEvaluation;
 import tr.com.hacettepe.tams.analysis_service.service.dto.EngineResult;
+import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult;
+import tr.com.hacettepe.tams.analysis_service.service.dto.GlobalCheckResult.GlobalCheckType;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,6 +45,10 @@ class GraduationEngineTest {
         return new ParsedCourse(code, "Course " + code, credit, ects, passed ? "AA" : "FF", "23-24", passed);
     }
 
+    private ParsedCourse gradedCourse(String code, double credit, double ects, String grade, boolean passed) {
+        return new ParsedCourse(code, "Course " + code, credit, ects, grade, "23-24", passed);
+    }
+
     private RuleCourseDto ruleCourse(String code, double credit, double ects, boolean mandatory) {
         return ruleCourse(code, credit, ects, mandatory, null, null, null, null);
     }
@@ -63,19 +69,32 @@ class GraduationEngineTest {
     }
 
     private ParsedTranscriptMessage transcript(List<ParsedCourse> courses) {
-        return transcript(courses, null);
+        return transcript(courses, null, null);
     }
 
     private ParsedTranscriptMessage transcript(List<ParsedCourse> courses, String registrationDate) {
-        TranscriptMetadataDto metadata = registrationDate != null
-                ? new TranscriptMetadataDto(registrationDate) : null;
+        return transcript(courses, registrationDate, null);
+    }
+
+    private ParsedTranscriptMessage transcript(List<ParsedCourse> courses,
+                                               String registrationDate,
+                                               Double graduationGpa) {
+        TranscriptMetadataDto metadata = registrationDate != null || graduationGpa != null
+                ? new TranscriptMetadataDto(registrationDate, graduationGpa) : null;
         return new ParsedTranscriptMessage(
                 "21627208", "job-1", "teacher-1", "dept-1",
                 List.of(new ParsedSemester("Fall 2023", courses)), metadata);
     }
 
     private RuleSetResponse ruleSet(List<RuleCategoryDto> categories) {
-        return new RuleSetResponse(UUID.randomUUID(), "Computer Engineering", null, false, categories, List.of());
+        return ruleSet(categories, null, false);
+    }
+
+    private RuleSetResponse ruleSet(List<RuleCategoryDto> categories,
+                                    BigDecimal minTotalEcts,
+                                    boolean blockOnAnyFGrade) {
+        return new RuleSetResponse(
+                UUID.randomUUID(), "Computer Engineering", minTotalEcts, blockOnAnyFGrade, categories, List.of());
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -355,5 +374,111 @@ class GraduationEngineTest {
         EngineResult result = engine.evaluate(transcript(courses), ruleSet(List.of(category)));
 
         assertThat(result.categoryEvaluations().get(0).earnedCourseCount()).isEqualTo(1);
+    }
+
+    @Test
+    void evaluate_usesParserGraduationGpa_whenMetadataContainsOfficialValue() {
+        var courses = List.of(
+                gradedCourse("BBM101", 3, 6, "A1", true),
+                gradedCourse("BBM201", 3, 6, "A1", true)
+        );
+
+        EngineResult result = engine.evaluate(
+                transcript(courses, null, 2.72),
+                ruleSet(List.of()));
+
+        assertThat(result.gpa()).isEqualByComparingTo("2.72");
+    }
+
+    @Test
+    void evaluate_fallsBackToGpaCalculator_whenGraduationGpaIsAbsent() {
+        var courses = List.of(gradedCourse("BBM101", 3, 6, "A1", true));
+
+        EngineResult result = engine.evaluate(transcript(courses), ruleSet(List.of()));
+
+        assertThat(result.gpa()).isEqualByComparingTo("4.00");
+    }
+
+    @Test
+    void evaluate_fallsBackToGpaCalculator_whenGraduationGpaIsNullInMetadata() {
+        var courses = List.of(gradedCourse("BBM101", 3, 6, "B2", true));
+
+        EngineResult result = engine.evaluate(
+                transcript(courses, "15.08.2016", null),
+                ruleSet(List.of()));
+
+        assertThat(result.gpa()).isEqualByComparingTo("3.00");
+    }
+
+    @Test
+    void evaluate_failsGlobalEctsCheck_whenEarnedEctsBelowDepartmentMinimum() {
+        var courses = List.of(
+                gradedCourse("BBM101", 3, 100, "A1", true),
+                gradedCourse("BBM201", 3, 100, "A1", true)
+        );
+
+        EngineResult result = engine.evaluate(
+                transcript(courses),
+                ruleSet(List.of(), BigDecimal.valueOf(240), false));
+
+        assertThat(result.eligible()).isFalse();
+        GlobalCheckResult ectsCheck = result.globalChecks().stream()
+                .filter(check -> check.checkType() == GlobalCheckType.TOTAL_ECTS)
+                .findFirst()
+                .orElseThrow();
+        assertThat(ectsCheck.passed()).isFalse();
+        assertThat(ectsCheck.earnedEcts()).isEqualByComparingTo("200");
+        assertThat(ectsCheck.requiredMinEcts()).isEqualByComparingTo("240");
+    }
+
+    @Test
+    void evaluate_passesGlobalEctsCheck_whenEarnedEctsMeetsDepartmentMinimum() {
+        var courses = List.of(
+                gradedCourse("BBM101", 3, 120, "A1", true),
+                gradedCourse("BBM201", 3, 124, "A1", true)
+        );
+
+        EngineResult result = engine.evaluate(
+                transcript(courses),
+                ruleSet(List.of(), BigDecimal.valueOf(240), false));
+
+        GlobalCheckResult ectsCheck = result.globalChecks().stream()
+                .filter(check -> check.checkType() == GlobalCheckType.TOTAL_ECTS)
+                .findFirst()
+                .orElseThrow();
+        assertThat(ectsCheck.passed()).isTrue();
+        assertThat(ectsCheck.earnedEcts()).isEqualByComparingTo("244");
+        assertThat(ectsCheck.requiredMinEcts()).isEqualByComparingTo("240");
+    }
+
+    @Test
+    void evaluate_failsFailGradeCheck_whenBlockEnabledAndFailedCourseExists() {
+        var courses = List.of(
+                gradedCourse("BBM101", 3, 6, "A1", true),
+                gradedCourse("BBM202", 3, 6, "F1", false)
+        );
+
+        EngineResult result = engine.evaluate(
+                transcript(courses),
+                ruleSet(List.of(), null, true));
+
+        assertThat(result.eligible()).isFalse();
+        GlobalCheckResult failCheck = result.globalChecks().stream()
+                .filter(check -> check.checkType() == GlobalCheckType.FAIL_GRADE)
+                .findFirst()
+                .orElseThrow();
+        assertThat(failCheck.passed()).isFalse();
+        assertThat(failCheck.failedCourseCodes()).containsExactly("BBM202");
+    }
+
+    @Test
+    void evaluate_omitsFailGradeCheck_whenBlockDisabled() {
+        var courses = List.of(gradedCourse("BBM202", 3, 6, "F1", false));
+
+        EngineResult result = engine.evaluate(
+                transcript(courses),
+                ruleSet(List.of(), null, false));
+
+        assertThat(result.globalChecks()).noneMatch(check -> check.checkType() == GlobalCheckType.FAIL_GRADE);
     }
 }

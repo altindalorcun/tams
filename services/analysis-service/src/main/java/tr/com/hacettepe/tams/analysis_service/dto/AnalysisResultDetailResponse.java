@@ -41,6 +41,8 @@ public record AnalysisResultDetailResponse(
         OffsetDateTime completedAt,
         @Schema(description = "Per-category evaluation results (both satisfied and unsatisfied)")
         List<CategoryResultResponse> categoryResults,
+        @Schema(description = "Department-level global rule evaluations (total ECTS, fail-grade block)")
+        List<GlobalCheckResultResponse> globalCheckResults,
         @Schema(description = "All courses from the parsed transcript snapshot")
         List<TranscriptCourseResponse> courses
 ) {
@@ -54,6 +56,9 @@ public record AnalysisResultDetailResponse(
                 .toList();
         List<TranscriptCourseResponse> courses = r.getTranscriptCourses().stream()
                 .map(TranscriptCourseResponse::from)
+                .toList();
+        List<GlobalCheckResultResponse> globalCheckResults = r.getGlobalCheckResults().stream()
+                .map(GlobalCheckResultResponse::from)
                 .toList();
         return new AnalysisResultDetailResponse(
                 r.getId(),
@@ -69,6 +74,7 @@ public record AnalysisResultDetailResponse(
                 r.getCreatedAt(),
                 r.getCompletedAt(),
                 categoryResults,
+                globalCheckResults,
                 courses
         );
     }

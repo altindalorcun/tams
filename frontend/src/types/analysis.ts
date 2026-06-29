@@ -18,6 +18,14 @@ export interface CategoryResult {
   missingMandatoryCourses: string[];
 }
 
+export interface GlobalCheckResult {
+  checkType: "TOTAL_ECTS" | "FAIL_GRADE";
+  passed: boolean;
+  requiredMinEcts?: number | null;
+  earnedEcts?: number | null;
+  failedCourseCodes: string[];
+}
+
 export interface AnalysisResult {
   id: string;
   jobId: string;
@@ -32,6 +40,7 @@ export interface AnalysisResult {
   createdAt: string;
   completedAt?: string;
   categoryResults: CategoryResult[];
+  globalCheckResults: GlobalCheckResult[];
   courses?: unknown[];
 }
 
@@ -48,6 +57,7 @@ export interface AnalysisResultSummary {
   totalEcts: number;
   createdAt: string;
   completedAt?: string;
+  globalCheckResults: GlobalCheckResult[];
 }
 
 export interface PageResponse<T> {

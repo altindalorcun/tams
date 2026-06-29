@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { GlobalChecksSection } from "@/components/GlobalChecksSection";
 import { getMyResult } from "@/api/analysisApi";
 import { cn } from "@/lib/utils";
 import type { CategoryResult } from "@/types";
@@ -140,6 +141,8 @@ export function StudentResultPage() {
           </p>
         </div>
       </div>
+
+      <GlobalChecksSection globalCheckResults={result.globalCheckResults ?? []} />
 
       {/* Mandatory deficiencies summary */}
       {allMissingMandatory.length > 0 && (

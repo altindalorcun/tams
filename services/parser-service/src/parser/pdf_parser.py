@@ -75,6 +75,8 @@ _OGRENCI_NO_NEARBY_WINDOW = 40
 _RE_DURATION = re.compile(r"Öğrenim Süresi\s*:+\s*(\d+)")
 _RE_PROGRAM_TYPE = re.compile(r"Program Türü\s*:+\s*([^\n]+)")
 _RE_GPA = re.compile(r"Mezuniyet Ortalaması\s*:+\s*([\d.,]+)")
+_RE_WEIGHTED_GPA = re.compile(r"Ağırlıklı Genel Not Ort\.\s*:+\s*([\d.,]+)")
+_RE_GENERAL_GPA = re.compile(r"Genel Not Ort\.\s*:+\s*([\d.,]+)")
 _RE_REG_DATE = re.compile(r"Kayıt Tarihi\s*:+\s*(\d{2}\.\d{2}\.\d{4})")
 _RE_GRAD_DATE = re.compile(r"Mezuniyet Tarihi\s*:+\s*(\d{2}\.\d{2}\.\d{4})")
 _RE_TOTAL_ECTS = re.compile(r"Genel AKTS Toplamı\s*:+\s*(\d+)")
@@ -184,6 +186,15 @@ def _to_int(value: str | None) -> int | None:
         return None
 
 
+def _extract_graduation_gpa(text: str) -> float | None:
+    """Extract the official graduation GPA from transcript header or footer labels."""
+    for pattern in (_RE_GPA, _RE_WEIGHTED_GPA, _RE_GENERAL_GPA):
+        value = _to_float(_first_match(text, pattern))
+        if value is not None:
+            return value
+    return None
+
+
 def _ogrenci_no_from_nearby_digits(text: str) -> str | None:
     """Return a student number appearing shortly after the Öğrenci No label."""
     label = re.search(r"[ÖO][ğg]renci\s+No\s*:+", text, re.IGNORECASE)
@@ -282,7 +293,7 @@ def _parse_metadata(text: str) -> tuple[TranscriptMetadata, StudentIdentity]:
         faculty_code=faculty_code,
         study_duration_years=_to_int(_first_match(normalized, _RE_DURATION)),
         program_type=_first_match(normalized, _RE_PROGRAM_TYPE),
-        graduation_gpa=_to_float(_first_match(normalized, _RE_GPA)),
+        graduation_gpa=_extract_graduation_gpa(normalized),
         graduation_term=_first_match(normalized, _RE_GRAD_TERM),
         registration_date=_first_match(normalized, _RE_REG_DATE),
         graduation_date=_first_match(normalized, _RE_GRAD_DATE),

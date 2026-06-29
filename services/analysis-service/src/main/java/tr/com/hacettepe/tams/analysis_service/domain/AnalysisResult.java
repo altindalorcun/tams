@@ -78,4 +78,7 @@ public class AnalysisResult {
 
     @OneToMany(mappedBy = "result", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TranscriptCourse> transcriptCourses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "result", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GlobalCheckResult> globalCheckResults = new ArrayList<>();
 }
