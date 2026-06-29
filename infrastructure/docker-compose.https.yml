@@ -1,0 +1,45 @@
+# HTTPS override for local Docker Compose.
+#
+# Prerequisites:
+#   1. Generate a self-signed certificate:
+#        TLS_DOMAIN=localhost ./infrastructure/tls/generate-self-signed.sh
+#   2. Set HTTPS values in .env (see .env.example).
+#
+# Usage (from repository root):
+#   docker compose -f infrastructure/docker-compose.yml \
+#     -f infrastructure/docker-compose.https.yml up --build
+#
+# Access: https://localhost (accept the browser security warning for self-signed certs).
+# Full guide: docs/https-migration-guide.md
+
+services:
+
+  reverse-proxy:
+    build:
+      context: reverse-proxy
+      dockerfile: Dockerfile
+    container_name: tams-reverse-proxy
+    ports:
+      - "${HTTPS_PORT:-443}:8443"
+      - "${HTTP_REDIRECT_PORT:-80}:8080"
+    volumes:
+      - ./tls/generated/${TLS_DOMAIN:-localhost}:/etc/nginx/certs:ro
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - tams-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://localhost}
+
+  api-gateway:
+    environment:
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://localhost}

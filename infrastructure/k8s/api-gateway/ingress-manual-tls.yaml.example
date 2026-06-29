@@ -1,3 +1,15 @@
+# Example Ingress for manually managed TLS certificates (self-signed or institutional).
+#
+# Use this when the tams-tls secret is created outside cert-manager:
+#   - Self-signed: infrastructure/tls/generate-self-signed.sh + install-k8s-tls-secret.sh
+#   - Hacettepe CA:  TLS_CERT_FILE / TLS_KEY_FILE via install-k8s-tls-secret.sh
+#
+# Do NOT apply this file directly. Copy the pattern into ingress.yaml and replace
+# tams.example.com with your domain. The cert-manager.io/cluster-issuer annotation
+# must be absent so cert-manager does not overwrite the manual secret.
+#
+# Full migration steps: docs/https-migration-guide.md
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -6,7 +18,6 @@ metadata:
   labels:
     app.kubernetes.io/part-of: tams
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"

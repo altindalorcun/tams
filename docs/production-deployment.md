@@ -4,6 +4,9 @@ This document covers every step required to go from the current local/smoke-test
 fully operational production deployment once Hacettepe University obtains a real domain and
 a managed Kubernetes cluster.
 
+> **HTTPS setup:** For certificate source selection (self-signed, Hacettepe CA, Let's Encrypt)
+> and the ordered migration steps, see [https-migration-guide.md](./https-migration-guide.md).
+
 ---
 
 ## Prerequisites
@@ -219,6 +222,9 @@ kubectl apply -f infrastructure/k8s/api-gateway/ingress.yaml
 
 ## Step 8 — TLS Certificate Setup (Let's Encrypt)
 
+> For self-signed or Hacettepe institutional certificates, follow
+> [https-migration-guide.md](./https-migration-guide.md) Sections 6–7 instead of this section.
+
 ### 8a. Staging first (avoid rate limits)
 
 ```bash
@@ -344,4 +350,5 @@ parser-service and analysis-service have HPAs and will scale up automatically un
 | `infrastructure/k8s/cert-manager/cluster-issuer-staging.yaml` | Let's Encrypt staging ClusterIssuer |
 | `infrastructure/k8s/cert-manager/cluster-issuer-prod.yaml` | Let's Encrypt production ClusterIssuer |
 | `docs/e2e-test.sh` | End-to-end workflow test script |
+| `docs/https-migration-guide.md` | HTTPS migration steps (self-signed, institutional, Let's Encrypt) |
 | `CONTRIBUTING.md` | Local development setup guide |

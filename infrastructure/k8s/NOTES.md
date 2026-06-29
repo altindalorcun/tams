@@ -70,10 +70,12 @@ postgres-analysis.tams.svc.cluster.local
 `frontend` Deployment'ında runtime env var yoktur çünkü `VITE_API_URL` bir **build-time** değişkenidir; Vite tarafından derleme esnasında statik bundle'a gömülür. Image build edilirken bu değerin Docker build arg olarak geçirilmesi gerekir:
 
 ```bash
-docker build --build-arg VITE_API_URL=https://tams.example.com/api .
+docker build --build-arg VITE_API_URL=https://tams.example.com .
 ```
 
-Farklı ortamlar için (staging, prod) farklı image tag'leri oluşturulması önerilir.
+`VITE_API_URL` origin kökü olmalıdır (`/api` suffix olmadan); axios istekleri zaten `/api/v1/...` path'leri kullanır.
+
+HTTPS geçiş adımları için bkz. [docs/https-migration-guide.md](../../docs/https-migration-guide.md).
 
 ---
 
@@ -228,6 +230,10 @@ Script otomatik olarak şunları yapar:
 ---
 
 ### Phase 9 — Kalan Görevler
+
+> TLS altyapı script'leri ve sıralı geçiş rehberi hazır:
+> [docs/https-migration-guide.md](../../docs/https-migration-guide.md).
+> Aşağıdaki maddeler gerçek cluster ve domain ile doğrulama gerektirir.
 
 #### P9-8 · Staging ClusterIssuer'ı Dağıt ve Sertifikayı Doğrula
 

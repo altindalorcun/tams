@@ -175,9 +175,40 @@ kubectl apply -f frontend/service.yaml
 Apply the Ingress last, after all backend services are healthy.
 Update `tams.example.com` in `api-gateway/ingress.yaml` to your actual domain first.
 
+For TLS certificate setup (self-signed, Hacettepe CA, or Let's Encrypt), follow
+[docs/https-migration-guide.md](../../docs/https-migration-guide.md).
+
 ```bash
 kubectl apply -f api-gateway/ingress.yaml
 ```
+
+---
+
+## TLS and HTTPS
+
+TLS is terminated at the **ingress-nginx** controller. Three certificate paths are supported:
+
+| Path | When to use | Guide section |
+|---|---|---|
+| Self-signed | Local dev / staging clusters | [https-migration-guide.md §6](../../docs/https-migration-guide.md#6-kubernetes--path-a-self-signed-certificate-manual) |
+| Hacettepe institutional | University-provided `.crt` / `.key` | [https-migration-guide.md §7](../../docs/https-migration-guide.md#7-kubernetes--path-b-hacettepe-institutional-certificate) |
+| Let's Encrypt | Public domain, automatic renewal | [https-migration-guide.md §8](../../docs/https-migration-guide.md#8-kubernetes--path-c-lets-encrypt-cert-manager) |
+
+Tools in `infrastructure/tls/`:
+
+```bash
+# Generate self-signed PEM files
+TLS_DOMAIN=tams.hacettepe.edu.tr ./infrastructure/tls/generate-self-signed.sh
+
+# Install manual certificate into Kubernetes
+TLS_CERT_FILE=... TLS_KEY_FILE=... ./infrastructure/tls/install-k8s-tls-secret.sh
+```
+
+When using a manual certificate, remove the `cert-manager.io/cluster-issuer` annotation from
+the Ingress and refer to `api-gateway/ingress-manual-tls.yaml.example`.
+
+For local Docker Compose HTTPS testing, use `infrastructure/docker-compose.https.yml`
+(see migration guide §4).
 
 ---
 

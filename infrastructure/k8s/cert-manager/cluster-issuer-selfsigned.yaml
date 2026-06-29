@@ -1,0 +1,23 @@
+# Self-signed ClusterIssuer for local or dev Kubernetes clusters only.
+#
+# Issues certificates that browsers do not trust. Suitable for minikube/kind smoke tests
+# when you want cert-manager to manage the tams-tls secret automatically without
+# Let's Encrypt or manual file import.
+#
+# Do NOT use in production. For production use either:
+#   - cluster-issuer-prod.yaml (Let's Encrypt), or
+#   - install-k8s-tls-secret.sh with an institutional certificate.
+#
+# Usage:
+#   kubectl apply -f infrastructure/k8s/cert-manager/cluster-issuer-selfsigned.yaml
+#   kubectl annotate ingress tams-ingress -n tams \
+#     cert-manager.io/cluster-issuer=selfsigned --overwrite
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+  labels:
+    app.kubernetes.io/part-of: tams
+spec:
+  selfSigned: {}

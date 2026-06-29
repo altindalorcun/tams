@@ -69,6 +69,8 @@ docker-compose.override.yml
 # ─── PostgreSQL backups (pgAdmin / pg_dump output) ───────────────────────────
 infrastructure/backup/*
 !infrastructure/backup/.gitkeep
+infrastructure/tls/generated/*
+!infrastructure/tls/generated/.gitkeep
 
 # ─── Environment / Secrets ───────────────────────────────────────────────────
 .env
