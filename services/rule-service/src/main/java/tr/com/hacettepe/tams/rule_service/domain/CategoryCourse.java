@@ -8,8 +8,18 @@ import lombok.Setter;
 /**
  * Junction entity for the many-to-many relationship between
  * {@link Category} and {@link Course}.
- * Carries the extra {@code isMandatory} attribute: when true, the student must
- * pass this specific course regardless of other category thresholds.
+ *
+ * <p>Carries {@code isMandatory}: when true and the student's enrollment cohort falls
+ * within the applicability range, the student must pass this course.
+ *
+ * <p>Applicability bounds ({@code appliesFromYear/Term}, {@code appliesToYear/Term})
+ * control whether this course assignment is active for a given enrollment cohort:
+ * <ul>
+ *   <li>{@code appliesFrom} (inclusive): first cohort for which the assignment applies.</li>
+ *   <li>{@code appliesTo} (exclusive): first cohort for which the assignment no longer applies.</li>
+ * </ul>
+ * When the student's cohort is outside the range, the course is ignored entirely in
+ * category evaluation (neither counted nor required).
  */
 @Entity
 @Table(name = "category_courses")
@@ -34,11 +44,19 @@ public class CategoryCourse {
     @Column(name = "is_mandatory", nullable = false)
     private boolean isMandatory = false;
 
-    @Column(name = "mandatory_from_year")
-    private Integer mandatoryFromYear;
+    @Column(name = "applies_from_year")
+    private Integer appliesFromYear;
 
-    @Column(name = "mandatory_to_year")
-    private Integer mandatoryToYear;
+    /** {@code GUZ} or {@code BAHAR}; null defaults to {@code GUZ} at evaluation time. */
+    @Column(name = "applies_from_term", length = 10)
+    private String appliesFromTerm;
+
+    @Column(name = "applies_to_year")
+    private Integer appliesToYear;
+
+    /** {@code GUZ} or {@code BAHAR}; null defaults to {@code GUZ} at evaluation time. */
+    @Column(name = "applies_to_term", length = 10)
+    private String appliesToTerm;
 
     public CategoryCourse(Category category, Course course, boolean isMandatory) {
         this.id = new CategoryCourseId(category.getId(), course.getId());

@@ -148,8 +148,8 @@ services:
       - pgadmin-data:/var/lib/pgadmin
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
       - ./backup:/backup
-      # pgAdmin resolves relative backup paths under storage/<email>/; mirror host backup dir there.
-      - ./backup:/var/lib/pgadmin/storage/admin_tams.com/backup
+      # pgAdmin file picker uses storage/<PGADMIN_STORAGE_SLUG>/; @ in PGADMIN_EMAIL becomes _.
+      - ./backup:/var/lib/pgadmin/storage/${PGADMIN_STORAGE_SLUG:-admin_tams.com}/backup
     depends_on:
       postgres-auth:
         condition: service_healthy

@@ -12,7 +12,11 @@ public record CategoryCourseResponse(
         String courseName,
         BigDecimal credit,
         BigDecimal ects,
-        boolean isMandatory
+        boolean isMandatory,
+        Integer appliesFromYear,
+        String appliesFromTerm,
+        Integer appliesToYear,
+        String appliesToTerm
 ) {
     public static CategoryCourseResponse from(CategoryCourse cc) {
         return new CategoryCourseResponse(
@@ -21,7 +25,11 @@ public record CategoryCourseResponse(
                 cc.getCourse().getCourseName(),
                 cc.getCourse().getCredit(),
                 cc.getCourse().getEcts(),
-                cc.isMandatory()
+                cc.isMandatory(),
+                cc.getAppliesFromYear(),
+                cc.getAppliesFromTerm(),
+                cc.getAppliesToYear(),
+                cc.getAppliesToTerm()
         );
     }
 }

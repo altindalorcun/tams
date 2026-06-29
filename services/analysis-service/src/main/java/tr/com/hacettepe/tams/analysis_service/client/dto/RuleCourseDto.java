@@ -12,6 +12,8 @@ public record RuleCourseDto(
         BigDecimal credit,
         BigDecimal ects,
         boolean isMandatory,
-        Integer mandatoryFromYear,
-        Integer mandatoryToYear
+        Integer appliesFromYear,
+        String appliesFromTerm,
+        Integer appliesToYear,
+        String appliesToTerm
 ) {}

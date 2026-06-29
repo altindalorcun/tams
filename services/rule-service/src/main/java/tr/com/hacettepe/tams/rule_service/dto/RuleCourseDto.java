@@ -14,8 +14,10 @@ public record RuleCourseDto(
         BigDecimal credit,
         BigDecimal ects,
         boolean isMandatory,
-        Integer mandatoryFromYear,
-        Integer mandatoryToYear
+        Integer appliesFromYear,
+        String appliesFromTerm,
+        Integer appliesToYear,
+        String appliesToTerm
 ) {
     public static RuleCourseDto from(CategoryCourse cc) {
         return new RuleCourseDto(
@@ -24,8 +26,10 @@ public record RuleCourseDto(
                 cc.getCourse().getCredit(),
                 cc.getCourse().getEcts(),
                 cc.isMandatory(),
-                cc.getMandatoryFromYear(),
-                cc.getMandatoryToYear()
+                cc.getAppliesFromYear(),
+                cc.getAppliesFromTerm(),
+                cc.getAppliesToYear(),
+                cc.getAppliesToTerm()
         );
     }
 }

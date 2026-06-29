@@ -15,6 +15,7 @@ import tr.com.hacettepe.tams.rule_service.domain.DepartmentCourse;
 import tr.com.hacettepe.tams.rule_service.dto.CategoryCourseRequest;
 import tr.com.hacettepe.tams.rule_service.dto.CreateCategoryRequest;
 import tr.com.hacettepe.tams.rule_service.dto.CreatePrefixLimitRequest;
+import tr.com.hacettepe.tams.rule_service.dto.UpdateCategoryCourseRequest;
 import tr.com.hacettepe.tams.rule_service.dto.UpdateCategoryRequest;
 import tr.com.hacettepe.tams.rule_service.repository.*;
 
@@ -279,7 +280,8 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = persistCourseInPool("BIL401");
         String url = "/api/v1/categories/" + cat.getId() + "/courses";
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), true, null, null);
+        CategoryCourseRequest request = new CategoryCourseRequest(
+                course.getId(), true, null, null, null, null);
 
         mockMvc.perform(post(url)
                         .header("Authorization", "Bearer " + adminToken)
@@ -304,12 +306,60 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Category courses — add with applies bounds and update via PUT")
+    void categoryCourses_addWithBoundsAndUpdate() throws Exception {
+        Category cat = persistCategory("Teknik Seçmeli Lab");
+        Course course = persistCourseInPool("BBM487");
+        String url = "/api/v1/categories/" + cat.getId() + "/courses";
+        CategoryCourseRequest addRequest = new CategoryCourseRequest(
+                course.getId(), false, null, null, 2017, "GUZ");
+
+        mockMvc.perform(post(url)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(addRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courseCode").value("BBM487"))
+                .andExpect(jsonPath("$.isMandatory").value(false))
+                .andExpect(jsonPath("$.appliesToYear").value(2017))
+                .andExpect(jsonPath("$.appliesToTerm").value("GUZ"));
+
+        UpdateCategoryCourseRequest updateRequest = new UpdateCategoryCourseRequest(
+                true, 2017, "GUZ", null, null);
+
+        mockMvc.perform(put(url + "/" + course.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isMandatory").value(true))
+                .andExpect(jsonPath("$.appliesFromYear").value(2017))
+                .andExpect(jsonPath("$.appliesFromTerm").value("GUZ"));
+    }
+
+    @Test
+    @DisplayName("Category courses — 409 when appliesFrom is not before appliesTo")
+    void categoryCourses_invalidBounds_returns409() throws Exception {
+        Category cat = persistCategory("Teknik Seçmeli");
+        Course course = persistCourseInPool("BBM488");
+        CategoryCourseRequest request = new CategoryCourseRequest(
+                course.getId(), false, 2018, "GUZ", 2017, "GUZ");
+
+        mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("Category courses — 409 when the course is not in the department pool")
     void categoryCourses_courseNotInPool_returns409() throws Exception {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = courseRepository.save(
                 new Course("BIL402", "Outside Pool", new BigDecimal("3.00"), new BigDecimal("5.00")));
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false, null, null);
+        CategoryCourseRequest request = new CategoryCourseRequest(
+                course.getId(), false, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
                         .header("Authorization", "Bearer " + adminToken)
@@ -324,7 +374,8 @@ class CategoryControllerIT extends AbstractIntegrationTest {
         Category cat = persistCategory("Teknik Seçmeli");
         Course course = persistCourseInPool("BIL403");
         String url = "/api/v1/categories/" + cat.getId() + "/courses";
-        CategoryCourseRequest request = new CategoryCourseRequest(course.getId(), false, null, null);
+        CategoryCourseRequest request = new CategoryCourseRequest(
+                course.getId(), false, null, null, null, null);
 
         mockMvc.perform(post(url)
                         .header("Authorization", "Bearer " + adminToken)
@@ -343,7 +394,8 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     @DisplayName("Category courses — 404 when adding an unknown course")
     void categoryCourses_unknownCourse_returns404() throws Exception {
         Category cat = persistCategory("Teknik Seçmeli");
-        CategoryCourseRequest request = new CategoryCourseRequest(UUID.fromString(UNKNOWN_ID), false, null, null);
+        CategoryCourseRequest request = new CategoryCourseRequest(
+                UUID.fromString(UNKNOWN_ID), false, null, null, null, null);
 
         mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
                         .header("Authorization", "Bearer " + adminToken)

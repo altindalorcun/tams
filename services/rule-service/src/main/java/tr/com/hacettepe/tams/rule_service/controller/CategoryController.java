@@ -80,6 +80,15 @@ public class CategoryController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/api/v1/categories/{catId}/courses/{courseId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a course assignment within a graduation category")
+    public ResponseEntity<CategoryCourseResponse> updateCourse(@PathVariable UUID catId,
+                                                               @PathVariable UUID courseId,
+                                                               @Valid @RequestBody UpdateCategoryCourseRequest request) {
+        return ResponseEntity.ok(categoryService.updateCourse(catId, courseId, request));
+    }
+
     @GetMapping("/api/v1/categories/{catId}/courses")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "List all courses assigned to a graduation category")

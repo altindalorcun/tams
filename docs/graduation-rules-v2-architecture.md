@@ -133,7 +133,7 @@ ALTER TABLE analysis_results
 Kohort filtresi iki düzeyde tanımlanır:
 
 1. **Kategori düzeyi** (`applies_from_year` / `applies_to_year`): Kategori bütünüyle yalnızca belirli kohortlar için geçerlidir. Örnek: "HAS/MUH Zorunlu" kategorisi yalnızca 2015 ve sonrası.
-2. **Zorunlu ders düzeyi** (`mandatory_from_year` / `mandatory_to_year`): Ders kategoride bulunmaya devam eder (isteğe bağlı seçmeli olarak sayılabilir), ama `is_mandatory` özelliği yalnızca belirli kohortlara uygulanır. Örnek: BBM384 kategoride her zaman var, ancak mandatory olma durumu 2017+ için geçerli.
+2. **Zorunlu ders düzeyi** (`applies_from_year/term`, `applies_to_year/term`): Ders kategoride bulunur; yalnızca öğrencinin kayıt kohortu geçerlilik aralığındaysa değerlendirmeye girer. `is_mandatory` yalnızca geçerli kohortlarda zorunluluk uygular. Örnek: BBM384 kategoride her zaman var, ancak 2017 Güz ve sonrası kayıtlılar için zorunlu; BBM487 seçmeli lab havuzunda, 2017 Güz ve sonrası kayıtlılar için geçersiz.
 
 #### Veri Modeli Değişiklikleri
 
@@ -149,9 +149,13 @@ ALTER TABLE categories
 
 ```sql
 ALTER TABLE category_courses
-    ADD COLUMN mandatory_from_year  INTEGER,  -- NULL = her zaman zorunlu (mevcut davranış)
-    ADD COLUMN mandatory_to_year    INTEGER;  -- NULL = üst sınır yok
+    ADD COLUMN applies_from_year  INTEGER,
+    ADD COLUMN applies_from_term  VARCHAR(10),  -- GUZ | BAHAR
+    ADD COLUMN applies_to_year    INTEGER,
+    ADD COLUMN applies_to_term    VARCHAR(10);  -- GUZ | BAHAR (exclusive upper bound)
 ```
+
+**Semantik:** `applies_from` inclusive (bu kohort ve sonrası geçerli), `applies_to` exclusive (bu kohort ve sonrası geçersiz).
 
 #### BBM Yapılandırması Örneği
 
@@ -161,9 +165,10 @@ ALTER TABLE category_courses
 | BBM105 Zorunlu | 2017 | NULL |
 | Bölüm Zorunlu (FIZ103/104 dönemli) | NULL | 2016 |
 
-| Ders | is_mandatory | mandatory_from_year | mandatory_to_year | Anlamı |
-|------|-------------|--------------------|--------------------|--------|
-| BBM384 | true | 2017 | NULL | 2017+ zorunlu, öncesi seçmeli lab |
+| Ders | is_mandatory | applies_from | applies_to | Anlamı |
+|------|-------------|--------------|------------|--------|
+| BBM384 | true | 2017 GUZ | — | 2017 Güz+ zorunlu dönem dersi |
+| BBM487 | false | — | 2017 GUZ | 2017 Güz öncesi kayıtlılar için TS Lab sayılır |
 
 #### Engine Davranışı
 

@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
  *   <li>Checks the {@code min_course_count} threshold.</li>
  *   <li>Checks the {@code min_credit} threshold (sum of matched passed course credits).</li>
  *   <li>Checks the {@code min_ects} threshold (sum of matched passed course ECTS).</li>
- *   <li>Verifies that every {@code is_mandatory=true} course was passed, regardless
- *       of whether the count/credit thresholds are already met.</li>
+ *   <li>Skips pool courses outside the student's enrollment cohort applicability range.</li>
+ *   <li>Verifies that every applicable {@code is_mandatory=true} course was passed.</li>
  * </ol>
  *
  * <p>A category is <em>satisfied</em> only when all four checks pass simultaneously.
@@ -43,6 +43,7 @@ public class GraduationEngine {
 
     private final GpaCalculator gpaCalculator;
     private final EnrollmentYearParser enrollmentYearParser;
+    private final EnrollmentCohortComparator cohortComparator;
     private final CurriculumEquivalenceExpander equivalenceExpander;
 
     /**
@@ -58,6 +59,7 @@ public class GraduationEngine {
         String registrationDate = transcript.metadata() != null
                 ? transcript.metadata().registrationDate() : null;
         Integer enrollmentYear = enrollmentYearParser.parse(registrationDate).orElse(null);
+        String enrollmentTerm = enrollmentYearParser.parseTerm(registrationDate);
 
         // Index passed courses by code for O(1) lookup during category evaluation.
         // The map preserves the raw ParsedCourse so the expander can access the Başarı Yılı
@@ -120,7 +122,8 @@ public class GraduationEngine {
                 evaluations.add(buildSkippedEvaluation(category));
                 continue;
             }
-            CategoryEvaluation eval = evaluateCategory(category, passedCourseCodes, enrollmentYear);
+            CategoryEvaluation eval = evaluateCategory(
+                    category, passedCourseCodes, enrollmentYear, enrollmentTerm);
             evaluations.add(eval);
             if (!eval.satisfied()) {
                 allSatisfied = false;
@@ -163,7 +166,8 @@ public class GraduationEngine {
 
     private CategoryEvaluation evaluateCategory(RuleCategoryDto category,
                                                 Set<String> passedCourseCodes,
-                                                Integer enrollmentYear) {
+                                                Integer enrollmentYear,
+                                                String enrollmentTerm) {
         List<RuleCourseDto> poolCourses = category.courses() != null
                 ? category.courses() : List.of();
 
@@ -189,12 +193,15 @@ public class GraduationEngine {
         Map<String, Integer> prefixCounters = new HashMap<>();
 
         for (RuleCourseDto poolCourse : poolCourses) {
+            if (!cohortComparator.isApplicable(
+                    enrollmentYear, enrollmentTerm,
+                    poolCourse.appliesFromYear(), poolCourse.appliesFromTerm(),
+                    poolCourse.appliesToYear(), poolCourse.appliesToTerm())) {
+                continue;
+            }
+
             String code = poolCourse.courseCode().toUpperCase();
             boolean passed = passedCourseCodes.contains(code);
-
-            // A course is only mandatory when the student's cohort falls within the mandatory range.
-            boolean effectivelyMandatory = poolCourse.isMandatory()
-                    && isMandatoryForCohort(poolCourse, enrollmentYear);
 
             if (passed) {
                 // If a prefix limit applies and the cap is already reached, skip counting this course.
@@ -212,7 +219,7 @@ public class GraduationEngine {
                 earnedEcts = earnedEcts.add(poolCourse.ects() != null
                         ? poolCourse.ects() : BigDecimal.ZERO);
                 earnedCount++;
-            } else if (effectivelyMandatory) {
+            } else if (poolCourse.isMandatory()) {
                 missingMandatory.add(poolCourse.courseCode());
             }
         }
@@ -267,22 +274,5 @@ public class GraduationEngine {
                 .filter(l -> l.courseCodePrefix().toUpperCase().equals(prefix))
                 .findFirst()
                 .orElseThrow();
-    }
-
-    /**
-     * Returns true when a course's mandatory obligation applies to the student's enrollment year.
-     * Null bounds mean no restriction on that side.
-     */
-    private boolean isMandatoryForCohort(RuleCourseDto course, Integer enrollmentYear) {
-        if (enrollmentYear == null) {
-            return true;
-        }
-        if (course.mandatoryFromYear() != null && enrollmentYear < course.mandatoryFromYear()) {
-            return false;
-        }
-        if (course.mandatoryToYear() != null && enrollmentYear > course.mandatoryToYear()) {
-            return false;
-        }
-        return true;
     }
 }

@@ -1,6 +1,7 @@
 import { axiosInstance } from "./axiosInstance";
 import type {
   Department, Course, Category, DepartmentCourse, DepartmentCoursePoolResponse, CategoryCourse,
+  CategoryCourseRequest, UpdateCategoryCourseRequest,
   CreateDepartmentRequest, UpdateDepartmentRequest, CreateCourseRequest, CreateCategoryRequest,
   CurriculumEquivalenceRule, CreateCurriculumEquivalenceRuleRequest,
   PrefixLimit, CreatePrefixLimitRequest,
@@ -99,8 +100,24 @@ export async function getCategoryCourses(catId: string): Promise<CategoryCourse[
   return res.data;
 }
 
-export async function addCourseToCategory(catId: string, courseId: string, isMandatory: boolean): Promise<void> {
-  await axiosInstance.post(`/api/v1/categories/${catId}/courses`, { courseId, isMandatory });
+export async function addCourseToCategory(
+  catId: string,
+  data: CategoryCourseRequest,
+): Promise<CategoryCourse> {
+  const res = await axiosInstance.post<CategoryCourse>(`/api/v1/categories/${catId}/courses`, data);
+  return res.data;
+}
+
+export async function updateCategoryCourse(
+  catId: string,
+  courseId: string,
+  data: UpdateCategoryCourseRequest,
+): Promise<CategoryCourse> {
+  const res = await axiosInstance.put<CategoryCourse>(
+    `/api/v1/categories/${catId}/courses/${courseId}`,
+    data,
+  );
+  return res.data;
 }
 
 export async function removeCourseFromCategory(catId: string, courseId: string): Promise<void> {

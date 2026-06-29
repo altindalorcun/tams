@@ -17,13 +17,17 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DepartmentCoursePicker } from "@/components/DepartmentCoursePicker";
 import { YearPickerField } from "@/components/YearPickerField";
+import { CohortBoundaryFields, formatCohortBoundary, type CohortBoundaryValue } from "@/components/CohortBoundaryFields";
 import { matchesTextFilter } from "@/lib/textFilter";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
-  getCategoryCourses, getCourses, addCourseToCategory, removeCourseFromCategory,
+  getCategoryCourses, getCourses, addCourseToCategory, updateCategoryCourse, removeCourseFromCategory,
 } from "@/api/ruleApi";
-import type { Category, CreateCategoryRequest, CategoryCourse, CreatePrefixLimitRequest } from "@/types";
+import type {
+  Category, CreateCategoryRequest, CategoryCourse, CreatePrefixLimitRequest,
+  CategoryCourseRequest, UpdateCategoryCourseRequest, EnrollmentTerm,
+} from "@/types";
 
 const prefixLimitEntrySchema = z.object({
   courseCodePrefix: z.string().min(1, "Prefix zorunludur").max(10, "En fazla 10 karakter"),
@@ -341,6 +345,126 @@ function CatDialog({ open, onOpenChange, departmentId, initial, onSave }: CatDia
   );
 }
 
+const EMPTY_BOUNDARY: CohortBoundaryValue = { year: "", term: "" };
+
+function boundaryFromCourse(
+  year?: number | null,
+  term?: EnrollmentTerm | null,
+): CohortBoundaryValue {
+  return {
+    year: year ?? "",
+    term: term ?? "",
+  };
+}
+
+function appliesPayload(from: CohortBoundaryValue, to: CohortBoundaryValue) {
+  return {
+    appliesFromYear: from.year === "" ? null : Number(from.year),
+    appliesFromTerm: from.year === "" ? null : (from.term === "" ? null : from.term),
+    appliesToYear: to.year === "" ? null : Number(to.year),
+    appliesToTerm: to.year === "" ? null : (to.term === "" ? null : to.term),
+  };
+}
+
+interface CategoryCourseAssignmentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: "add" | "edit";
+  courseCode: string;
+  courseName: string;
+  isMandatory: boolean;
+  appliesFrom: CohortBoundaryValue;
+  appliesTo: CohortBoundaryValue;
+  onAppliesFromChange: (value: CohortBoundaryValue) => void;
+  onAppliesToChange: (value: CohortBoundaryValue) => void;
+  onMandatoryChange: (value: boolean) => void;
+  onSave: () => Promise<void>;
+  isSaving: boolean;
+}
+
+/** Dialog for setting mandatory flag and enrollment cohort bounds when assigning a course. */
+function CategoryCourseAssignmentDialog({
+  open,
+  onOpenChange,
+  mode,
+  courseCode,
+  courseName,
+  isMandatory,
+  appliesFrom,
+  appliesTo,
+  onAppliesFromChange,
+  onAppliesToChange,
+  onMandatoryChange,
+  onSave,
+  isSaving,
+}: CategoryCourseAssignmentDialogProps) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await onSave();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md shadow-xl">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "add" ? "Dersi Kategoriye Ekle" : "Ders Atamasını Düzenle"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div>
+            <p className="text-sm font-medium font-mono">{courseCode}</p>
+            <p className="text-sm text-muted-foreground">{courseName}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={isMandatory ? "default" : "outline"}
+              size="sm"
+              onClick={() => onMandatoryChange(true)}
+            >
+              Zorunlu
+            </Button>
+            <Button
+              type="button"
+              variant={!isMandatory ? "default" : "outline"}
+              size="sm"
+              onClick={() => onMandatoryChange(false)}
+            >
+              Seçmeli
+            </Button>
+          </div>
+          <Separator />
+          <CohortBoundaryFields
+            label="Başlangıç Kohortu"
+            description="Bu kohort ve sonrası kayıtlılar için ders kategoride geçerlidir. Boş bırakılırsa alt sınır yoktur."
+            yearId="applies-from-year"
+            termId="applies-from-term"
+            value={appliesFrom}
+            onChange={onAppliesFromChange}
+          />
+          <CohortBoundaryFields
+            label="Bitiş Kohortu"
+            description="Bu kohort ve sonrası kayıtlılar için ders kategoride geçersiz sayılır. Boş bırakılırsa üst sınır yoktur."
+            yearId="applies-to-year"
+            termId="applies-to-term"
+            value={appliesTo}
+            onChange={onAppliesToChange}
+          />
+          <DialogFooter className="pt-2">
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+              İptal
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {mode === "add" ? "Ekle" : "Kaydet"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface CoursesPoolDialogProps {
   catId: string;
   catName: string;
@@ -354,6 +478,14 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
   const [assignedNameFilter, setAssignedNameFilter] = useState("");
   const [availableCodeFilter, setAvailableCodeFilter] = useState("");
   const [availableNameFilter, setAvailableNameFilter] = useState("");
+  const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [assignmentMode, setAssignmentMode] = useState<"add" | "edit">("add");
+  const [pendingCourseId, setPendingCourseId] = useState<string | null>(null);
+  const [pendingCourseCode, setPendingCourseCode] = useState("");
+  const [pendingCourseName, setPendingCourseName] = useState("");
+  const [isMandatory, setIsMandatory] = useState(false);
+  const [appliesFrom, setAppliesFrom] = useState<CohortBoundaryValue>(EMPTY_BOUNDARY);
+  const [appliesTo, setAppliesTo] = useState<CohortBoundaryValue>(EMPTY_BOUNDARY);
 
   const { data: allCourses = [] } = useQuery({ queryKey: ["courses"], queryFn: getCourses, enabled: open });
   const { data: catCourses = [], isLoading } = useQuery({
@@ -427,11 +559,67 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
     if (!open) clearAllFilters();
   }, [open]);
 
-  const addMut = useMutation({
-    mutationFn: ({ courseId, isMandatory }: { courseId: string; isMandatory: boolean }) =>
-      addCourseToCategory(catId, courseId, isMandatory),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["category-courses", catId] }); toast.success("Ders eklendi."); },
-    onError: () => toast.error("Ders eklenemedi."),
+  function resetAssignmentForm() {
+    setPendingCourseId(null);
+    setPendingCourseCode("");
+    setPendingCourseName("");
+    setIsMandatory(false);
+    setAppliesFrom(EMPTY_BOUNDARY);
+    setAppliesTo(EMPTY_BOUNDARY);
+  }
+
+  function openAddAssignment(courseId: string, courseCode: string, courseName: string, mandatory: boolean) {
+    resetAssignmentForm();
+    setAssignmentMode("add");
+    setPendingCourseId(courseId);
+    setPendingCourseCode(courseCode);
+    setPendingCourseName(courseName);
+    setIsMandatory(mandatory);
+    setAssignmentOpen(true);
+  }
+
+  function openEditAssignment(course: CategoryCourse) {
+    resetAssignmentForm();
+    setAssignmentMode("edit");
+    setPendingCourseId(course.courseId);
+    setPendingCourseCode(course.courseCode);
+    setPendingCourseName(course.courseName);
+    setIsMandatory(course.isMandatory);
+    setAppliesFrom(boundaryFromCourse(course.appliesFromYear, course.appliesFromTerm));
+    setAppliesTo(boundaryFromCourse(course.appliesToYear, course.appliesToTerm));
+    setAssignmentOpen(true);
+  }
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const bounds = appliesPayload(appliesFrom, appliesTo);
+      if (assignmentMode === "add") {
+        if (!pendingCourseId) {
+          throw new Error("Course id missing");
+        }
+        const request: CategoryCourseRequest = {
+          courseId: pendingCourseId,
+          isMandatory,
+          ...bounds,
+        };
+        return addCourseToCategory(catId, request);
+      }
+      if (!pendingCourseId) {
+        throw new Error("Course id missing");
+      }
+      const request: UpdateCategoryCourseRequest = {
+        isMandatory,
+        ...bounds,
+      };
+      return updateCategoryCourse(catId, pendingCourseId, request);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["category-courses", catId] });
+      toast.success(assignmentMode === "add" ? "Ders eklendi." : "Ders ataması güncellendi.");
+      setAssignmentOpen(false);
+      resetAssignmentForm();
+    },
+    onError: () => toast.error(assignmentMode === "add" ? "Ders eklenemedi." : "Ders ataması güncellenemedi."),
   });
 
   const removeMut = useMutation({
@@ -441,7 +629,28 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
   });
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <>
+      <CategoryCourseAssignmentDialog
+        open={assignmentOpen}
+        onOpenChange={(v) => {
+          setAssignmentOpen(v);
+          if (!v) resetAssignmentForm();
+        }}
+        mode={assignmentMode}
+        courseCode={pendingCourseCode}
+        courseName={pendingCourseName}
+        isMandatory={isMandatory}
+        appliesFrom={appliesFrom}
+        appliesTo={appliesTo}
+        onAppliesFromChange={setAppliesFrom}
+        onAppliesToChange={setAppliesTo}
+        onMandatoryChange={setIsMandatory}
+        onSave={async () => {
+          await saveMut.mutateAsync();
+        }}
+        isSaving={saveMut.isPending}
+      />
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl shadow-xl">
         <DialogHeader><DialogTitle>{catName} — Ders Havuzu</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-4 pt-2 min-h-[240px]">
@@ -513,18 +722,44 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                 {catCourses.length > 0 && filteredCatCourses.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">Filtreye uygun ders bulunamadı.</p>
                 )}
-                {filteredCatCourses.map((c: CategoryCourse) => (
-                  <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
-                    <div>
-                      <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
-                      <span className="ml-1 text-sm">{c.courseName}</span>
-                      {c.isMandatory && <Badge variant="outline" className="ml-1 text-xs">Zorunlu</Badge>}
+                {filteredCatCourses.map((c: CategoryCourse) => {
+                  const fromLabel = formatCohortBoundary(c.appliesFromYear, c.appliesFromTerm);
+                  const toLabel = formatCohortBoundary(c.appliesToYear, c.appliesToTerm);
+                  return (
+                  <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
+                        <span className="text-sm truncate">{c.courseName}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {c.isMandatory ? "Zorunlu" : "Seçmeli"}
+                        </Badge>
+                      </div>
+                      {(fromLabel || toLabel) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fromLabel && <>Başlangıç: {fromLabel}</>}
+                          {fromLabel && toLabel && " · "}
+                          {toLabel && <>Bitiş: {toLabel}</>}
+                        </p>
+                      )}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeMut.mutate(c.courseId)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <div className="flex shrink-0 gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        aria-label="Ders atamasını düzenle"
+                        onClick={() => openEditAssignment(c)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeMut.mutate(c.courseId)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -602,8 +837,21 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                     <span className="ml-1 text-sm">{c.courseName}</span>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => addMut.mutate({ courseId: c.id, isMandatory: false })}>Seçmeli</Button>
-                    <Button size="sm" className="h-6 text-xs" onClick={() => addMut.mutate({ courseId: c.id, isMandatory: true })}>Zorunlu</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-xs"
+                      onClick={() => openAddAssignment(c.id, c.courseCode, c.courseName, false)}
+                    >
+                      Seçmeli
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => openAddAssignment(c.id, c.courseCode, c.courseName, true)}
+                    >
+                      Zorunlu
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -613,6 +861,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
         <DialogFooter><Button variant="outline" onClick={() => handleOpenChange(false)}>Kapat</Button></DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 

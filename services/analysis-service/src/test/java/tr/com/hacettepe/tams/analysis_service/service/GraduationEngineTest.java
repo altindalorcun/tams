@@ -9,6 +9,7 @@ import tr.com.hacettepe.tams.analysis_service.client.dto.RuleSetResponse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedCourse;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedSemester;
 import tr.com.hacettepe.tams.analysis_service.dto.kafka.ParsedTranscriptMessage;
+import tr.com.hacettepe.tams.analysis_service.dto.kafka.TranscriptMetadataDto;
 import tr.com.hacettepe.tams.analysis_service.service.dto.CategoryEvaluation;
 import tr.com.hacettepe.tams.analysis_service.service.dto.EngineResult;
 
@@ -32,6 +33,7 @@ class GraduationEngineTest {
         engine = new GraduationEngine(
                 new GpaCalculator(),
                 new EnrollmentYearParser(),
+                new EnrollmentCohortComparator(),
                 new CurriculumEquivalenceExpander(academicYearParser));
     }
 
@@ -42,8 +44,15 @@ class GraduationEngineTest {
     }
 
     private RuleCourseDto ruleCourse(String code, double credit, double ects, boolean mandatory) {
+        return ruleCourse(code, credit, ects, mandatory, null, null, null, null);
+    }
+
+    private RuleCourseDto ruleCourse(String code, double credit, double ects, boolean mandatory,
+                                     Integer appliesFromYear, String appliesFromTerm,
+                                     Integer appliesToYear, String appliesToTerm) {
         return new RuleCourseDto(code, "Course " + code,
-                BigDecimal.valueOf(credit), BigDecimal.valueOf(ects), mandatory, null, null);
+                BigDecimal.valueOf(credit), BigDecimal.valueOf(ects), mandatory,
+                appliesFromYear, appliesFromTerm, appliesToYear, appliesToTerm);
     }
 
     private RuleCategoryDto category(String name, double minCredit, double minEcts,
@@ -54,9 +63,15 @@ class GraduationEngineTest {
     }
 
     private ParsedTranscriptMessage transcript(List<ParsedCourse> courses) {
+        return transcript(courses, null);
+    }
+
+    private ParsedTranscriptMessage transcript(List<ParsedCourse> courses, String registrationDate) {
+        TranscriptMetadataDto metadata = registrationDate != null
+                ? new TranscriptMetadataDto(registrationDate) : null;
         return new ParsedTranscriptMessage(
                 "21627208", "job-1", "teacher-1", "dept-1",
-                List.of(new ParsedSemester("Fall 2023", courses)), null);
+                List.of(new ParsedSemester("Fall 2023", courses)), metadata);
     }
 
     private RuleSetResponse ruleSet(List<RuleCategoryDto> categories) {
@@ -279,5 +294,66 @@ class GraduationEngineTest {
         CategoryEvaluation eval = result.categoryEvaluations().get(0);
         assertThat(eval.missingMandatoryCourses()).containsExactlyInAnyOrder("BBM202", "BBM303");
         assertThat(result.eligible()).isFalse();
+    }
+
+    @Test
+    void evaluate_bbm487Elective_appliesTo2017Guz_excludedFor2017GuzEnrollment() {
+        var courses = List.of(course("BBM487", 3, 6, true));
+        var category = new RuleCategoryDto(
+                UUID.randomUUID(), "Teknik Seçmeli Lab",
+                BigDecimal.ZERO, BigDecimal.ZERO, 1,
+                null, null, null, null, null,
+                List.of(ruleCourse("BBM487", 3, 6, false, null, null, 2017, "GUZ")),
+                List.of());
+
+        EngineResult result2016 = engine.evaluate(
+                transcript(courses, "15.09.2016"),
+                ruleSet(List.of(category)));
+        assertThat(result2016.categoryEvaluations().get(0).earnedCourseCount()).isEqualTo(1);
+
+        EngineResult result2017 = engine.evaluate(
+                transcript(courses, "15.09.2017"),
+                ruleSet(List.of(category)));
+        assertThat(result2017.categoryEvaluations().get(0).earnedCourseCount()).isZero();
+    }
+
+    @Test
+    void evaluate_bbm384Mandatory_appliesFrom2017Guz_mandatoryOnlyFor2017GuzEnrollment() {
+        var courses = List.of(course("BBM101", 3, 6, true));
+        var category = new RuleCategoryDto(
+                UUID.randomUUID(), "Zorunlu Dönem",
+                BigDecimal.ZERO, BigDecimal.ZERO, 0,
+                null, null, null, null, null,
+                List.of(
+                        ruleCourse("BBM101", 3, 6, false),
+                        ruleCourse("BBM384", 3, 6, true, 2017, "GUZ", null, null)),
+                List.of());
+
+        EngineResult result2016 = engine.evaluate(
+                transcript(courses, "15.09.2016"),
+                ruleSet(List.of(category)));
+        assertThat(result2016.eligible()).isTrue();
+        assertThat(result2016.categoryEvaluations().get(0).missingMandatoryCourses()).isEmpty();
+
+        EngineResult result2017 = engine.evaluate(
+                transcript(courses, "15.09.2017"),
+                ruleSet(List.of(category)));
+        assertThat(result2017.eligible()).isFalse();
+        assertThat(result2017.categoryEvaluations().get(0).missingMandatoryCourses()).containsExactly("BBM384");
+    }
+
+    @Test
+    void evaluate_nullRegistrationDate_ignoresCourseAppliesBounds() {
+        var courses = List.of(course("BBM487", 3, 6, true));
+        var category = new RuleCategoryDto(
+                UUID.randomUUID(), "Teknik Seçmeli Lab",
+                BigDecimal.ZERO, BigDecimal.ZERO, 1,
+                null, null, null, null, null,
+                List.of(ruleCourse("BBM487", 3, 6, false, null, null, 2017, "GUZ")),
+                List.of());
+
+        EngineResult result = engine.evaluate(transcript(courses), ruleSet(List.of(category)));
+
+        assertThat(result.categoryEvaluations().get(0).earnedCourseCount()).isEqualTo(1);
     }
 }

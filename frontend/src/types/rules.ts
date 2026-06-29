@@ -1,3 +1,5 @@
+export type EnrollmentTerm = "GUZ" | "BAHAR";
+
 export type CurriculumEquivalenceRuleType =
   | "PAIRWISE"
   | "GROUP_LEGACY_TO_REPLACEMENT"
@@ -84,6 +86,27 @@ export interface CategoryCourse {
   credit: number;
   ects: number;
   isMandatory: boolean;
+  appliesFromYear?: number | null;
+  appliesFromTerm?: EnrollmentTerm | null;
+  appliesToYear?: number | null;
+  appliesToTerm?: EnrollmentTerm | null;
+}
+
+export interface CategoryCourseRequest {
+  courseId: string;
+  isMandatory: boolean;
+  appliesFromYear?: number | null;
+  appliesFromTerm?: EnrollmentTerm | null;
+  appliesToYear?: number | null;
+  appliesToTerm?: EnrollmentTerm | null;
+}
+
+export interface UpdateCategoryCourseRequest {
+  isMandatory: boolean;
+  appliesFromYear?: number | null;
+  appliesFromTerm?: EnrollmentTerm | null;
+  appliesToYear?: number | null;
+  appliesToTerm?: EnrollmentTerm | null;
 }
 
 export interface CreateDepartmentRequest {

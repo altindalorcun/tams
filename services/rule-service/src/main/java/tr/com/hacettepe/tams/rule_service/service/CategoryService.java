@@ -14,6 +14,7 @@ import tr.com.hacettepe.tams.rule_service.exception.DuplicateResourceException;
 import tr.com.hacettepe.tams.rule_service.exception.ResourceNotFoundException;
 import tr.com.hacettepe.tams.rule_service.dto.CurriculumEquivalenceRuleDto;
 import tr.com.hacettepe.tams.rule_service.repository.*;
+import tr.com.hacettepe.tams.rule_service.util.EnrollmentCohortBoundaryValidator;
 
 import java.util.List;
 import java.util.UUID;
@@ -117,11 +118,28 @@ public class CategoryService {
                     "Course " + course.getCourseCode() + " is already in this category");
         }
 
+        EnrollmentCohortBoundaryValidator.validate(
+                request.appliesFromYear(), request.appliesFromTerm(),
+                request.appliesToYear(), request.appliesToTerm());
+
         CategoryCourse cc = new CategoryCourse(category, course, request.isMandatory());
-        cc.setMandatoryFromYear(request.mandatoryFromYear());
-        cc.setMandatoryToYear(request.mandatoryToYear());
+        applyAppliesBounds(cc, request.appliesFromYear(), request.appliesFromTerm(),
+                request.appliesToYear(), request.appliesToTerm());
         CategoryCourse saved = categoryCourseRepository.save(cc);
         return CategoryCourseResponse.from(saved);
+    }
+
+    @Transactional
+    public CategoryCourseResponse updateCourse(UUID categoryId, UUID courseId,
+                                             UpdateCategoryCourseRequest request) {
+        CategoryCourse cc = getCategoryCourseOrThrow(categoryId, courseId);
+        EnrollmentCohortBoundaryValidator.validate(
+                request.appliesFromYear(), request.appliesFromTerm(),
+                request.appliesToYear(), request.appliesToTerm());
+        cc.setMandatory(request.isMandatory());
+        applyAppliesBounds(cc, request.appliesFromYear(), request.appliesFromTerm(),
+                request.appliesToYear(), request.appliesToTerm());
+        return CategoryCourseResponse.from(categoryCourseRepository.save(cc));
     }
 
     @Transactional(readOnly = true)
@@ -199,6 +217,34 @@ public class CategoryService {
             throw new ResourceNotFoundException("Prefix limit does not belong to category: " + categoryId);
         }
         categoryPrefixLimitRepository.delete(limit);
+    }
+
+    private CategoryCourse getCategoryCourseOrThrow(UUID categoryId, UUID courseId) {
+        if (!categoryRepository.existsById(categoryId)) {
+            throw new ResourceNotFoundException("Category not found: " + categoryId);
+        }
+        return categoryCourseRepository.findByCategoryIdWithCourse(categoryId).stream()
+                .filter(cc -> cc.getCourse().getId().equals(courseId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Course not assigned to this category: " + courseId));
+    }
+
+    private void applyAppliesBounds(CategoryCourse cc,
+                                    Integer appliesFromYear, String appliesFromTerm,
+                                    Integer appliesToYear, String appliesToTerm) {
+        cc.setAppliesFromYear(appliesFromYear);
+        cc.setAppliesFromTerm(normalizeTerm(appliesFromTerm));
+        cc.setAppliesToYear(appliesToYear);
+        cc.setAppliesToTerm(normalizeTerm(appliesToTerm));
+    }
+
+    /** Returns null for blank input; otherwise upper-case GUZ or BAHAR. */
+    private String normalizeTerm(String term) {
+        if (term == null || term.isBlank()) {
+            return null;
+        }
+        return term.toUpperCase();
     }
 
     /** Converts a nullable list of course codes to a String array, normalising each code to upper-case. */

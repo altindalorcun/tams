@@ -317,7 +317,7 @@ class CategoryServiceTest {
             when(categoryCourseRepository.save(any(CategoryCourse.class))).thenAnswer(i -> i.getArguments()[0]);
 
             CategoryCourseResponse result = categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, true, null, null));
+                    new CategoryCourseRequest(COURSE_ID, true, null, null, null, null));
 
             assertThat(result.courseCode()).isEqualTo("BIL401");
             assertThat(result.isMandatory()).isTrue();
@@ -330,7 +330,7 @@ class CategoryServiceTest {
             when(categoryRepository.findById(CAT_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
 
@@ -341,7 +341,7 @@ class CategoryServiceTest {
             when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null, null, null)))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
 
@@ -353,7 +353,7 @@ class CategoryServiceTest {
             when(departmentCourseRepository.existsByIdDepartmentIdAndIdCourseId(DEPT_ID, COURSE_ID)).thenReturn(false);
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, false, null, null)))
+                    new CategoryCourseRequest(COURSE_ID, false, null, null, null, null)))
                     .isInstanceOf(ConflictException.class);
             verify(categoryCourseRepository, never()).save(any());
         }
@@ -367,7 +367,7 @@ class CategoryServiceTest {
             when(categoryCourseRepository.existsByIdCategoryIdAndIdCourseId(CAT_ID, COURSE_ID)).thenReturn(true);
 
             assertThatThrownBy(() -> categoryService.addCourse(CAT_ID,
-                    new CategoryCourseRequest(COURSE_ID, true, null, null)))
+                    new CategoryCourseRequest(COURSE_ID, true, null, null, null, null)))
                     .isInstanceOf(DuplicateResourceException.class);
             verify(categoryCourseRepository, never()).save(any());
         }

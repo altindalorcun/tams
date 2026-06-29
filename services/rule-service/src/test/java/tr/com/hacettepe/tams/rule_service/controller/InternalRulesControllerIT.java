@@ -65,7 +65,8 @@ class InternalRulesControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.categories[0].minCourseCount").value(4))
                 .andExpect(jsonPath("$.categories[0].courses", hasSize(1)))
                 .andExpect(jsonPath("$.categories[0].courses[0].courseCode").value("BIL401"))
-                .andExpect(jsonPath("$.categories[0].courses[0].isMandatory").value(true));
+                .andExpect(jsonPath("$.categories[0].courses[0].isMandatory").value(true))
+                .andExpect(jsonPath("$.categories[0].courses[0].appliesFromYear").doesNotExist());
     }
 
     @Test
