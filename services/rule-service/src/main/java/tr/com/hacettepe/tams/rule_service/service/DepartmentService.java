@@ -47,7 +47,7 @@ public class DepartmentService {
 
     @Transactional(readOnly = true)
     public List<DepartmentResponse> findAll() {
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAllSortedByNameAsc().stream()
                 .map(DepartmentResponse::from)
                 .toList();
     }

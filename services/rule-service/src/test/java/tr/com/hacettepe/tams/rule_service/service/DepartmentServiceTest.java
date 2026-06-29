@@ -99,7 +99,7 @@ class DepartmentServiceTest {
         @DisplayName("findAll — maps every department to a response")
         void findAll_returnsMappedList() {
             Department other = new Department("Elektrik", "EE", null);
-            when(departmentRepository.findAll()).thenReturn(List.of(department, other));
+            when(departmentRepository.findAllSortedByNameAsc()).thenReturn(List.of(department, other));
 
             List<DepartmentResponse> result = departmentService.findAll();
 
@@ -111,9 +111,22 @@ class DepartmentServiceTest {
         @Test
         @DisplayName("findAll — empty repository returns empty list")
         void findAll_empty_returnsEmpty() {
-            when(departmentRepository.findAll()).thenReturn(List.of());
+            when(departmentRepository.findAllSortedByNameAsc()).thenReturn(List.of());
 
             assertThat(departmentService.findAll()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("findAll — returns departments in repository sort order")
+        void findAll_preservesRepositorySortOrder() {
+            Department zeta = new Department("Zeta Bölüm", "ZET", null);
+            Department alpha = new Department("Alpha Bölüm", "ALP", null);
+            when(departmentRepository.findAllSortedByNameAsc()).thenReturn(List.of(alpha, zeta));
+
+            List<DepartmentResponse> result = departmentService.findAll();
+
+            assertThat(result).extracting(DepartmentResponse::name)
+                    .containsExactly("Alpha Bölüm", "Zeta Bölüm");
         }
 
         @Test

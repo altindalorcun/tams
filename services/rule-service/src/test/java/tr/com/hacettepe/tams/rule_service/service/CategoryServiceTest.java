@@ -149,12 +149,29 @@ class CategoryServiceTest {
         @DisplayName("findByDepartment — returns categories of the department")
         void findByDepartment_happyPath() {
             when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
-            when(categoryRepository.findByDepartmentId(DEPT_ID)).thenReturn(List.of(category));
+            when(categoryRepository.findByDepartmentIdSortedByNameAsc(DEPT_ID)).thenReturn(List.of(category));
 
             List<CategoryResponse> result = categoryService.findByDepartment(DEPT_ID);
 
             assertThat(result).hasSize(1);
             assertThat(result.get(0).name()).isEqualTo("Teknik Seçmeli");
+        }
+
+        @Test
+        @DisplayName("findByDepartment — returns categories in repository sort order")
+        void findByDepartment_preservesRepositorySortOrder() {
+            Category zeta = new Category(department, "Zeta Kategori", null,
+                    BigDecimal.ZERO, BigDecimal.ZERO, 1);
+            Category alpha = new Category(department, "Alpha Kategori", null,
+                    BigDecimal.ZERO, BigDecimal.ZERO, 1);
+            when(departmentRepository.findById(DEPT_ID)).thenReturn(Optional.of(department));
+            when(categoryRepository.findByDepartmentIdSortedByNameAsc(DEPT_ID))
+                    .thenReturn(List.of(alpha, zeta));
+
+            List<CategoryResponse> result = categoryService.findByDepartment(DEPT_ID);
+
+            assertThat(result).extracting(CategoryResponse::name)
+                    .containsExactly("Alpha Kategori", "Zeta Kategori");
         }
 
         @Test

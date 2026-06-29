@@ -127,6 +127,19 @@ class DepartmentControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET list — returns departments sorted by name ascending")
+    void list_returnsSortedByName() throws Exception {
+        departmentRepository.save(new Department("Zeta Bölüm", "ZET", null));
+        departmentRepository.save(new Department("Alpha Bölüm", "ALP", null));
+
+        mockMvc.perform(get(BASE_URL).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].name").value("Alpha Bölüm"))
+                .andExpect(jsonPath("$[1].name").value("Zeta Bölüm"));
+    }
+
+    @Test
     @DisplayName("GET by id — returns the department")
     void getById_returnsDepartment() throws Exception {
         Department saved = departmentRepository.save(new Department("Makine Mühendisliği", "ME", null));

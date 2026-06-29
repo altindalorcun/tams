@@ -66,7 +66,7 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public List<CategoryResponse> findByDepartment(UUID departmentId) {
         getDepartmentOrThrow(departmentId);
-        return categoryRepository.findByDepartmentId(departmentId).stream()
+        return categoryRepository.findByDepartmentIdSortedByNameAsc(departmentId).stream()
                 .map(CategoryResponse::from)
                 .toList();
     }

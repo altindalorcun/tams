@@ -82,7 +82,7 @@ class CourseServiceTest {
     @DisplayName("findAll: returns mapped list with departmentIds")
     void findAll_returnsList() {
         Course other = new Course("FIZ101", "Physics I", new BigDecimal("3.00"), new BigDecimal("4.00"));
-        when(courseRepository.findAll()).thenReturn(List.of(course, other));
+        when(courseRepository.findAllSortedByCourseCodeAsc()).thenReturn(List.of(course, other));
         when(departmentCourseRepository.findAllIds()).thenReturn(
                 List.of(new DepartmentCourseId(DEPT_ID, course.getId())));
 
@@ -97,10 +97,24 @@ class CourseServiceTest {
     @Test
     @DisplayName("findAll: empty repository returns empty list")
     void findAll_empty_returnsEmpty() {
-        when(courseRepository.findAll()).thenReturn(List.of());
+        when(courseRepository.findAllSortedByCourseCodeAsc()).thenReturn(List.of());
         when(departmentCourseRepository.findAllIds()).thenReturn(List.of());
 
         assertThat(courseService.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findAll: returns courses in repository sort order")
+    void findAll_preservesRepositorySortOrder() {
+        Course zzz = new Course("ZZZ999", "Last Course", new BigDecimal("1.00"), new BigDecimal("1.00"));
+        Course aaa = new Course("AAA100", "First Course", new BigDecimal("1.00"), new BigDecimal("1.00"));
+        when(courseRepository.findAllSortedByCourseCodeAsc()).thenReturn(List.of(aaa, zzz));
+        when(departmentCourseRepository.findAllIds()).thenReturn(List.of());
+
+        List<CourseResponse> results = courseService.findAll();
+
+        assertThat(results).extracting(CourseResponse::courseCode)
+                .containsExactly("AAA100", "ZZZ999");
     }
 
     @Test

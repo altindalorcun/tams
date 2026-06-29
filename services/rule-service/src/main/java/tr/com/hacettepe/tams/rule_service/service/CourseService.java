@@ -43,7 +43,7 @@ public class CourseService {
     @Transactional(readOnly = true)
     public List<CourseResponse> findAll() {
         Map<UUID, List<UUID>> departmentIdsByCourseId = buildDepartmentIdsByCourseId();
-        return courseRepository.findAll().stream()
+        return courseRepository.findAllSortedByCourseCodeAsc().stream()
                 .map(course -> CourseResponse.from(course,
                         departmentIdsByCourseId.getOrDefault(course.getId(), List.of())))
                 .toList();

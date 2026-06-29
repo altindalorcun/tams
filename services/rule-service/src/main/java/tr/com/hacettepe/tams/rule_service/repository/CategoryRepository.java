@@ -14,6 +14,9 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     List<Category> findByDepartmentId(UUID departmentId);
 
+    @Query("SELECT c FROM Category c WHERE c.department.id = :departmentId ORDER BY LOWER(c.name) ASC")
+    List<Category> findByDepartmentIdSortedByNameAsc(@Param("departmentId") UUID departmentId);
+
     Optional<Category> findByIdAndDepartmentId(UUID id, UUID departmentId);
 
     boolean existsByDepartmentIdAndName(UUID departmentId, String name);

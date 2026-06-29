@@ -68,8 +68,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserResponse> listUsers() {
-        return userRepository.findAll().stream()
-                .filter(u -> u.getRole() != Role.ADMIN)
+        return userRepository.findAllByRoleNotSortedByUsernameAsc(Role.ADMIN).stream()
                 .map(UserResponse::from)
                 .toList();
     }

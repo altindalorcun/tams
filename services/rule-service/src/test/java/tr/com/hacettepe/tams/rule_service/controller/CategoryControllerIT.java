@@ -193,6 +193,19 @@ class CategoryControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET list — returns categories sorted by name ascending")
+    void list_returnsSortedByName() throws Exception {
+        persistCategory("Zeta Kategori");
+        persistCategory("Alpha Kategori");
+
+        mockMvc.perform(get(categoriesUrl()).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].name").value("Alpha Kategori"))
+                .andExpect(jsonPath("$[1].name").value("Zeta Kategori"));
+    }
+
+    @Test
     @DisplayName("GET by id — returns the category")
     void getById_returnsCategory() throws Exception {
         Category cat = persistCategory("Teknik Seçmeli");
