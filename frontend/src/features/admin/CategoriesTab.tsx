@@ -19,6 +19,7 @@ import { DepartmentCoursePicker } from "@/components/DepartmentCoursePicker";
 import { YearPickerField } from "@/components/YearPickerField";
 import { CohortBoundaryFields, formatCohortBoundary, type CohortBoundaryValue } from "@/components/CohortBoundaryFields";
 import { matchesTextFilter } from "@/lib/textFilter";
+import { COHORT_YEAR_MAX, COHORT_YEAR_MIN } from "@/lib/cohortYears";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
@@ -34,13 +35,21 @@ const prefixLimitEntrySchema = z.object({
   maxCount: z.coerce.number().int().min(1, "En az 1 olmalıdır"),
 });
 
+const cohortYearFieldSchema = z.union([
+  z.literal(""),
+  z.coerce.number().int().refine(
+    (v) => v >= COHORT_YEAR_MIN && v <= COHORT_YEAR_MAX,
+    { message: `Geçerli bir yıl giriniz (${COHORT_YEAR_MIN}–${COHORT_YEAR_MAX})` },
+  ),
+]);
+
 const catSchema = z.object({
   name: z.string().min(1, "Kategori adı zorunludur"),
   minCourseCount: z.coerce.number().int().min(0),
   minCredit: z.coerce.number().min(0),
   minEcts: z.coerce.number().min(0),
-  appliesFromYear: z.coerce.number().int().positive().optional().or(z.literal("")),
-  appliesToYear: z.coerce.number().int().positive().optional().or(z.literal("")),
+  appliesFromYear: cohortYearFieldSchema.optional(),
+  appliesToYear: cohortYearFieldSchema.optional(),
   conditionCourseCodes: z.array(z.string()),
   minCourseCountIfMet: z.coerce.number().int().min(0).optional().or(z.literal("")),
   minEctsIfMet: z.coerce.number().min(0).optional().or(z.literal("")),
