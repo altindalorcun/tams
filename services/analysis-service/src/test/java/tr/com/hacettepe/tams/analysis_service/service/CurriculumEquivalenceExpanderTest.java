@@ -240,6 +240,17 @@ class CurriculumEquivalenceExpanderTest {
 
             assertThat(result).containsAll(List.of("BBM419", "BBM479", "BBM480"));
         }
+
+        @Test
+        @DisplayName("BBM419 passed without effective date → BBM479+BBM480 inferred (both directions)")
+        void mutual_noEffectiveDate_legacyPassed_inferReplacement() {
+            var rule = groupMutual(List.of("BBM419"), List.of("BBM479", "BBM480"), null, null);
+            var map = passedMap(passed("BBM419", "19-20"));
+
+            Set<String> result = expander.expand(map, List.of(rule));
+
+            assertThat(result).containsAll(List.of("BBM419", "BBM479", "BBM480"));
+        }
     }
 
     // ── Fixpoint / chaining ───────────────────────────────────────────────────

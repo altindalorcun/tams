@@ -33,7 +33,9 @@ public record CreateCurriculumEquivalenceRuleRequest(
         @Schema(description = "Courses added to the curriculum (the 'new' set)", example = "[\"MUH103\", \"MUH104\"]")
         @NotEmpty List<String> replacementCourseCodes,
 
-        @Schema(description = "Academic year the change took effect (e.g. 2019 for 2019-2020). Required for GROUP types.", example = "2019")
+        @Schema(description = "Academic year the change took effect (e.g. 2019 for 2019-2020). "
+                + "Optional for GROUP types; when omitted the engine skips the completion-date check.",
+                example = "2019")
         Integer effectiveFromYear,
 
         @Schema(description = "Term within the effective year: GUZ or BAHAR. Null means start of academic year.", example = "GUZ")

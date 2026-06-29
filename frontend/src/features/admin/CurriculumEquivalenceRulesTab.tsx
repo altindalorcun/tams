@@ -37,12 +37,77 @@ const RULE_TYPE_DESCRIPTIONS: Record<CurriculumEquivalenceRuleType, string> = {
   PAIRWISE:
     "Her eski ders[i] ile yeni ders[i] bire bir çift yönlü eşdeğerdir. Tarih kontrolü yapılmaz. Örnek: HAS222 ↔ MÜH103, HAS223 ↔ MÜH104.",
   GROUP_LEGACY_TO_REPLACEMENT:
-    "Tüm eski dersler belirtilen tarihten önce geçildiyse yeni dersler geçilmiş sayılır. Örnek: FİZ103 + FİZ104 → FİZ117.",
+    "Tüm eski dersler belirtilen tarihten önce geçildiyse yeni dersler geçilmiş sayılır. Etkin yıl isteğe bağlıdır; FİZ103 + FİZ104 → FİZ117 gibi kurallarda doldurmanız önerilir.",
   GROUP_REPLACEMENT_TO_LEGACY:
-    "Tüm yeni dersler geçildiyse eski dersler geçilmiş sayılır.",
+    "Tüm yeni dersler geçildiyse eski dersler geçilmiş sayılır. Etkin yıl isteğe bağlıdır.",
   GROUP_MUTUAL:
-    "Her iki yön de geçerlidir. Örnek: BBM419 ↔ BBM479 + BBM480.",
+    "Her iki yön de geçerlidir. Etkin yıl boş bırakılabilir. Örnek: BBM419 ↔ BBM479 + BBM480.",
 };
+
+const EFFECTIVE_YEAR_DESCRIPTIONS: Partial<Record<CurriculumEquivalenceRuleType, string>> = {
+  GROUP_LEGACY_TO_REPLACEMENT:
+    "İsteğe bağlı. Boş bırakılırsa dersin ne zaman alındığına bakılmaz. FİZ103 + FİZ104 gibi 'değişimden önce alındıysa say' kurallarında doldurmanız önerilir.",
+  GROUP_REPLACEMENT_TO_LEGACY:
+    "İsteğe bağlı. Boş bırakılırsa dersin ne zaman alındığına bakılmaz.",
+  GROUP_MUTUAL:
+    "İsteğe bağlı. BBM419 ↔ BBM479 + BBM480 gibi çift yönlü kurallarda boş bırakılabilir.",
+};
+
+const RULE_TYPE_GUIDE: { title: string; paragraphs: string[] }[] = [
+  {
+    title: "Bire Bir Eşdeğer (PAIRWISE)",
+    paragraphs: [
+      "Eski ve yeni dersler indeks bazında eşleştirilir (ör. HAS222↔MUH103, HAS223↔MUH104).",
+      "Öğrenci HAS222 geçmişse MUH103 sayılır; MUH104 geçmişse HAS223 sayılır.",
+      "HAS222 (18-19) ve MUH104 (20-21) birlikte geçilmişse dört kodun tamamı sayılır.",
+      "Yalnızca HAS222 geçilmişse MUH103 sayılır; HAS223 ve MUH104 sayılmaz.",
+      "Etkin yıl dikkate alınmaz.",
+    ],
+  },
+  {
+    title: "Eski → Yeni (GROUP)",
+    paragraphs: [
+      "Tüm eski dersler geçilmişse (ve tanımlandıysa etkin tarihten önce alınmışsa), tüm yeni dersler geçilmiş sayılır.",
+      "Örnek: FIZ103 ve FIZ104, 16-17'de geçilmişse FIZ117 sayılır; yalnızca biri geçilmişse veya ikisi de başarısız/alınmamışsa FIZ117 sayılmaz.",
+      "\"Değişimden önce alındıysa say\" kurallarında etkin yıl doldurulması önerilir.",
+    ],
+  },
+  {
+    title: "Yeni → Eski (GROUP)",
+    paragraphs: [
+      "Tüm yeni dersler geçilmişse, tüm eski dersler geçilmiş sayılır; tarih kontrolü yapılmaz.",
+      "Örnek: BBM479 ve BBM480 geçilmişse BBM419 sayılır; yalnızca BBM479 geçilmişse sayılmaz.",
+      "BBM419 geçilmiş olsa bile BBM479/480 otomatik sayılmaz (tek yönlüdür).",
+    ],
+  },
+  {
+    title: "Çift Yönlü Grup (GROUP_MUTUAL)",
+    paragraphs: [
+      "Eski→Yeni ve Yeni→Eski yönleri birlikte uygulanır.",
+      "BBM419 geçilmişse BBM479+BBM480 sayılır; BBM479+BBM480 geçilmişse BBM419 sayılır.",
+      "Yalnızca BBM479 geçilmişse hiçbir çıkarım yapılmaz.",
+      "1↔N ikame senaryoları için uygundur; etkin yıl isteğe bağlıdır.",
+    ],
+  },
+];
+
+/** Inline guide explaining each curriculum equivalence rule type on the admin tab. */
+function RuleTypeGuideList() {
+  return (
+    <ul className="text-sm text-muted-foreground space-y-3 list-none pl-0 mt-3">
+      {RULE_TYPE_GUIDE.map((item) => (
+        <li key={item.title} className="space-y-1">
+          <p className="font-medium text-foreground">{item.title}</p>
+          {item.paragraphs.map((paragraph) => (
+            <p key={paragraph} className="text-xs leading-relaxed">
+              {paragraph}
+            </p>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const RULE_TYPES = [
   "PAIRWISE",
@@ -60,13 +125,13 @@ const ruleSchema = z
     effectiveFromTerm: z.enum(["GUZ", "BAHAR"]).optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (data.ruleType === "PAIRWISE") {
+    if (data.ruleType === "PAIRWISE" || data.effectiveFromYear == null) {
       return;
     }
-    if (data.effectiveFromYear == null || data.effectiveFromYear < 2000 || data.effectiveFromYear > 2100) {
+    if (data.effectiveFromYear < 2000 || data.effectiveFromYear > 2100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Geçerli bir yıl giriniz",
+        message: "Geçerli bir yıl giriniz (2000–2100)",
         path: ["effectiveFromYear"],
       });
     }
@@ -201,7 +266,7 @@ function AddEquivalenceRuleDialog({ open, onOpenChange, departmentId, onSave }: 
               <div className="flex gap-3">
                 <FormField control={form.control} name="effectiveFromYear" render={({ field }) => (
                   <FormItem className="flex-1">
-                    <FormLabel>Etkin Yıl <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>Etkin Yıl</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -211,7 +276,10 @@ function AddEquivalenceRuleDialog({ open, onOpenChange, departmentId, onSave }: 
                         onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
                       />
                     </FormControl>
-                    <FormDescription className="text-xs">Değişikliğin başladığı akademik yılın ilk takvim yılı.</FormDescription>
+                    <FormDescription className="text-xs">
+                      {EFFECTIVE_YEAR_DESCRIPTIONS[ruleType] ??
+                        "İsteğe bağlı. Boş bırakılırsa dersin ne zaman alındığına bakılmaz."}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -434,12 +502,12 @@ export function CurriculumEquivalenceRulesTab() {
   return (
     <section className="space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1 max-w-3xl">
           <h2 className="text-lg font-semibold">Müfredat Değişikliği Kuralları</h2>
           <p className="text-sm text-muted-foreground">
             Müfredattan kaldırılan ve eklenen derslerin eşdeğerliğini tanımlayın.
-            Örnek: HAS222 ↔ MÜH103 (bire bir), BBM419 ↔ BBM479 + BBM480 (çift yönlü grup).
           </p>
+          <RuleTypeGuideList />
         </div>
         {!isLoading && (departments?.length ?? 0) > 0 && (
           <Popover>

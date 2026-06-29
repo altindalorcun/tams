@@ -249,6 +249,8 @@ CREATE TABLE curriculum_equivalence_rules (
 | `GROUP_REPLACEMENT_TO_LEGACY` | BBM479+BBM480 → BBM419 | Tüm yeni dersler geçildiyse tüm eski dersler geçilmiş sayılır. |
 | `GROUP_MUTUAL` | BBM419 ↔ BBM479+BBM480 | Her iki GROUP yönü birden uygulanır. |
 
+> **Etkin yıl (`effective_from_year`) isteğe bağlıdır.** NULL bırakıldığında analysis-service, legacy→replacement yönünde Başarı Yılı kontrolü yapmaz; tüm legacy dersler geçildiyse replacement kodları eklenir. FİZ103+FİZ104→FİZ117 gibi "değişimden önce alındıysa say" kurallarında etkin yıl doldurulması önerilir.
+
 #### `RuleSetResponse` Güncellemesi
 
 ```java

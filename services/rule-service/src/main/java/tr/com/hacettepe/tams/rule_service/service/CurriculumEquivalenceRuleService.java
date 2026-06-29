@@ -21,7 +21,8 @@ import java.util.UUID;
  * <p>Validates that:
  * <ul>
  *   <li>PAIRWISE rules have equal-length legacy and replacement lists.</li>
- *   <li>GROUP rules have at least one course in each list and specify an effective year.</li>
+ *   <li>GROUP rules have at least one course in each list; effective year is optional
+ *       (when omitted the analysis engine skips the completion-date check).</li>
  *   <li>All course codes are normalised to upper-case.</li>
  * </ul>
  */
@@ -89,9 +90,6 @@ public class CurriculumEquivalenceRuleService {
         } else {
             if (legacySize == 0 || replacementSize == 0) {
                 throw new IllegalArgumentException("GROUP rules require at least one course in each list");
-            }
-            if (request.effectiveFromYear() == null) {
-                throw new IllegalArgumentException("GROUP rules require effectiveFromYear");
             }
         }
     }
