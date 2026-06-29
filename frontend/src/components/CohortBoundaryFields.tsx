@@ -1,5 +1,11 @@
 import { YearPickerField } from "@/components/YearPickerField";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  ENROLLMENT_TERM_LABELS,
+  ENROLLMENT_TERM_NONE,
+  ENROLLMENT_TERM_SELECT_ITEMS,
+  ENROLLMENT_TERM_UNSET_LABEL,
+} from "@/lib/enrollmentTermSelect";
 import type { EnrollmentTerm } from "@/types";
 
 export interface CohortBoundaryValue {
@@ -15,11 +21,6 @@ interface CohortBoundaryFieldsProps {
   value: CohortBoundaryValue;
   onChange: (value: CohortBoundaryValue) => void;
 }
-
-const TERM_LABELS: Record<EnrollmentTerm, string> = {
-  GUZ: "Güz",
-  BAHAR: "Bahar",
-};
 
 /**
  * Year + term picker pair for category-course enrollment cohort boundaries.
@@ -51,18 +52,19 @@ export function CohortBoundaryFields({
         <div className="space-y-1.5">
           <label htmlFor={termId} className="text-xs text-muted-foreground">Dönem</label>
           <Select
-            value={value.term === "" ? "none" : value.term}
+            items={ENROLLMENT_TERM_SELECT_ITEMS}
+            value={value.term === "" ? ENROLLMENT_TERM_NONE : value.term}
             onValueChange={(v) =>
-              onChange({ ...value, term: v === "none" ? "" : (v as EnrollmentTerm) })
+              onChange({ ...value, term: v === ENROLLMENT_TERM_NONE ? "" : (v as EnrollmentTerm) })
             }
           >
-            <SelectTrigger id={termId} className="w-full">
+            <SelectTrigger id={termId} className="w-full [&_[data-slot=select-value]]:line-clamp-none">
               <SelectValue placeholder="Dönem seçin" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">—</SelectItem>
-              <SelectItem value="GUZ">{TERM_LABELS.GUZ}</SelectItem>
-              <SelectItem value="BAHAR">{TERM_LABELS.BAHAR}</SelectItem>
+              <SelectItem value={ENROLLMENT_TERM_NONE}>{ENROLLMENT_TERM_UNSET_LABEL}</SelectItem>
+              <SelectItem value="GUZ">{ENROLLMENT_TERM_LABELS.GUZ}</SelectItem>
+              <SelectItem value="BAHAR">{ENROLLMENT_TERM_LABELS.BAHAR}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -76,6 +78,6 @@ export function formatCohortBoundary(year?: number | null, term?: EnrollmentTerm
   if (year == null) {
     return null;
   }
-  const termLabel = term ? TERM_LABELS[term] : TERM_LABELS.GUZ;
+  const termLabel = term ? ENROLLMENT_TERM_LABELS[term] : ENROLLMENT_TERM_LABELS.GUZ;
   return `${year} ${termLabel}`;
 }

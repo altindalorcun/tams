@@ -17,6 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DepartmentCoursePicker } from "@/components/DepartmentCoursePicker";
 import { matchesTextFilter } from "@/lib/textFilter";
+import {
+  ENROLLMENT_TERM_LABELS,
+  ENROLLMENT_TERM_NONE,
+  ENROLLMENT_TERM_SELECT_ITEMS,
+  ENROLLMENT_TERM_UNSET_LABEL,
+} from "@/lib/enrollmentTermSelect";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments,
@@ -27,10 +33,10 @@ import {
 import type { CurriculumEquivalenceRule, CreateCurriculumEquivalenceRuleRequest, CurriculumEquivalenceRuleType } from "@/types";
 
 const RULE_TYPE_LABELS: Record<CurriculumEquivalenceRuleType, string> = {
-  PAIRWISE: "Bire Bir Eşdeğer (PAIRWISE)",
-  GROUP_LEGACY_TO_REPLACEMENT: "Eski → Yeni (GROUP)",
-  GROUP_REPLACEMENT_TO_LEGACY: "Yeni → Eski (GROUP)",
-  GROUP_MUTUAL: "Çift Yönlü Grup (GROUP_MUTUAL)",
+  PAIRWISE: "Bire Bir Eşdeğer",
+  GROUP_LEGACY_TO_REPLACEMENT: "Eski → Yeni",
+  GROUP_REPLACEMENT_TO_LEGACY: "Yeni → Eski",
+  GROUP_MUTUAL: "Çift Yönlü Grup",
 };
 
 const RULE_TYPE_DESCRIPTIONS: Record<CurriculumEquivalenceRuleType, string> = {
@@ -55,7 +61,7 @@ const EFFECTIVE_YEAR_DESCRIPTIONS: Partial<Record<CurriculumEquivalenceRuleType,
 
 const RULE_TYPE_GUIDE: { title: string; paragraphs: string[] }[] = [
   {
-    title: "Bire Bir Eşdeğer (PAIRWISE)",
+    title: "Bire Bir Eşdeğer",
     paragraphs: [
       "Eski ve yeni dersler indeks bazında eşleştirilir (ör. HAS222↔MUH103, HAS223↔MUH104).",
       "Öğrenci HAS222 geçmişse MUH103 sayılır; MUH104 geçmişse HAS223 sayılır.",
@@ -65,7 +71,7 @@ const RULE_TYPE_GUIDE: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
-    title: "Eski → Yeni (GROUP)",
+    title: "Eski → Yeni",
     paragraphs: [
       "Tüm eski dersler geçilmişse (ve tanımlandıysa etkin tarihten önce alınmışsa), tüm yeni dersler geçilmiş sayılır.",
       "Örnek: FIZ103 ve FIZ104, 16-17'de geçilmişse FIZ117 sayılır; yalnızca biri geçilmişse veya ikisi de başarısız/alınmamışsa FIZ117 sayılmaz.",
@@ -73,7 +79,7 @@ const RULE_TYPE_GUIDE: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
-    title: "Yeni → Eski (GROUP)",
+    title: "Yeni → Eski",
     paragraphs: [
       "Tüm yeni dersler geçilmişse, tüm eski dersler geçilmiş sayılır; tarih kontrolü yapılmaz.",
       "Örnek: BBM479 ve BBM480 geçilmişse BBM419 sayılır; yalnızca BBM479 geçilmişse sayılmaz.",
@@ -81,7 +87,7 @@ const RULE_TYPE_GUIDE: { title: string; paragraphs: string[] }[] = [
     ],
   },
   {
-    title: "Çift Yönlü Grup (GROUP_MUTUAL)",
+    title: "Çift Yönlü Grup",
     paragraphs: [
       "Eski→Yeni ve Yeni→Eski yönleri birlikte uygulanır.",
       "BBM419 geçilmişse BBM479+BBM480 sayılır; BBM479+BBM480 geçilmişse BBM419 sayılır.",
@@ -115,6 +121,11 @@ const RULE_TYPES = [
   "GROUP_REPLACEMENT_TO_LEGACY",
   "GROUP_MUTUAL",
 ] as const satisfies readonly CurriculumEquivalenceRuleType[];
+
+const RULE_TYPE_ITEMS = RULE_TYPES.map((type) => ({
+  value: type,
+  label: RULE_TYPE_LABELS[type],
+}));
 
 const ruleSchema = z
   .object({
@@ -197,17 +208,19 @@ function AddEquivalenceRuleDialog({ open, onOpenChange, departmentId, onSave }: 
             <FormField control={form.control} name="ruleType" render={({ field }) => (
               <FormItem>
                 <FormLabel>Kural Tipi</FormLabel>
-                <Select onValueChange={(val) => {
+                <Select
+                  items={RULE_TYPE_ITEMS}
+                  onValueChange={(val) => {
                   const nextType = val as CurriculumEquivalenceRuleType;
                   field.onChange(nextType);
                   form.reset(defaultValuesForRuleType(nextType));
                 }} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full [&_[data-slot=select-value]]:line-clamp-none">
                       <SelectValue placeholder="Kural tipi seçiniz" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false} className="min-w-[var(--anchor-width)] w-max">
                     {RULE_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>{RULE_TYPE_LABELS[type]}</SelectItem>
                     ))}
@@ -287,16 +300,20 @@ function AddEquivalenceRuleDialog({ open, onOpenChange, departmentId, onSave }: 
                 <FormField control={form.control} name="effectiveFromTerm" render={({ field }) => (
                   <FormItem className="w-36">
                     <FormLabel>Dönem</FormLabel>
-                    <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value ?? "none"}>
+                    <Select
+                      items={ENROLLMENT_TERM_SELECT_ITEMS}
+                      onValueChange={(val) => field.onChange(val === ENROLLMENT_TERM_NONE ? null : val)}
+                      value={field.value ?? ENROLLMENT_TERM_NONE}
+                    >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full [&_[data-slot=select-value]]:line-clamp-none">
                           <SelectValue placeholder="Dönem" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">Belirtilmemiş</SelectItem>
-                        <SelectItem value="GUZ">Güz</SelectItem>
-                        <SelectItem value="BAHAR">Bahar</SelectItem>
+                        <SelectItem value={ENROLLMENT_TERM_NONE}>{ENROLLMENT_TERM_UNSET_LABEL}</SelectItem>
+                        <SelectItem value="GUZ">{ENROLLMENT_TERM_LABELS.GUZ}</SelectItem>
+                        <SelectItem value="BAHAR">{ENROLLMENT_TERM_LABELS.BAHAR}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -432,7 +449,7 @@ function DeptEquivalenceRuleList({ departmentId, departmentName }: DeptRuleListP
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {rule.effectiveFromYear
-                        ? `${rule.effectiveFromYear}${rule.effectiveFromTerm ? ` ${rule.effectiveFromTerm === "GUZ" ? "Güz" : "Bahar"}` : ""}`
+                        ? `${rule.effectiveFromYear}${rule.effectiveFromTerm ? ` ${ENROLLMENT_TERM_LABELS[rule.effectiveFromTerm]}` : ""}`
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
