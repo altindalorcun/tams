@@ -414,4 +414,31 @@ class CategoryControllerIT extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    @DisplayName("Category course-pool — returns assigned and available sorted, excludes overlap")
+    void categoryCoursePool_returnsAssignedAndAvailable() throws Exception {
+        Category cat = persistCategory("Teknik Seçmeli");
+        Course assigned = persistCourseInPool("BIL401");
+        persistCourseInPool("BIL402");
+        courseRepository.save(
+                new Course("BIL999", "Not In Pool", new BigDecimal("3.00"), new BigDecimal("5.00")));
+
+        mockMvc.perform(post("/api/v1/categories/" + cat.getId() + "/courses")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CategoryCourseRequest(assigned.getId(), true, null, null, null, null))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/categories/" + cat.getId() + "/course-pool")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignedCourses", hasSize(1)))
+                .andExpect(jsonPath("$.assignedCourses[0].courseCode").value("BIL401"))
+                .andExpect(jsonPath("$.availableCourses", hasSize(1)))
+                .andExpect(jsonPath("$.availableCourses[0].courseCode").value("BIL402"))
+                .andExpect(jsonPath("$.availableCourses[?(@.courseCode=='BIL401')]").isEmpty())
+                .andExpect(jsonPath("$.availableCourses[?(@.courseCode=='BIL999')]").isEmpty());
+    }
 }

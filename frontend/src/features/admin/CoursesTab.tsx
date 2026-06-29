@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DepartmentMultiSelect } from "@/components/DepartmentMultiSelect";
 import { matchesTextFilter } from "@/lib/textFilter";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -22,14 +22,12 @@ import {
 } from "@/api/ruleApi";
 import type { Course, CreateCourseRequest } from "@/types";
 
-const NONE_DEPARTMENT = "none";
-
 const schema = z.object({
   courseCode: z.string().min(1, "Ders kodu zorunludur"),
   courseName: z.string().min(1, "Ders adı zorunludur"),
   credit: z.coerce.number().min(0, "Kredi 0 veya üzeri olmalıdır"),
   ects: z.coerce.number().min(0, "AKTS 0 veya üzeri olmalıdır"),
-  departmentId: z.string().optional(),
+  departmentIds: z.array(z.string()),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -37,11 +35,11 @@ interface CourseDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial?: Course;
-  onSave: (data: CreateCourseRequest, departmentId?: string, initialDepartmentId?: string) => Promise<void>;
+  onSave: (data: CreateCourseRequest, departmentIds: string[], initialDepartmentIds: string[]) => Promise<void>;
 }
 
 function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps) {
-  const initialDepartmentId = initial?.departmentIds?.[0] ?? NONE_DEPARTMENT;
+  const initialDepartmentIds = initial?.departmentIds ?? [];
 
   const { data: departments, isLoading: departmentsLoading } = useQuery({
     queryKey: ["departments"],
@@ -57,20 +55,10 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
           courseName: initial.courseName,
           credit: initial.credit,
           ects: initial.ects,
-          departmentId: initialDepartmentId,
+          departmentIds: initialDepartmentIds,
         }
-      : { courseCode: "", courseName: "", credit: 0, ects: 0, departmentId: NONE_DEPARTMENT },
+      : { courseCode: "", courseName: "", credit: 0, ects: 0, departmentIds: [] },
   });
-
-  const otherDepartmentIds = initial?.departmentIds?.slice(1) ?? [];
-  const otherDepartmentNames = departments
-    ?.filter((d) => otherDepartmentIds.includes(d.id))
-    .map((d) => d.name) ?? [];
-
-  const departmentSelectItems = [
-    { value: NONE_DEPARTMENT, label: "Bölüm seçilmedi" },
-    ...(departments ?? []).map((d) => ({ value: d.id, label: d.name })),
-  ];
 
   async function onSubmit(values: FormValues) {
     await onSave(
@@ -80,15 +68,15 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
         credit: values.credit,
         ects: values.ects,
       },
-      values.departmentId,
-      initialDepartmentId,
+      values.departmentIds,
+      initialDepartmentIds,
     );
     onOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm shadow-xl">
+      <DialogContent className="max-w-md shadow-xl">
         <DialogHeader>
           <DialogTitle>{initial ? "Dersi Düzenle" : "Yeni Ders"}</DialogTitle>
         </DialogHeader>
@@ -124,38 +112,20 @@ function CourseDialog({ open, onOpenChange, initial, onSave }: CourseDialogProps
                 </FormItem>
               )} />
             </div>
-            <FormField control={form.control} name="departmentId" render={({ field }) => (
+            <FormField control={form.control} name="departmentIds" render={({ field }) => (
               <FormItem>
-                <FormLabel>Bölüm</FormLabel>
-                {departmentsLoading ? (
-                  <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select
-                    items={departmentSelectItems}
-                    onValueChange={field.onChange}
-                    value={field.value ?? NONE_DEPARTMENT}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Bölüm seçilmedi" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value={NONE_DEPARTMENT}>Bölüm seçilmedi</SelectItem>
-                      {departments?.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <FormLabel>Bölümler</FormLabel>
+                <FormControl>
+                  <DepartmentMultiSelect
+                    departments={departments ?? []}
+                    value={field.value}
+                    onChange={field.onChange}
+                    isLoading={departmentsLoading}
+                  />
+                </FormControl>
                 <FormDescription>
-                  Seçilirse ders bu bölümün havuzuna otomatik eklenir. Bölüm sayfasından da yönetilebilir.
+                  Seçilen bölümlerin ders havuzuna otomatik eklenir. Bölüm sayfasından da yönetilebilir.
                 </FormDescription>
-                {otherDepartmentNames.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Bu ders şu bölümlerde daha kayıtlı: {otherDepartmentNames.join(", ")}
-                  </p>
-                )}
                 <FormMessage />
               </FormItem>
             )} />
@@ -187,6 +157,16 @@ export function CoursesTab() {
     queryKey: ["courses"],
     queryFn: getCourses,
   });
+
+  const { data: departments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: getDepartments,
+  });
+
+  const departmentNameById = useMemo(
+    () => new Map((departments ?? []).map((d) => [d.id, d.name])),
+    [departments],
+  );
 
   const filteredCourses = useMemo(() => {
     return (courses ?? []).filter((c) => {
@@ -233,32 +213,29 @@ export function CoursesTab() {
 
   async function handleSave(
     data: CreateCourseRequest,
-    departmentId?: string,
-    initialDepartmentId?: string,
+    departmentIds: string[],
+    initialDepartmentIds: string[],
   ) {
-    const normalized = departmentId && departmentId !== NONE_DEPARTMENT ? departmentId : undefined;
-    const normalizedInitial = initialDepartmentId && initialDepartmentId !== NONE_DEPARTMENT
-      ? initialDepartmentId
-      : undefined;
-
     const course = editTarget
       ? await updateMut.mutateAsync({ id: editTarget.id, data })
       : await createMut.mutateAsync(data);
 
-    const deptChanged = normalized !== normalizedInitial;
-    if (deptChanged) {
-      try {
-        if (normalizedInitial) {
-          await removeCourseFromDepartment(normalizedInitial, course.id);
-        }
-        if (normalized) {
-          await addCourseToDepartment(normalized, course.id);
-        }
-        invalidateCourseQueries();
-      } catch {
-        toast.error("Ders kaydedildi ancak bölüm bağlantısı güncellenemedi.");
-        throw new Error("Department link update failed");
-      }
+    const toAdd = departmentIds.filter((id) => !initialDepartmentIds.includes(id));
+    const toRemove = initialDepartmentIds.filter((id) => !departmentIds.includes(id));
+
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all([
+        ...toAdd.map((id) => addCourseToDepartment(id, course.id)),
+        ...toRemove.map((id) => removeCourseFromDepartment(id, course.id)),
+      ]);
+      invalidateCourseQueries();
+    } catch {
+      toast.error("Ders kaydedildi ancak bölüm bağlantısı güncellenemedi.");
+      throw new Error("Department link update failed");
     }
   }
 
@@ -341,6 +318,7 @@ export function CoursesTab() {
               <TableRow>
                 <TableHead>Ders Kodu</TableHead>
                 <TableHead>Ders Adı</TableHead>
+                <TableHead>Bölümler</TableHead>
                 <TableHead className="text-right">Kredi</TableHead>
                 <TableHead className="text-right">AKTS</TableHead>
                 <TableHead className="w-24 text-right">İşlemler</TableHead>
@@ -349,14 +327,14 @@ export function CoursesTab() {
             <TableBody>
               {courses?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Ders kataloğu boş.
                   </TableCell>
                 </TableRow>
               )}
               {courses && courses.length > 0 && filteredCourses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Filtreye uygun ders bulunamadı.
                   </TableCell>
                 </TableRow>
@@ -365,6 +343,19 @@ export function CoursesTab() {
                 <TableRow key={c.id} className="hover:bg-muted/50 transition-colors duration-150">
                   <TableCell className="font-mono text-sm">{c.courseCode}</TableCell>
                   <TableCell className="font-medium">{c.courseName}</TableCell>
+                  <TableCell>
+                    {(c.departmentIds?.length ?? 0) === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {c.departmentIds?.map((id) => (
+                          <Badge key={id} variant="outline" className="text-xs font-normal">
+                            {departmentNameById.get(id) ?? id}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{c.credit}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.ects}</TableCell>
                   <TableCell className="text-right">

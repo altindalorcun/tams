@@ -79,6 +79,11 @@ export interface DepartmentCoursePoolResponse {
   availableCourses: Course[];
 }
 
+export interface CategoryCoursePoolResponse {
+  assignedCourses: CategoryCourse[];
+  availableCourses: DepartmentCourse[];
+}
+
 export interface CategoryCourse {
   courseId: string;
   courseCode: string;

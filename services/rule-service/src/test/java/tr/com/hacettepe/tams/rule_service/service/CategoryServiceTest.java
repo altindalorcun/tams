@@ -396,6 +396,42 @@ class CategoryServiceTest {
         }
 
         @Test
+        @DisplayName("findCoursePool — splits department pool into assigned and available, sorted by course code")
+        void findCoursePool_splitsAndSorts() {
+            Course courseB = new Course("BIL402", "Deep Learning", new BigDecimal("3.00"), new BigDecimal("4.00"));
+            courseB.setId(UUID.randomUUID());
+            Course courseC = new Course("BIL403", "Computer Vision", new BigDecimal("3.00"), new BigDecimal("4.00"));
+            courseC.setId(UUID.randomUUID());
+
+            CategoryCourse assignedA = new CategoryCourse(category, course, true);
+            CategoryCourse assignedC = new CategoryCourse(category, courseC, false);
+
+            when(categoryRepository.findById(CAT_ID)).thenReturn(Optional.of(category));
+            when(categoryCourseRepository.findByCategoryIdWithCourse(CAT_ID))
+                    .thenReturn(List.of(assignedC, assignedA));
+            when(departmentCourseRepository.findCoursesByDepartmentId(DEPT_ID))
+                    .thenReturn(List.of(courseC, course, courseB));
+
+            CategoryCoursePoolResponse result = categoryService.findCoursePool(CAT_ID);
+
+            assertThat(result.assignedCourses()).extracting(CategoryCourseResponse::courseCode)
+                    .containsExactly("BIL401", "BIL403");
+            assertThat(result.availableCourses()).extracting(DepartmentCourseItem::courseCode)
+                    .containsExactly("BIL402");
+            assertThat(result.assignedCourses()).noneMatch(c -> c.courseCode().equals("BIL402"));
+            assertThat(result.availableCourses()).noneMatch(c -> c.courseCode().equals("BIL401"));
+        }
+
+        @Test
+        @DisplayName("findCoursePool — category not found throws")
+        void findCoursePool_categoryNotFound_throws() {
+            when(categoryRepository.findById(CAT_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> categoryService.findCoursePool(CAT_ID))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
         @DisplayName("removeCourse — happy path deletes the assignment")
         void removeCourse_happyPath() {
             when(categoryRepository.existsById(CAT_ID)).thenReturn(true);

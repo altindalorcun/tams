@@ -22,11 +22,11 @@ import { matchesTextFilter } from "@/lib/textFilter";
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import {
   getDepartments, getCategories, createCategory, updateCategory, deleteCategory,
-  getCategoryCourses, getCourses, addCourseToCategory, updateCategoryCourse, removeCourseFromCategory,
+  getCategoryCoursePool, addCourseToCategory, updateCategoryCourse, removeCourseFromCategory,
 } from "@/api/ruleApi";
 import type {
-  Category, CreateCategoryRequest, CategoryCourse, CreatePrefixLimitRequest,
-  CategoryCourseRequest, UpdateCategoryCourseRequest, EnrollmentTerm,
+  Category, CreateCategoryRequest, CategoryCourse, CategoryCoursePoolResponse, DepartmentCourse,
+  CreatePrefixLimitRequest, CategoryCourseRequest, UpdateCategoryCourseRequest, EnrollmentTerm,
 } from "@/types";
 
 const prefixLimitEntrySchema = z.object({
@@ -465,6 +465,20 @@ function CategoryCourseAssignmentDialog({
   );
 }
 
+const CATEGORY_POOL_KEY = (catId: string) => ["category-course-pool", catId];
+
+function compareCourseCode(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: "base" });
+}
+
+function sortAssignedCourses(courses: CategoryCourse[]): CategoryCourse[] {
+  return [...courses].sort((a, b) => compareCourseCode(a.courseCode, b.courseCode));
+}
+
+function sortAvailableCourses(courses: DepartmentCourse[]): DepartmentCourse[] {
+  return [...courses].sort((a, b) => compareCourseCode(a.courseCode, b.courseCode));
+}
+
 interface CoursesPoolDialogProps {
   catId: string;
   catName: string;
@@ -487,17 +501,15 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
   const [appliesFrom, setAppliesFrom] = useState<CohortBoundaryValue>(EMPTY_BOUNDARY);
   const [appliesTo, setAppliesTo] = useState<CohortBoundaryValue>(EMPTY_BOUNDARY);
 
-  const { data: allCourses = [] } = useQuery({ queryKey: ["courses"], queryFn: getCourses, enabled: open });
-  const { data: catCourses = [], isLoading } = useQuery({
-    queryKey: ["category-courses", catId],
-    queryFn: () => getCategoryCourses(catId),
+  const { data: pool, isLoading } = useQuery({
+    queryKey: CATEGORY_POOL_KEY(catId),
+    queryFn: () => getCategoryCoursePool(catId),
     enabled: open,
   });
 
-  const assignedIds = useMemo(
-    () => new Set(catCourses.map((c: CategoryCourse) => c.courseId)),
-    [catCourses],
-  );
+  const catCourses = pool?.assignedCourses ?? [];
+  const availableCourses = pool?.availableCourses ?? [];
+  const deptPoolSize = catCourses.length + availableCourses.length;
 
   const filteredCatCourses = useMemo(() => {
     return catCourses.filter((c: CategoryCourse) => {
@@ -506,11 +518,6 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
       return true;
     });
   }, [catCourses, assignedCodeFilter, assignedNameFilter]);
-
-  const availableCourses = useMemo(
-    () => allCourses.filter((c) => !assignedIds.has(c.id)),
-    [allCourses, assignedIds],
-  );
 
   const filteredAvailableCourses = useMemo(() => {
     return availableCourses.filter((c) => {
@@ -591,7 +598,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
   }
 
   const saveMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ mode: "add" | "edit"; course: CategoryCourse }> => {
       const bounds = appliesPayload(appliesFrom, appliesTo);
       if (assignmentMode === "add") {
         if (!pendingCourseId) {
@@ -602,7 +609,8 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
           isMandatory,
           ...bounds,
         };
-        return addCourseToCategory(catId, request);
+        const course = await addCourseToCategory(catId, request);
+        return { mode: "add", course };
       }
       if (!pendingCourseId) {
         throw new Error("Course id missing");
@@ -611,21 +619,118 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
         isMandatory,
         ...bounds,
       };
-      return updateCategoryCourse(catId, pendingCourseId, request);
+      const course = await updateCategoryCourse(catId, pendingCourseId, request);
+      return { mode: "edit", course };
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["category-courses", catId] });
-      toast.success(assignmentMode === "add" ? "Ders eklendi." : "Ders ataması güncellendi.");
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: CATEGORY_POOL_KEY(catId) });
+      const previous = qc.getQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId));
+      if (!previous || !pendingCourseId) {
+        return { previous };
+      }
+
+      if (assignmentMode === "add") {
+        const courseToAdd = previous.availableCourses.find((c) => c.courseId === pendingCourseId);
+        if (!courseToAdd) {
+          return { previous };
+        }
+        const bounds = appliesPayload(appliesFrom, appliesTo);
+        const optimisticAssigned: CategoryCourse = {
+          courseId: courseToAdd.courseId,
+          courseCode: courseToAdd.courseCode,
+          courseName: courseToAdd.courseName,
+          credit: courseToAdd.credit,
+          ects: courseToAdd.ects,
+          isMandatory,
+          ...bounds,
+        };
+        qc.setQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId), {
+          assignedCourses: sortAssignedCourses([...previous.assignedCourses, optimisticAssigned]),
+          availableCourses: sortAvailableCourses(
+            previous.availableCourses.filter((c) => c.courseId !== pendingCourseId),
+          ),
+        });
+        return { previous };
+      }
+
+      const bounds = appliesPayload(appliesFrom, appliesTo);
+      qc.setQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId), {
+        assignedCourses: sortAssignedCourses(
+          previous.assignedCourses.map((c) =>
+            c.courseId === pendingCourseId
+              ? { ...c, isMandatory, ...bounds }
+              : c,
+          ),
+        ),
+        availableCourses: previous.availableCourses,
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(CATEGORY_POOL_KEY(catId), context.previous);
+      }
+      toast.error(assignmentMode === "add" ? "Ders eklenemedi." : "Ders ataması güncellenemedi.");
+    },
+    onSuccess: ({ mode, course }) => {
+      const current = qc.getQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId));
+      if (current) {
+        if (mode === "add") {
+          qc.setQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId), {
+            assignedCourses: sortAssignedCourses(
+              current.assignedCourses.map((c) => (c.courseId === course.courseId ? course : c)),
+            ),
+            availableCourses: current.availableCourses,
+          });
+        } else {
+          qc.setQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId), {
+            assignedCourses: sortAssignedCourses(
+              current.assignedCourses.map((c) => (c.courseId === course.courseId ? course : c)),
+            ),
+            availableCourses: current.availableCourses,
+          });
+        }
+      }
+      qc.invalidateQueries({ queryKey: CATEGORY_POOL_KEY(catId) });
+      toast.success(mode === "add" ? "Ders eklendi." : "Ders ataması güncellendi.");
       setAssignmentOpen(false);
       resetAssignmentForm();
     },
-    onError: () => toast.error(assignmentMode === "add" ? "Ders eklenemedi." : "Ders ataması güncellenemedi."),
   });
 
   const removeMut = useMutation({
     mutationFn: (courseId: string) => removeCourseFromCategory(catId, courseId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["category-courses", catId] }); toast.success("Ders çıkarıldı."); },
-    onError: () => toast.error("Ders çıkarılamadı."),
+    onMutate: async (courseId: string) => {
+      await qc.cancelQueries({ queryKey: CATEGORY_POOL_KEY(catId) });
+      const previous = qc.getQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId));
+      const courseToRemove = previous?.assignedCourses.find((c) => c.courseId === courseId);
+      if (courseToRemove && previous) {
+        qc.setQueryData<CategoryCoursePoolResponse>(CATEGORY_POOL_KEY(catId), {
+          assignedCourses: previous.assignedCourses.filter((c) => c.courseId !== courseId),
+          availableCourses: sortAvailableCourses([
+            ...previous.availableCourses,
+            {
+              courseId: courseToRemove.courseId,
+              courseCode: courseToRemove.courseCode,
+              courseName: courseToRemove.courseName,
+              credit: courseToRemove.credit,
+              ects: courseToRemove.ects,
+            },
+          ]),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _courseId, context) => {
+      if (context?.previous !== undefined) {
+        qc.setQueryData(CATEGORY_POOL_KEY(catId), context.previous);
+      }
+      toast.error("Ders çıkarılamadı.");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CATEGORY_POOL_KEY(catId) });
+      toast.success("Ders çıkarıldı.");
+    },
   });
 
   return (
@@ -823,15 +928,21 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                 </PopoverContent>
               </Popover>
             </div>
+            {isLoading ? <Skeleton className="h-32 w-full" /> : (
             <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border p-2">
-              {availableCourses.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Eklenecek ders yok</p>
+              {deptPoolSize === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4 px-2">
+                  Bu bölümün ders havuzunda ders yok. Önce Ders Kataloğu veya Bölümler sekmesinden ders ekleyin.
+                </p>
+              )}
+              {deptPoolSize > 0 && availableCourses.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Eklenecek ders kalmadı</p>
               )}
               {availableCourses.length > 0 && filteredAvailableCourses.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">Filtreye uygun ders bulunamadı.</p>
               )}
               {filteredAvailableCourses.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
+                <div key={c.courseId} className="flex items-center justify-between rounded px-2 py-1 hover:bg-muted/50">
                   <div>
                     <span className="font-mono text-xs text-muted-foreground">{c.courseCode}</span>
                     <span className="ml-1 text-sm">{c.courseName}</span>
@@ -841,14 +952,14 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                       size="sm"
                       variant="outline"
                       className="h-6 text-xs"
-                      onClick={() => openAddAssignment(c.id, c.courseCode, c.courseName, false)}
+                      onClick={() => openAddAssignment(c.courseId, c.courseCode, c.courseName, false)}
                     >
                       Seçmeli
                     </Button>
                     <Button
                       size="sm"
                       className="h-6 text-xs"
-                      onClick={() => openAddAssignment(c.id, c.courseCode, c.courseName, true)}
+                      onClick={() => openAddAssignment(c.courseId, c.courseCode, c.courseName, true)}
                     >
                       Zorunlu
                     </Button>
@@ -856,6 +967,7 @@ function CoursesPoolDialog({ catId, catName, open, onOpenChange }: CoursesPoolDi
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
         <DialogFooter><Button variant="outline" onClick={() => handleOpenChange(false)}>Kapat</Button></DialogFooter>
@@ -991,7 +1103,12 @@ function DeptCategoryList({ departmentId, departmentName }: DeptCategoryListProp
         loading={deleteMut.isPending}
       />
       {poolCat && (
-        <CoursesPoolDialog catId={poolCat.id} catName={poolCat.name} open={!!poolCat} onOpenChange={(v) => { if (!v) setPoolCat(undefined); }} />
+        <CoursesPoolDialog
+          catId={poolCat.id}
+          catName={poolCat.name}
+          open={!!poolCat}
+          onOpenChange={(v) => { if (!v) setPoolCat(undefined); }}
+        />
       )}
     </Card>
   );

@@ -16,8 +16,11 @@ import tr.com.hacettepe.tams.rule_service.dto.CurriculumEquivalenceRuleDto;
 import tr.com.hacettepe.tams.rule_service.repository.*;
 import tr.com.hacettepe.tams.rule_service.util.EnrollmentCohortBoundaryValidator;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Business logic for graduation category management.
@@ -28,6 +31,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CategoryService {
+
+    private static final Comparator<String> BY_COURSE_CODE =
+            Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER);
 
     private final CategoryRepository categoryRepository;
     private final CategoryCourseRepository categoryCourseRepository;
@@ -150,6 +156,37 @@ public class CategoryService {
         return categoryCourseRepository.findByCategoryIdWithCourse(categoryId).stream()
                 .map(CategoryCourseResponse::from)
                 .toList();
+    }
+
+    /**
+     * Returns assigned and available courses for a category in one query.
+     * Available courses are those in the department pool but not yet assigned
+     * to this category. Both lists are sorted by course code ascending.
+     */
+    @Transactional(readOnly = true)
+    public CategoryCoursePoolResponse findCoursePool(UUID categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
+        UUID departmentId = category.getDepartment().getId();
+
+        List<CategoryCourse> assigned = categoryCourseRepository.findByCategoryIdWithCourse(categoryId);
+        Set<UUID> assignedIds = assigned.stream()
+                .map(cc -> cc.getCourse().getId())
+                .collect(Collectors.toSet());
+
+        List<CategoryCourseResponse> assignedResponses = assigned.stream()
+                .map(CategoryCourseResponse::from)
+                .sorted(Comparator.comparing(CategoryCourseResponse::courseCode, BY_COURSE_CODE))
+                .toList();
+
+        List<DepartmentCourseItem> available = departmentCourseRepository
+                .findCoursesByDepartmentId(departmentId).stream()
+                .filter(c -> !assignedIds.contains(c.getId()))
+                .sorted(Comparator.comparing(Course::getCourseCode, BY_COURSE_CODE))
+                .map(DepartmentCourseItem::from)
+                .toList();
+
+        return new CategoryCoursePoolResponse(assignedResponses, available);
     }
 
     @Transactional

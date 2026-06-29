@@ -96,6 +96,13 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.findCourses(catId));
     }
 
+    @GetMapping("/api/v1/categories/{catId}/course-pool")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List assigned and available courses for a graduation category pool")
+    public ResponseEntity<CategoryCoursePoolResponse> findCoursePool(@PathVariable UUID catId) {
+        return ResponseEntity.ok(categoryService.findCoursePool(catId));
+    }
+
     @DeleteMapping("/api/v1/categories/{catId}/courses/{courseId}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Remove a course from a graduation category")
