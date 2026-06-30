@@ -122,7 +122,7 @@ function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
 
             <FormField control={form.control} name="minTotalEcts" render={({ field }) => (
               <FormItem>
-                <FormLabel>Minimum Toplam ECTS <span className="text-muted-foreground font-normal">(opsiyonel)</span></FormLabel>
+                <FormLabel>Minimum Toplam AKTS <span className="text-muted-foreground font-normal">(opsiyonel)</span></FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -133,7 +133,7 @@ function DeptDialog({ open, onOpenChange, initial, onSave }: DeptDialogProps) {
                     value={field.value ?? ""}
                   />
                 </FormControl>
-                <FormDescription>Boş bırakılırsa ECTS eşiği uygulanmaz.</FormDescription>
+                <FormDescription>Boş bırakılırsa AKTS eşiği uygulanmaz.</FormDescription>
                 <FormMessage />
               </FormItem>
             )} />
@@ -469,7 +469,7 @@ export function DepartmentsTab() {
               <TableRow>
                 <TableHead>Bölüm Adı</TableHead>
                 <TableHead>Kod</TableHead>
-                <TableHead>Min. ECTS</TableHead>
+                <TableHead>Min. AKTS</TableHead>
                 <TableHead>F Notu Engeli</TableHead>
                 <TableHead className="w-32 text-right">İşlemler</TableHead>
               </TableRow>
