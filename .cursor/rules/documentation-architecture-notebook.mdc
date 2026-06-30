@@ -1,0 +1,133 @@
+---
+description: Section guide for filling docs/official/architecture-notebook.md from the Architecture Notebook template
+globs: docs/official/architecture-notebook.md
+alwaysApply: false
+---
+
+# TAMS — Architecture Notebook Guide
+
+Template structure: `docs/templates/architectural_notebook_template.md`
+Output file: `docs/official/architecture-notebook.md`
+
+Also follow `documentation-standards.mdc`.
+
+## Relationship to docs/architecture.md
+
+| Document | Purpose |
+|----------|---------|
+| `docs/architecture.md` | Technical reference: service map, data flows, DB schemas, deployment |
+| `docs/official/architecture-notebook.md` | Decision record: philosophy, rationale, constraints, mechanisms |
+
+Do **not** duplicate `architecture.md` content verbatim. Reference it and explain **why** each architectural choice was made. Pull technical facts from `architecture.md` and code; add justification and trade-off analysis.
+
+## Purpose
+
+State that this notebook records the architectural philosophy, significant decisions, and mechanisms that shape TAMS design and implementation. It complements the technical architecture document.
+
+## Architectural Goals and Philosophy
+
+Address these goals explicitly:
+
+- **PII-by-design** — PDF bytes processed in memory; PII masked before persistence; short Kafka retention.
+- **Async decoupling** — PDF parsing offloaded to parser-service via Kafka so analysis-service stays responsive.
+- **Independent scalability** — Each microservice scales separately (parser CPU-bound, gateway I/O-bound).
+- **Graduation-period resilience** — Rate limiting and horizontal scaling for peak academic workloads.
+- **Long-term maintainability** — Monorepo, Flyway migrations, OpenAPI docs, consistent package structure.
+
+## Assumptions and Dependencies
+
+Document assumptions such as:
+
+- Single-university MVP scope; no external SIS integration.
+- Standard university PDF transcript format (verify against parser-service implementation).
+- Kafka and three PostgreSQL instances available in deployment environment.
+- Stateless JWT authentication (no server-side session store).
+- Team skills: Java/Spring Boot for core services, Python for PDF parsing, React for frontend.
+
+## Architecturally Significant Requirements
+
+Link to `docs/official/vision.md` and `docs/official/system-requirements.md`. Highlight requirements that drive architecture:
+
+- PII must not be persisted on disk
+- Async PDF processing pipeline
+- Configurable graduation rule engine (v2)
+- Role-based access across three user types
+
+## Decisions, Constraints, and Justifications
+
+Each decision gets an `AD-*` ID. Format: **Decision — Justification**.
+
+| ID | Decision | Justification |
+|----|----------|---------------|
+| AD-001 | Microservice decomposition (gateway, auth, rule, analysis, parser) | Independent scaling, technology heterogeneity (Python for PDF), clear bounded contexts |
+| AD-002 | Kafka for transcript pipeline | Decouples upload from parse; absorbs parser latency spikes |
+| AD-003 | parser-service in Python/FastAPI | Rich PDF parsing libraries unavailable or immature in JVM ecosystem |
+| AD-004 | Three separate PostgreSQL databases | Data isolation per bounded context; independent schema evolution |
+| AD-005 | api-gateway as single entry point | Centralized JWT validation, rate limiting, CORS |
+| AD-006 | Graduation rule engine v2 | Flexible category/cohort/equivalence model (see `graduation-rules-v2-architecture.md`) |
+| AD-007 | Course-level cohort bounds with term granularity | Separates applicability from mandatory flag; supports GUZ/BAHAR within-year boundaries (see `docs/category-course-cohort-bounds.md`) |
+
+Add DO/DON'T guidelines where helpful (e.g., DO route all external traffic through gateway; DON'T store raw PDF on disk).
+
+## Architectural Mechanisms
+
+Describe purpose, attributes, and current state for each:
+
+1. **JWT Authentication** — Gateway validates tokens; auth-service issues and rotates; internal validate endpoint.
+2. **Kafka Pub/Sub Pipeline** — `transcript.raw` → parser-service → `transcript.parsed` → analysis-service.
+3. **PII Masking Pipeline** — parser-service masks identifiers before publishing parsed data.
+4. **Graduation Rule Engine v2** — analysis-service evaluates parsed courses against rule-service definitions; includes category-level year bounds and course-level year+term bounds per `docs/category-course-cohort-bounds.md`.
+5. **Enrollment Cohort Comparator** — Derives GUZ/BAHAR term from registration date; applies inclusive start and exclusive end bounds per category-course assignment.
+6. **Flyway Schema Migration** — Version-controlled DB schema per Spring Boot service.
+7. **Multi-Stage Docker Build** — Build and runtime image separation; non-root execution.
+
+## Key Abstractions
+
+Brief description of each core concept and its owning service:
+
+| Abstraction | Service | Description |
+|-------------|---------|-------------|
+| User / Role | auth-service | Authenticated actor with ADMIN, TEACHER, or STUDENT role |
+| TeacherStudentMap | auth-service | Links a teacher to students they may analyze |
+| Department, Course | rule-service | Academic structure definitions |
+| GraduationCategory | rule-service | Credit/ECTS requirements; category-level year-only cohort bounds |
+| CategoryCourseAssignment | rule-service | Course in a category pool with `is_mandatory` and course-level year+term cohort bounds |
+| CurriculumEquivalenceRule | rule-service | Cross-curriculum course mapping |
+| Transcript / ParsedCourse | parser-service → analysis-service | Extracted course data from PDF |
+| AnalysisResult | analysis-service | Graduation eligibility evaluation output |
+
+## Layers or Architectural Framework
+
+Describe the layered model:
+
+```
+Browser (React) → api-gateway → {auth, rule, analysis}-service → PostgreSQL
+                              → analysis-service → Kafka → parser-service
+```
+
+Frontend: feature-based React with role-protected routes.
+Backend: controller → service → repository pattern in Spring Boot services.
+Event layer: Kafka for async parser integration.
+
+## Architectural Views
+
+### Logical View
+
+Reference the service diagram from `docs/architecture.md`. Highlight package structure and critical inter-service interfaces.
+
+### Operational View
+
+Describe deployment topology: Docker Compose for local/single-server; Kubernetes for production (`infrastructure/k8s/`). List processes per node: gateway, auth, rule, analysis, parser, Kafka, PostgreSQL instances.
+
+### Use Case View
+
+List architecturally significant use cases (link to `docs/official/use-cases/`):
+
+- UC-TEACH-001 (PDF upload triggers async pipeline)
+- UC-SYS-001 (Kafka-driven PDF parsing)
+- UC-SYS-002 (Graduation evaluation)
+- UC-AUTH-001 (JWT authentication flow)
+
+## Traceability Table and Prompts
+
+Required per `documentation-standards.mdc`.

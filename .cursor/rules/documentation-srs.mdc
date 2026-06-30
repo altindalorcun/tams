@@ -1,0 +1,150 @@
+---
+description: Section guide for filling docs/official/system-requirements.md from the SRS template
+globs: docs/official/system-requirements.md
+alwaysApply: false
+---
+
+# TAMS — System Requirements Specification Guide
+
+Template structure: `docs/templates/software_requirement_specification_template.md`
+Output file: `docs/official/system-requirements.md`
+
+Also follow `documentation-standards.mdc`. Assign `FR-*` IDs to each system-wide functional requirement.
+
+## Introduction
+
+Define scope (transcript upload, parse, graduation evaluation, rule management including category-course cohort bounds, auth), reference documents (`docs/official/vision.md`, `docs/architecture.md`, `docs/category-course-cohort-bounds.md`), and glossary terms: PII, ECTS, graduation category, curriculum equivalence, enrollment cohort, category-level cohort bounds, course-level cohort bounds, enrollment term (GUZ/BAHAR).
+
+## System-Wide Functional Requirements
+
+Requirements **not** expressed as use cases. Each item gets an `FR-*` ID.
+
+| ID | Requirement | Source |
+|----|-------------|--------|
+| FR-AUTH-001 | JWT-based authentication with access and refresh token rotation | `auth-service` |
+| FR-AUTH-002 | Role-based access control (ADMIN, TEACHER, STUDENT) | `auth-service`, `AppRouter.tsx` |
+| FR-SYS-001 | Health check endpoints on every service (`/actuator/health` or `/health`) | All services |
+| FR-SYS-002 | Rate limiting at api-gateway during peak load | `api-gateway` |
+| FR-SYS-003 | Database schema versioning via Flyway migrations | Spring Boot services |
+| FR-SYS-004 | Structured logging without PII in log output | All services |
+
+Add more from code as needed; do not invent unimplemented requirements.
+
+## System Qualities
+
+### Usability
+
+- Turkish user-visible strings in the frontend; English for code and formal docs.
+- shadcn/ui design system per `ui-design.mdc`: slate palette, rose accent, Inter typography.
+- Role-specific navigation shells (`AppShell.tsx`, `AppRouter.tsx`).
+- Loading skeletons and error states on all data-fetching views.
+
+### Reliability
+
+- Kafka message retry and error handling for parser pipeline.
+- Kubernetes/Docker health probes on all services.
+- PostgreSQL persistence for auth, rules, and analysis data.
+- Parser failure surfaced to analysis-service with user-visible error.
+
+### Performance
+
+- Synchronous API endpoints respond within acceptable web latency (state target, e.g., < 2 s for CRUD).
+- PDF parsing is async via Kafka; state expected parse duration as TBD if not measured.
+- Kafka topic retention: `transcript.raw` 5 min, `transcript.parsed` 1 hr.
+
+### Supportability
+
+- Monorepo with shared Maven parent POM.
+- All secrets and config via environment variables (`.env.example`).
+- Multi-stage Dockerfiles, non-root runtime user.
+- K8s manifests under `infrastructure/k8s/`.
+
+## System Interfaces
+
+### User Interfaces
+
+#### Look & Feel
+
+Slate neutral base, rose-700 primary accent, green/amber/red semantic states. Professional academic tool aesthetic; no decorative color use.
+
+#### Layout and Navigation Requirements
+
+- Admin area: `/admin/*` — dashboard, departments, courses, graduation categories, equivalence rules, users.
+- Teacher area: transcript upload, analysis results, history.
+- Student area: own result view only.
+- Login and mandatory password change outside main shell.
+
+#### Consistency
+
+shadcn/ui components, react-hook-form + zod for all forms, consistent button/input placement and terminology across roles.
+
+#### User Personalization & Customization Requirements
+
+Content filtered by user role and teacher-student relationship; no user-configurable themes in MVP.
+
+### Interfaces to External Systems or Devices
+
+#### Software Interfaces
+
+| System | Protocol | Purpose |
+|--------|----------|---------|
+| PostgreSQL (auth, rules, analysis) | JDBC | Persistent storage |
+| Kafka KRaft | Kafka protocol | Async transcript parsing pipeline |
+| parser-service | Kafka + HTTP | PDF parsing and PII masking |
+| auth-service (internal) | HTTP | Token validation (`/internal/auth/validate`) |
+
+#### Hardware Interfaces
+
+None — browser-only client; server-side container deployment.
+
+#### Communications Interfaces
+
+HTTPS for client-to-gateway; internal service mesh or Docker network for inter-service calls.
+
+## Business Rules
+
+Organize by rule class. Each rule gets a `BR-*` ID. Use if-then or decision-table format.
+
+Rule classes to cover (sources: `docs/graduation-rules-v2-architecture.md`, `docs/category-course-cohort-bounds.md`, `rule-service`, `analysis-service`):
+
+- **Enrollment Cohort Rules (`BR-COHORT-*`)** — cohort derivation from registration date; category-level year-only skip; course-level year+term bounds with inclusive start and exclusive end; BAHAR/GUZ ordering; null term default; missing registration date behavior
+- **Graduation Category Rules (`BR-GRAD-*`)** — credit/ECTS/course-count thresholds, mandatory courses (only when in cohort range)
+- **Global Department Rules** — min total ECTS, fail-grade block
+- **Conditional and Prefix Rules** — conditional threshold substitution, prefix sub-limits
+- **Course Matching Rules (`BR-EQ-*`)** — curriculum equivalence expansion
+- **Eligibility Evaluation Rules (`BR-ELIG-*`)** — overall graduation eligibility
+
+Also include `FR-RULE-005` through `FR-RULE-007` for admin cohort-bound management and engine cohort derivation.
+
+Example patterns:
+- `BR-COHORT-007: If enrollment cohort is at or after appliesToYear+appliesToTerm, ignore the course assignment entirely (exclusive end).`
+- `BR-GRAD-001: If earned credits in a category are below min_credit, mark the category unsatisfied.`
+
+## System Constraints
+
+- Java 21, Spring Boot 3.3.5, Python 3.12, Node.js 22.
+- Naming conventions per `general.mdc` (kebab-case endpoints, dot-separated Kafka topics, snake_case DB tables).
+- No hardcoded secrets; all sensitive values from environment variables.
+- Every Dockerfile: multi-stage build, non-root user.
+
+## System Compliance
+
+### Licensing Requirements
+
+Document open-source license obligations for Spring Boot, React, FastAPI, and shadcn/ui dependencies.
+
+### Legal, Copyright, and Other Notices
+
+University data handling context; no proprietary third-party transcript format licensing assumed.
+
+### Applicable Standards
+
+REST/OpenAPI 3.0 for API documentation; JWT (RFC 7519) for token format.
+
+## System Documentation
+
+OpenAPI via springdoc on Spring Boot services; `README.md`, `docs/architecture.md`, and the `docs/official/` document set.
+
+## Traceability Table and Prompts
+
+Required per `documentation-standards.mdc`.

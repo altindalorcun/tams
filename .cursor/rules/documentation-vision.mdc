@@ -1,0 +1,82 @@
+---
+description: Section guide for filling docs/official/vision.md from the Vision template
+globs: docs/official/vision.md
+alwaysApply: false
+---
+
+# TAMS — Vision Document Guide
+
+Template structure: `docs/templates/vision_template.md`
+Output file: `docs/official/vision.md`
+
+Also follow `documentation-standards.mdc`. Preserve all template headings; replace placeholder content with TAMS-specific prose.
+
+## Introduction
+
+State that TAMS is a web-based, microservices-driven platform that enables university teachers to upload student PDF transcripts, automatically parse course data, evaluate graduation eligibility against admin-defined rules, and produce instant reports — without permanently storing PII on disk.
+
+## Positioning
+
+### Problem Statement
+
+Use the template table format:
+
+| The problem of | Manual transcript review against complex, frequently updated graduation requirements |
+| affects | University admins, teachers, students, and IT staff |
+| the impact of which is | Time-consuming manual checks, inconsistent evaluations, delayed graduation decisions, and privacy risk from mishandled student data |
+| a successful solution would be | Automated PDF parsing, rule-based eligibility evaluation, role-based access, and PII-safe processing |
+
+### Product Position Statement
+
+Use the template table format:
+
+| For | University teachers and academic administrators |
+| Who | Need to verify student graduation eligibility quickly and consistently |
+| The (product name) | TAMS is an academic transcript analysis platform |
+| That | Automatically parses PDF transcripts and evaluates them against configurable graduation rules |
+| Unlike | Manual spreadsheet-based checks or generic document management tools |
+| Our product | Combines domain-specific graduation rule engines with PII-by-design async PDF processing |
+
+## Stakeholder Descriptions
+
+### Stakeholder Summary
+
+| Name | Description | Responsibilities |
+|------|-------------|------------------|
+| Admin | Academic administrator | Defines and maintains graduation rule sets (departments, courses, categories, equivalence rules); manages users |
+| Teacher | Faculty member or advisor | Uploads student transcripts, triggers analysis, views results and history |
+| Student | Enrolled student | Views own analysis result (read-only) when linked to a teacher |
+| DevOps / IT | Infrastructure operator | Deploys and monitors Docker Compose or Kubernetes environments |
+| Development Team | Engineering staff | Builds, tests, and maintains microservices and frontend |
+
+### User Environment
+
+Describe: web browser on desktop (primary); peak usage during graduation periods; standalone MVP with no external SIS integration; React frontend communicating via REST through api-gateway; three user roles (ADMIN, TEACHER, STUDENT).
+
+## Product Overview
+
+### Needs and Features
+
+Table columns: **Need | Priority | Features | Planned Release**
+
+Include at minimum:
+
+| Need | Priority | Features | Planned Release |
+|------|----------|----------|-----------------|
+| Secure access | Must | JWT auth, role-based routing, mandatory password change | MVP |
+| Rule management | Must | Department, course, graduation category, curriculum equivalence CRUD | MVP |
+| Transcript analysis | Must | PDF upload, async Kafka parsing, graduation engine, result display | MVP |
+| PII protection | Must | In-memory PDF processing, PII masking, short Kafka retention | MVP |
+| Operational readiness | Should | Health checks, Docker Compose and K8s deployment, HTTPS support | MVP |
+
+Verify feature status against `docs/todo.md` before marking as delivered.
+
+## Other Product Requirements
+
+Table columns: **Requirement | Priority | Planned Release**
+
+Include non-functional items: API response time targets, parser throughput, JWT security, env-based secrets, OpenAPI documentation, Turkish UI strings, accessibility baseline, Docker multi-stage builds, non-root containers.
+
+## Traceability Table and Prompts
+
+Required per `documentation-standards.mdc`.

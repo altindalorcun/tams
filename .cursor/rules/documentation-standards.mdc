@@ -1,0 +1,72 @@
+---
+description: Shared standards for TAMS official documentation under docs/official/
+globs: docs/official/**/*.md
+alwaysApply: false
+---
+
+# TAMS — Official Documentation Standards
+
+Applies to all files under `docs/official/`. Follow these rules whenever creating or editing official project documentation.
+
+## Language and Tone
+
+- Write all content in **English** (consistent with `general.mdc`).
+- Use clear, formal technical prose suitable for formal software documentation.
+- Do **not** copy template guidance text into output documents: no `InfoBlue` notes, `_Usage note_`, or `_[Provide...]_` placeholders.
+
+## Project Identity
+
+- Full name: **TAMS — Transcript Analysis and Graduation Control System**
+- Short name: **TAMS**
+- Use the full name on document title pages; use TAMS in body text after first mention.
+
+## Source Hierarchy
+
+Verify claims against these sources before writing. Prefer code and existing docs over inference.
+
+| Priority | Source | Use for |
+|----------|--------|---------|
+| 1 | `services/`, `frontend/`, `infrastructure/` | Implemented behavior, APIs, schemas |
+| 2 | `docs/architecture.md` | System design, services, data flow, security |
+| 3 | `docs/graduation-rules-v2-architecture.md` | Graduation rule engine logic |
+| 3 | `docs/category-course-cohort-bounds.md` | Category-course enrollment cohort bounds (year + GUZ/BAHAR term) |
+| 4 | `README.md`, `docs/todo.md` | Scope, MVP features, completion status |
+| 5 | `docs/production-deployment.md`, `docs/https-migration-guide.md` | Operational and deployment requirements |
+| 6 | `docs/templates/*.md` | Section structure only — not content |
+
+If a requirement or feature cannot be verified, mark it **TBD** or state the assumption explicitly under an Assumptions subsection.
+
+## Cross-Reference IDs
+
+Use consistent identifiers across all official documents:
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Functional requirement | `FR-<DOMAIN>-<NNN>` | `FR-AUTH-001` |
+| Business rule | `BR-<DOMAIN>-<NNN>` | `BR-GRAD-001`, `BR-COHORT-001` |
+| Use case | `UC-<DOMAIN>-<NNN>` | `UC-TEACH-002` |
+| Architectural decision | `AD-<NNN>` | `AD-003` |
+
+Link related items across Vision, SRS, Architecture Notebook, and Use Cases (e.g., a Vision need maps to `FR-*` entries and `UC-*` files).
+
+## Required End Sections
+
+Every official document must end with these two sections (in order):
+
+### Traceability Table
+
+| Section | Source | Author | Date |
+|---------|--------|--------|------|
+| _section name_ | _file path, API route, or commit_ | _person or agent_ | _YYYY-MM-DD_ |
+
+One row per major section filled in the document.
+
+### Prompts
+
+List every Generative AI prompt used to produce or revise the document. Include a link to the full conversation when available. For Use Cases, place Prompts under an **APPENDIX** heading instead.
+
+## What Not to Include
+
+- Template instructional text or Word-specific formatting notes
+- Unimplemented features presented as delivered (check `docs/todo.md`)
+- Secrets, real credentials, or environment-specific values from `.env` files

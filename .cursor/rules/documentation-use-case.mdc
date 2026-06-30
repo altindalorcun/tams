@@ -1,0 +1,110 @@
+---
+description: Format and content guide for TAMS use case files under docs/official/use-cases/
+globs: docs/official/use-cases/**/*.md
+alwaysApply: false
+---
+
+# TAMS — Use Case Definition Guide
+
+Template structure: `docs/templates/use_case_definition_template.md`
+Output directory: `docs/official/use-cases/`
+File naming: `UC-<DOMAIN>-<NNN>-<slug>.md` (e.g., `UC-AUTH-001-login.md`)
+
+Also follow `documentation-standards.mdc`.
+
+## File Naming and Coding
+
+| Field | Convention | Example |
+|-------|------------|---------|
+| Use Case Number | Sequential within domain | 001, 002 |
+| Use Case Code | `UC-<DOMAIN>-<NNN>` | `UC-TEACH-001` |
+| Domain codes | AUTH, ADMIN, TEACH, STUD, SYS | — |
+| Filename | `UC-<CODE>-<kebab-slug>.md` | `UC-AUTH-001-login.md` |
+
+## Document Structure
+
+Preserve the template table layout. Fill every row; leave no blank required fields.
+
+| Field | Guidance |
+|-------|----------|
+| **Actor(s)** | ADMIN, TEACHER, STUDENT, or System (for automated/Kafka flows) |
+| **Short Definition** | One sentence describing the goal |
+| **Pre-condition** | State required before the flow starts (auth, data, permissions) |
+| **Post-condition** | Observable system state after successful completion |
+| **Priority** | Must / Should / Could (MVP features = Must) |
+| **Frequency of Occurrence** | e.g., "Several times per day during graduation period" |
+| **Main Path** | Numbered atomic steps; reference UI route and API endpoint in parentheses where applicable |
+| **Alternative Path** | Format `A.NN` — state which main step it branches from |
+| **Containing Use-Case(s)** | Include/extend relationships (e.g., UC-AUTH-001 includes token refresh) |
+| **Special Requirements** | NFRs: PII handling, performance, security, role checks |
+| **Assumptions** | Explicit assumptions about input format, user state, or environment |
+| **Note** | Optional clarifications |
+
+### Main Path Rules
+
+- Each step = one user or system action.
+- Number sequentially: 1, 2, 3, …
+- Include route (`/admin/courses`) and endpoint (`POST /api/v1/courses`) when verifiable in code.
+
+### Alternative Path Rules
+
+- Format: `A.01 (alternative to step 3): …`
+- Cover at minimum: validation failure, unauthorized access, not-found, and system error cases.
+
+## Initial Use Case Set
+
+Derive from `frontend/src/router/AppRouter.tsx`, service controllers, and `docs/architecture.md`. Create one file per use case.
+
+### Authentication (AUTH)
+
+| Code | Name | Actor |
+|------|------|-------|
+| UC-AUTH-001 | User login | TEACHER, ADMIN, STUDENT |
+| UC-AUTH-002 | User registration | ADMIN (or public, verify in auth-service) |
+| UC-AUTH-003 | Token refresh | All authenticated |
+| UC-AUTH-004 | Mandatory password change | All authenticated |
+| UC-AUTH-005 | User logout | All authenticated |
+
+### Admin (ADMIN)
+
+| Code | Name | Actor |
+|------|------|-------|
+| UC-ADMIN-001 | Manage departments | ADMIN |
+| UC-ADMIN-002 | Manage courses | ADMIN |
+| UC-ADMIN-003 | Manage graduation categories | ADMIN |
+| UC-ADMIN-004 | Manage curriculum equivalence rules | ADMIN |
+| UC-ADMIN-005 | Manage users | ADMIN |
+
+### Teacher (TEACH)
+
+| Code | Name | Actor |
+|------|------|-------|
+| UC-TEACH-001 | Upload transcript PDF | TEACHER |
+| UC-TEACH-002 | View analysis result | TEACHER |
+| UC-TEACH-003 | View analysis history | TEACHER |
+| UC-TEACH-004 | Link student to teacher | TEACHER |
+
+### Student (STUD)
+
+| Code | Name | Actor |
+|------|------|-------|
+| UC-STUD-001 | View own analysis result | STUDENT |
+
+### System (SYS)
+
+| Code | Name | Actor |
+|------|------|-------|
+| UC-SYS-001 | Async PDF parsing via Kafka | System |
+| UC-SYS-002 | Graduation eligibility evaluation | System |
+
+Extend this list when new routes or API endpoints are added. Verify each flow against code before documenting.
+
+## Cross-References
+
+- Link each use case to related `FR-*` requirements in `system-requirements.md`.
+- Link to `BR-*` business rules when the flow triggers rule evaluation.
+- Reference `AD-*` architectural decisions for system-level use cases.
+
+## APPENDIX — Prompts
+
+Place the Prompts section under an **APPENDIX** heading at the end of each use case file (per template).
