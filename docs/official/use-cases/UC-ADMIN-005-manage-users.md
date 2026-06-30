@@ -26,13 +26,13 @@
 | ---                      | ---                                                                                                                                            |
 | Alternative Path:        | A.01 (alternative to step 3): Duplicate username, e-mail, or student number — HTTP 409.<br><br>A.02 (alternative to step 3): STUDENT role without student number — client zod validation blocks submit; server also rejects if bypassed.<br><br>A.03 (alternative to step 7): Delete non-existent user — HTTP 404.<br><br>A.04 (alternative to step 2): Non-ADMIN role — HTTP 403 from `@PreAuthorize("hasRole('ADMIN')")`. |
 | ---                      | ---                                                                                                                                            |
-| Containing Use-Case(s)   | Created users trigger UC-AUTH-001 on first login, then UC-AUTH-004 (mandatory password change). Student accounts enable UC-STUD-001 when transcript is analyzed. |
+| Containing Use-Case(s)   | Created users trigger UC-AUTH-001 on first login, then UC-AUTH-003 (mandatory password change). Student accounts enable UC-STUD-001 when transcript is analyzed. |
 | ---                      | ---                                                                                                                                            |
 | Special Requirements:    | FR-AUTH-002 (roles TEACHER, STUDENT only via Admin UI; ADMIN seeded at startup). Passwords BCrypt-hashed. No hardcoded secrets — default password from environment (FR-AUTH-001). |
 | ---                      | ---                                                                                                                                            |
 | Assumptions:             | Public `POST /api/v1/auth/register` is not exposed in AuthController; all end-user provisioning is Admin-driven. Student JWT includes `studentNumber` claim for result matching (FR-ANAL-006). |
 | ---                      | ---                                                                                                                                            |
-| Note:                    | Controller: `AdminUserController`. Replaces planned UC-AUTH-002 (public registration). Related: FR-AUTH-002, FR-AUTH-003, UC-AUTH-004. |
+| Note:                    | Controller: `AdminUserController`. All end-user accounts are admin-provisioned. Related: FR-AUTH-002, FR-AUTH-003, UC-AUTH-003. |
 | ---                      | ---                                                                                                                                            |
 
 ## APPENDIX

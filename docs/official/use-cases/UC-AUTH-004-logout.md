@@ -1,6 +1,6 @@
-| Use Case Number: | 005 | | |
+| Use Case Number: | 004 | | |
 | --- | --- | | | --- | --- |
-| Use Case Code: | UC-AUTH-005 | | |
+| Use Case Code: | UC-AUTH-004 | | |
 | --- | --- | | | --- | --- |
 | Use Case Name: | User Logout | | |
 | --- | --- | | | --- | --- |

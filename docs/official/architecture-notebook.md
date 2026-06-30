@@ -316,9 +316,9 @@ Formal use case definitions live under [`docs/official/use-cases/`](use-cases/).
 | UC Code | Name | Document | Significance |
 | --- | --- | --- | --- |
 | UC-AUTH-001 | User login | [UC-AUTH-001-login.md](use-cases/UC-AUTH-001-login.md) | **Significant** — JWT issuance; gateway validation; role embedding |
-| UC-AUTH-003 | Token refresh | [UC-AUTH-003-token-refresh.md](use-cases/UC-AUTH-003-token-refresh.md) | Refresh token rotation (FR-AUTH-001) |
-| UC-AUTH-004 | Mandatory password change | [UC-AUTH-004-mandatory-password-change.md](use-cases/UC-AUTH-004-mandatory-password-change.md) | First-login gate before AppShell (FR-AUTH-003) |
-| UC-AUTH-005 | User logout | [UC-AUTH-005-logout.md](use-cases/UC-AUTH-005-logout.md) | Session termination |
+| UC-AUTH-002 | Token refresh | [UC-AUTH-002-token-refresh.md](use-cases/UC-AUTH-002-token-refresh.md) | Refresh token rotation (FR-AUTH-001) |
+| UC-AUTH-003 | Mandatory password change | [UC-AUTH-003-mandatory-password-change.md](use-cases/UC-AUTH-003-mandatory-password-change.md) | First-login gate before AppShell (FR-AUTH-003) |
+| UC-AUTH-004 | User logout | [UC-AUTH-004-logout.md](use-cases/UC-AUTH-004-logout.md) | Session termination |
 | UC-ADMIN-001 | Manage departments | [UC-ADMIN-001-manage-departments.md](use-cases/UC-ADMIN-001-manage-departments.md) | Global department thresholds (BR-GRAD-006/007) |
 | UC-ADMIN-002 | Manage courses | [UC-ADMIN-002-manage-courses.md](use-cases/UC-ADMIN-002-manage-courses.md) | Global course catalog |
 | UC-ADMIN-003 | Manage graduation categories | [UC-ADMIN-003-manage-graduation-categories.md](use-cases/UC-ADMIN-003-manage-graduation-categories.md) | **Significant** — rule model; cohort bounds admin UI (AD-007) |
@@ -343,7 +343,7 @@ Formal use case definitions live under [`docs/official/use-cases/`](use-cases/).
 | Architectural Mechanisms | `services/`, `infrastructure/` | Agent | 2026-06-30 |
 | Key Abstractions | `services/auth-service`, `services/rule-service`, `services/analysis-service` domain entities | Agent | 2026-06-30 |
 | Layers and Architectural Views | `services/`, `infrastructure/k8s/` | Agent | 2026-06-30 |
-| Use Case View | `docs/official/use-cases/` | Agent | 2026-06-30 |
+| Use Case View | `docs/official/use-cases/` | Agent | 2026-07-01 |
 
 # Prompts
 

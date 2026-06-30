@@ -1,6 +1,6 @@
-| Use Case Number: | 003 | | |
+| Use Case Number: | 002 | | |
 | --- | --- | | | --- | --- |
-| Use Case Code: | UC-AUTH-003 | | |
+| Use Case Code: | UC-AUTH-002 | | |
 | --- | --- | | | --- | --- |
 | Use Case Name: | Token Refresh | | |
 | --- | --- | | | --- | --- |

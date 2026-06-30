@@ -8,7 +8,7 @@ This document inventories every user-facing screen in TAMS Release 1 (MVP) and m
 
 Screens are grouped by functional area for readability. When transferring content to the Word template, each entry below corresponds to one template block; the H2 grouping headings are optional and may be omitted in Word.
 
-Backend-only flows (UC-AUTH-003 token refresh, UC-SYS-001 async PDF parsing, UC-SYS-002 graduation evaluation) have no dedicated UI and are not listed as separate entries.
+Backend-only flows (UC-AUTH-002 token refresh, UC-SYS-001 async PDF parsing, UC-SYS-002 graduation evaluation) have no dedicated UI and are not listed as separate entries.
 
 # Word Template Transfer Notes
 
@@ -40,7 +40,7 @@ Backend-only flows (UC-AUTH-003 token refresh, UC-SYS-001 async PDF parsing, UC-
 
 **Route / Component:** `/change-password` — `ChangePasswordPage.tsx`
 
-**Related Use-Case:** UC-AUTH-004
+**Related Use-Case:** UC-AUTH-003
 
 **Screenshot:** [Insert screenshot here]
 
@@ -64,7 +64,7 @@ Backend-only flows (UC-AUTH-003 token refresh, UC-SYS-001 async PDF parsing, UC-
 
 ## Shared Application Shell
 
-UC-AUTH-005 (logout) and voluntary password change (UC-AUTH-004) are triggered from the AppShell user dropdown menu and do not have separate full-page entries.
+UC-AUTH-004 (logout) and voluntary password change (UC-AUTH-003) are triggered from the AppShell user dropdown menu and do not have separate full-page entries.
 
 ### Authenticated Application Shell (Admin Navigation)
 
@@ -72,7 +72,7 @@ UC-AUTH-005 (logout) and voluntary password change (UC-AUTH-004) are triggered f
 
 **Route / Component:** `AppShell.tsx` with `/admin/*` content area
 
-**Related Use-Case:** UC-AUTH-001, UC-AUTH-005
+**Related Use-Case:** UC-AUTH-001, UC-AUTH-004
 
 **Screenshot:** [Insert screenshot here]
 
@@ -86,7 +86,7 @@ UC-AUTH-005 (logout) and voluntary password change (UC-AUTH-004) are triggered f
 
 **Route / Component:** `AppShell.tsx` with `/teacher/*` content area
 
-**Related Use-Case:** UC-AUTH-001, UC-AUTH-005
+**Related Use-Case:** UC-AUTH-001, UC-AUTH-004
 
 **Screenshot:** [Insert screenshot here]
 
@@ -100,7 +100,7 @@ UC-AUTH-005 (logout) and voluntary password change (UC-AUTH-004) are triggered f
 
 **Route / Component:** `AppShell.tsx` with `/student/*` content area
 
-**Related Use-Case:** UC-AUTH-001, UC-AUTH-005
+**Related Use-Case:** UC-AUTH-001, UC-AUTH-004
 
 **Screenshot:** [Insert screenshot here]
 
@@ -390,22 +390,21 @@ Sidebar routes (`/admin/departments`, `/admin/courses`, etc.) are the primary na
 
 | Item | Reason |
 | --- | --- |
-| UC-AUTH-003 (Token refresh) | Handled transparently by Axios interceptor; no user-visible screen |
+| UC-AUTH-002 (Token refresh) | Handled transparently by Axios interceptor; no user-visible screen |
 | UC-SYS-001 (Async PDF parsing) | Backend Kafka consumer pipeline; no user-visible screen |
 | UC-SYS-002 (Graduation eligibility evaluation) | Backend engine invoked after parsing; results appear in UC-TEACH-002 and UC-STUD-001 screens |
-| Public user registration | Not implemented in MVP; accounts are created by Admin via UC-ADMIN-005 |
 
 # Traceability Table
 
 | Section | Source | Author | Date |
 | --- | --- | --- | --- |
 | Purpose and Word Template Transfer Notes | DEL2 Graphical User Interface Design template | Agent | 2026-06-30 |
-| Authentication and Access Control | `docs/official/use-cases/UC-AUTH-001-login.md`, `UC-AUTH-004-mandatory-password-change.md`, `docs/official/system-requirements.md` § User Interfaces | Agent | 2026-06-30 |
+| Authentication and Access Control | `docs/official/use-cases/UC-AUTH-001-login.md`, `UC-AUTH-003-mandatory-password-change.md`, `docs/official/system-requirements.md` § User Interfaces | Agent | 2026-07-01 |
 | Shared Application Shell | `frontend/src/components/AppShell.tsx`, `docs/official/system-requirements.md` § Layout and Navigation | Agent | 2026-06-30 |
 | Admin Area (list views and CRUD dialogs) | `docs/official/use-cases/UC-ADMIN-001` through `UC-ADMIN-005`, `frontend/src/features/admin/`, `docs/official/architecture-notebook.md` AD-007 | Agent | 2026-06-30 |
 | Teacher Area | `docs/official/use-cases/UC-TEACH-001` through `UC-TEACH-003`, `frontend/src/features/teacher/` | Agent | 2026-06-30 |
 | Student Area | `docs/official/use-cases/UC-STUD-001-view-own-analysis-result.md`, `frontend/src/features/student/StudentResultPage.tsx` | Agent | 2026-06-30 |
-| Excluded Flows | `docs/official/use-cases/`, `docs/official/architecture-notebook.md` Use Case View | Agent | 2026-06-30 |
+| Excluded Flows | `docs/official/use-cases/`, `docs/official/architecture-notebook.md` Use Case View | Agent | 2026-07-01 |
 
 # Prompts
 

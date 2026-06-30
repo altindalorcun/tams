@@ -60,10 +60,9 @@ Derive from `frontend/src/router/AppRouter.tsx`, service controllers, and `docs/
 | Code | Name | Actor |
 |------|------|-------|
 | UC-AUTH-001 | User login | TEACHER, ADMIN, STUDENT |
-| UC-AUTH-002 | User registration | ADMIN (or public, verify in auth-service) |
-| UC-AUTH-003 | Token refresh | All authenticated |
-| UC-AUTH-004 | Mandatory password change | All authenticated |
-| UC-AUTH-005 | User logout | All authenticated |
+| UC-AUTH-002 | Token refresh | All authenticated |
+| UC-AUTH-003 | Mandatory password change | All authenticated |
+| UC-AUTH-004 | User logout | All authenticated |
 
 ### Admin (ADMIN)
 
@@ -82,7 +81,6 @@ Derive from `frontend/src/router/AppRouter.tsx`, service controllers, and `docs/
 | UC-TEACH-001 | Upload transcript PDF | TEACHER |
 | UC-TEACH-002 | View analysis result | TEACHER |
 | UC-TEACH-003 | View analysis history | TEACHER |
-| UC-TEACH-004 | Link student to teacher | TEACHER |
 
 ### Student (STUD)
 

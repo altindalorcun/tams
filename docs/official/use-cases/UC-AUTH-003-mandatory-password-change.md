@@ -1,6 +1,6 @@
-| Use Case Number: | 004 | | |
+| Use Case Number: | 003 | | |
 | --- | --- | | | --- | --- |
-| Use Case Code: | UC-AUTH-004 | | |
+| Use Case Code: | UC-AUTH-003 | | |
 | --- | --- | | | --- | --- |
 | Use Case Name: | Mandatory Password Change | | |
 | --- | --- | | | --- | --- |
