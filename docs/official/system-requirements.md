@@ -104,34 +104,227 @@ The following requirements are system-wide and not tied to a single use case. Ea
 
 # System Qualities
 
-## Usability
+Non-functional quality requirements are classified according to the ISO/IEC 25010 product quality model. Each characteristic groups sub-characteristics with TAMS-specific requirements. Where a sub-characteristic does not apply to TAMS, it is marked **Not applicable**; where a requirement is recognized but not yet formalized, it is marked **TBD**.
 
-- All user-visible interface text shall be in Turkish; all code, comments, and formal documentation shall be in English.
-- The frontend shall follow the shadcn/ui design system: slate neutral palette, rose-700 primary accent, Inter typography, and semantic color tokens for success, warning, and error states.
-- The application shall provide role-specific navigation shells: Admin (`/admin/*`), Teacher (`/teacher/*`), and Student (`/student/*`).
-- Every data-fetching view shall handle loading (skeleton loaders or spinners), error (user-friendly messages), and success states.
-- The student result page shall be fully responsive and mobile-first, as students predominantly access the system from smartphones and tablets.
+## Functional Suitability
 
-## Reliability
+Degree to which the system provides functions that meet stated and implied needs when used under specified conditions.
 
-- Kafka consumers shall retry failed message processing; parser failures shall be logged without including the message payload to prevent PII leakage.
-- All services shall support liveness and readiness probes for Kubernetes and Docker Compose deployments.
-- Auth, rule, and analysis data shall be persisted in three separate PostgreSQL instances for fault isolation.
-- When PDF parsing fails, the analysis job status shall transition to FAILED and the teacher shall receive a visible error indication.
+### Functional Completeness
 
-## Performance
+- The graduation engine shall evaluate all applicable business rules defined in the Business Rules section (`BR-*`) and persist per-category breakdowns and deficiency records for every analyzed transcript (**FR-ANAL-003**, **FR-ANAL-004**).
+
+### Functional Correctness
+
+- Graduation evaluation results shall be consistent with the rule set fetched from rule-service and the cohort-bound logic defined in **BR-COHORT-*** and **BR-GRAD-*** (**FR-RULE-007**, **FR-ANAL-003**).
+
+### Functional Appropriateness
+
+- Role-specific capabilities shall align with user tasks: Admins manage rules and users, Teachers upload transcripts and view results, Students view their own result in read-only mode (**FR-AUTH-002**, **FR-ANAL-005**, **FR-ANAL-006**).
+
+## Performance Efficiency
+
+Degree to which the system performs its functions within specified time and throughput parameters and uses resources efficiently under specified conditions.
+
+### Time Behaviour
 
 - Synchronous CRUD API endpoints shall respond within 2 seconds under normal load *(acceptance target; formal benchmarking TBD)*.
 - PDF parsing shall be offloaded asynchronously; end-to-end analysis (upload to result display) shall typically complete within seconds *(formal SLA TBD)*.
-- Rate limiting at the api-gateway shall protect downstream services during graduation-period traffic spikes.
+
+### Resource Utilization
+
+- All services shall emit structured JSON logs and shall not log raw PII (national identity numbers, full transcript content) (**FR-SYS-004**).
+- PDF transcript bytes shall be processed entirely in memory and shall never be written to physical server disk (**FR-PII-001**).
+
+### Capacity
+
+- Rate limiting at the api-gateway shall protect downstream services during graduation-period traffic spikes (**FR-SYS-002**).
 - Horizontal Pod Autoscalers shall be configured for parser-service and analysis-service in Kubernetes deployments.
 
-## Supportability
+## Compatibility
+
+Degree to which the system can exchange information with other products and perform its required functions while sharing a common environment and resources.
+
+### Co-existence
+
+- The client shall be a standards-compliant web browser requiring no local installation; users access the system from desktop or mobile browsers without conflicting with other applications (**FR-SYS-001** context in `docs/official/vision.md` User Environment).
+
+### Interoperability
+
+- All backend services shall expose OpenAPI 3.0 documentation (springdoc on Spring Boot, `/docs` on FastAPI) (**FR-SYS-006**).
+- Inter-service communication shall use HTTP for synchronous calls and Kafka for the async transcript pipeline.
+- LDAP / Active Directory integration for institutional authentication is planned for Release 2 *(TBD — **FR-AUTH-006**)*.
+
+## Usability
+
+Degree to which the system can be interacted with by specified users to complete specific tasks in a variety of contexts of use.
+
+### Appropriateness Recognizability
+
+- The application shall provide role-specific navigation shells so users immediately recognize their operational context: Admin (`/admin/*`), Teacher (`/teacher/*`), and Student (`/student/*`).
+
+### Learnability
+
+- The frontend shall follow the shadcn/ui design system with consistent form components, navigation controls, button styles, and domain terminology across Admin, Teacher, and Student areas (see System Interfaces > Consistency).
+
+### Operability
+
+- All user-visible interface text shall be in Turkish; all code, comments, and formal documentation shall be in English.
+- Every data-fetching view shall handle loading (skeleton loaders or spinners), error (user-friendly messages), and success states.
+
+### User Error Protection
+
+- All forms shall use react-hook-form with zod validation to prevent invalid submissions before they reach the server.
+- Users flagged for password change shall complete a mandatory password change before accessing the main application shell (**FR-AUTH-003**).
+
+### User Engagement
+
+- The frontend shall follow the shadcn/ui design system: slate neutral palette, rose-700 primary accent, Inter typography, and semantic color tokens for success, warning, and error states, conveying a professional academic tool aesthetic.
+
+### Inclusivity
+
+- The student result page shall be fully responsive and mobile-first, as students predominantly access the system from smartphones and tablets.
+
+### User Assistance
+
+- A User Manual for Admins and Teachers is planned for Release 1 *(TBD — see System Documentation)*.
+
+### Self-descriptiveness
+
+- Analysis results shall present graduation eligibility status and, when ineligible, a detailed deficiency list per category so users can understand outcomes without external documentation (**FR-ANAL-004**, **FR-ANAL-006**).
+
+## Reliability
+
+Degree to which the system performs specified functions under specified conditions for a specified period of time.
+
+### Faultlessness
+
+- When PDF parsing fails, the analysis job status shall transition to FAILED and the teacher shall receive a visible error indication.
+- Parser failures shall be logged without including the message payload to prevent PII leakage.
+
+### Availability
+
+- Every service shall expose a health check endpoint: `/actuator/health` (Spring Boot) or `/health` (FastAPI) (**FR-SYS-001**).
+- All services shall support liveness and readiness probes for Kubernetes and Docker Compose deployments.
+
+### Fault Tolerance
+
+- Kafka consumers shall retry failed message processing.
+- Auth, rule, and analysis data shall be persisted in three separate PostgreSQL instances for fault isolation.
+
+### Recoverability
+
+- Each Spring Boot service shall manage its database schema through Flyway versioned migrations (**FR-SYS-003**).
+- Masked analysis results shall be persisted so that previously analyzed data remains available after service restarts (**FR-ANAL-004**).
+- A formal disaster-recovery plan is **TBD**.
+
+## Security
+
+Degree to which the system defends against malicious actions and protects information so that persons have the degree of data access appropriate to their authorization.
+
+### Confidentiality
+
+- The api-gateway shall validate JWT tokens on every inbound request (except public auth paths) using a shared secret (**FR-AUTH-004**).
+- Role-based access control shall restrict data visibility: teachers access only linked students, students access only their own result (**FR-AUTH-002**, **FR-AUTH-005**).
+- National identity numbers shall be excluded from Kafka messages and all downstream persistent storage; PII masking shall be applied during parsing (**FR-PII-002**).
+- PDF transcript bytes shall never be written to physical server disk (**FR-PII-001**).
+- Kafka topic retention shall limit exposure: `transcript.raw` 5 minutes, `transcript.parsed` 1 hour (**FR-PII-003**).
+- Client-to-server communication shall use HTTPS/TLS in production deployments.
+
+### Integrity
+
+- Each Spring Boot service shall manage its database schema through Flyway versioned migrations to prevent unauthorized schema drift (**FR-SYS-003**).
+- All public rule-service endpoints under `/api/v1/**` shall require the ADMIN role (**FR-RULE-004**).
+
+### Non-repudiation
+
+- **Not applicable** — Release 1 does not require cryptographic proof that a specific user performed a given action.
+
+### Accountability
+
+- All services shall emit structured JSON logs and shall not log raw PII, enabling operational traceability without exposing sensitive data (**FR-SYS-004**).
+
+### Authenticity
+
+- The system shall issue JWT access tokens and refresh tokens on successful login and support refresh token rotation (**FR-AUTH-001**).
+
+### Resistance
+
+- The api-gateway shall enforce IP-based rate limiting with configurable requests-per-second (default 10) and burst capacity (default 20), returning HTTP 429 when exceeded (**FR-SYS-002**).
+- The api-gateway shall enforce a configurable CORS policy for allowed origins (**FR-SYS-005**).
+
+## Maintainability
+
+Degree of effectiveness and efficiency with which the system can be modified to improve, correct, or adapt it to changes in environment and requirements.
+
+### Modularity
 
 - The codebase shall be organized as a monorepo with a shared Maven parent POM for Java services.
+- The system shall use a microservices architecture with discrete, independently deployable services (auth, rule, analysis, parser, api-gateway).
+
+### Reusability
+
+- **TBD** — a formal shared-library strategy across Java and Python services has not been defined.
+
+### Analysability
+
+- All services shall emit structured JSON logs without PII to support diagnosis of failures and deficiencies (**FR-SYS-004**).
+- All backend services shall expose OpenAPI 3.0 documentation for impact assessment of API changes (**FR-SYS-006**).
+
+### Modifiability
+
+- Each Spring Boot service shall manage its database schema through Flyway versioned migrations (**FR-SYS-003**).
 - All sensitive configuration (database URLs, JWT secrets, API keys) shall be supplied via environment variables documented in `.env.example`.
-- Every service Dockerfile shall use a multi-stage build and run the final image as a non-root user.
+
+### Testability
+
+- Service-level test suites exist for implemented components; a formal test-coverage target is **TBD**.
+
+## Flexibility
+
+Degree to which the system can be adapted to changes in requirements, contexts of use, or system environment.
+
+### Adaptability
+
 - Deployment shall be supported via Docker Compose (local/single-server) and Kubernetes manifests under `infrastructure/k8s/`.
+
+### Scalability
+
+- PDF parsing shall be offloaded asynchronously via Kafka to decouple upload throughput from parsing capacity (**FR-ANAL-002**).
+- Horizontal Pod Autoscalers shall be configured for parser-service and analysis-service in Kubernetes deployments.
+
+### Installability
+
+- Every service Dockerfile shall use a multi-stage build and run the final image as a non-root user.
+- All sensitive configuration shall be supplied via environment variables documented in `.env.example`.
+
+### Replaceability
+
+- **Not applicable** — TAMS is not designed to replace another specified software product for the same purpose in the same environment.
+
+## Safety
+
+Degree to which the system avoids a state in which human life, health, property, or the environment is endangered.
+
+### Operational Constraint
+
+- **Not applicable** — TAMS is an administrative web application and does not control physical processes or equipment.
+
+### Risk Identification
+
+- **Not applicable** — TAMS does not monitor or identify hazards to life, health, property, or the environment.
+
+### Fail Safe
+
+- **Not applicable** — TAMS does not operate safety-critical physical systems.
+
+### Hazard Warning
+
+- **Not applicable** — TAMS does not generate warnings for physical operational hazards.
+
+### Safe Integration
+
+- **Not applicable** — TAMS does not integrate with safety-critical physical systems.
 
 # System Interfaces
 
@@ -309,6 +502,7 @@ The system processes university student academic data. PII masking and the prohi
 
 | Standard | Application |
 | --- | --- |
+| ISO/IEC 25010 | Classification framework for the System Qualities section |
 | OpenAPI 3.0 | API documentation on all backend services |
 | RFC 7519 (JWT) | Access and refresh token format |
 | HTTPS/TLS | Encryption of data in transit between client and server |
@@ -334,7 +528,7 @@ This section defines the documentation deliverables required for TAMS before and
 | --- | --- | --- | --- |
 | Introduction | `docs/official/vision.md` (Introduction, Scope); SRS template | Agent | 2026-07-01 |
 | System-Wide Functional Requirements | `docs/official/vision.md` (Needs and Features, Other Product Requirements) | Agent | 2026-07-01 |
-| System Qualities | `docs/official/vision.md` (User Environment, Other Product Requirements) | Agent | 2026-07-01 |
+| System Qualities | ISO/IEC 25010; `docs/official/vision.md` (User Environment, Other Product Requirements) | Agent | 2026-07-01 |
 | System Interfaces | `docs/official/vision.md` (Stakeholder Descriptions, Product Overview) | Agent | 2026-07-01 |
 | Business Rules | `docs/official/vision.md` (Introduction, Product Overview); detailed rules TBD — pending Use Case Definitions and Architecture Notebook | Agent | 2026-07-01 |
 | System Constraints | `docs/official/vision.md` (Other Product Requirements) | Agent | 2026-07-01 |
@@ -350,5 +544,7 @@ This section defines the documentation deliverables required for TAMS before and
 3. "@docs/official/system-requirements.md dosyası içerisindeki System Documentation ve Traceability Table başlıklarının altını sanki daha yazılımı yazmamışız gibi doldur. Bu zamana kadar @docs/official/vision.md dokümanını yaptık. Bu sebep ile /docs/architecture.md ya da /docs/official gibi veridiğin path'lerin bir anlamı yok. Normalde SRS dokümanı bu süreçte nasıl doldurulması gerekiyorsa, bu iki başlığın altındaki tablolaro buna göre güncelle."
 
 4. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
+
+5. "@docs/official/system-requirements.md dosyasındaki System Qualities başlığı altını, https://iso25000.com/index.php/en/iso-25000-standards/iso-25010?start=5 adresindeki ISO standartına göre yeniden düzenle."
 
 Conversation link: Current Cursor session.

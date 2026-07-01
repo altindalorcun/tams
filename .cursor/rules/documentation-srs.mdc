@@ -32,32 +32,72 @@ Add more from code as needed; do not invent unimplemented requirements.
 
 ## System Qualities
 
+Organize non-functional requirements according to **ISO/IEC 25010** (nine characteristics, each with sub-characteristics). Include all sub-characteristic headings; mark non-applicable items **Not applicable** and unformalized items **TBD**. Cross-reference `FR-*` IDs where functional requirements already capture the detail.
+
+### Functional Suitability
+
+- **Functional completeness** — graduation engine covers all `BR-*` rules; deficiency records persisted.
+- **Functional correctness** — `GraduationEngine` output consistent with cohort bounds and rule set.
+- **Functional appropriateness** — role-specific capabilities match Admin, Teacher, Student tasks.
+
+### Performance Efficiency
+
+- **Time behaviour** — CRUD ≤ 2 s target; async parsing completes within seconds *(SLA TBD)*.
+- **Resource utilization** — structured JSON logs without PII; in-memory PDF processing.
+- **Capacity** — gateway rate limiting; HPA for parser/analysis; graduation-period traffic spikes.
+
+### Compatibility
+
+- **Co-existence** — browser-only client, no local installation.
+- **Interoperability** — OpenAPI 3.0 on all backends; Kafka + HTTP inter-service; LDAP Release 2 TBD.
+
 ### Usability
 
-- Turkish user-visible strings in the frontend; English for code and formal docs.
-- shadcn/ui design system per `ui-design.mdc`: slate palette, rose accent, Inter typography.
-- Role-specific navigation shells (`AppShell.tsx`, `AppRouter.tsx`).
-- Loading skeletons and error states on all data-fetching views.
+- **Appropriateness recognizability** — role-specific navigation shells (`/admin`, `/teacher`, `/student`).
+- **Learnability** — shadcn/ui consistent components and terminology across roles.
+- **Operability** — Turkish UI strings; loading/error/success states on data-fetching views.
+- **User error protection** — react-hook-form + zod; mandatory password change flow.
+- **User engagement** — slate/rose professional academic aesthetic per `ui-design.mdc`.
+- **Inclusivity** — mobile-first student result page.
+- **User assistance** — User Manual TBD (Release 1).
+- **Self-descriptiveness** — transparent eligibility status and deficiency breakdown.
 
 ### Reliability
 
-- Kafka message retry and error handling for parser pipeline.
-- Kubernetes/Docker health probes on all services.
-- PostgreSQL persistence for auth, rules, and analysis data.
-- Parser failure surfaced to analysis-service with user-visible error.
+- **Faultlessness** — parser failure → FAILED status with visible teacher error; no PII in failure logs.
+- **Availability** — health checks and liveness/readiness probes on all services.
+- **Fault tolerance** — Kafka consumer retry; separate PostgreSQL instances per domain.
+- **Recoverability** — Flyway migrations; persisted analysis results; DR plan TBD.
 
-### Performance
+### Security
 
-- Synchronous API endpoints respond within acceptable web latency (state target, e.g., < 2 s for CRUD).
-- PDF parsing is async via Kafka; state expected parse duration as TBD if not measured.
-- Kafka topic retention: `transcript.raw` 5 min, `transcript.parsed` 1 hr.
+- **Confidentiality** — JWT/RBAC, PII masking, no PDF on disk, short Kafka retention, HTTPS/TLS.
+- **Integrity** — Flyway schema versioning; ADMIN-only rule mutations.
+- **Non-repudiation** — Not applicable (Release 1).
+- **Accountability** — structured logs without PII.
+- **Authenticity** — JWT access/refresh token rotation.
+- **Resistance** — gateway rate limiting (HTTP 429); CORS policy.
 
-### Supportability
+### Maintainability
 
-- Monorepo with shared Maven parent POM.
-- All secrets and config via environment variables (`.env.example`).
-- Multi-stage Dockerfiles, non-root runtime user.
-- K8s manifests under `infrastructure/k8s/`.
+- **Modularity** — monorepo with shared Maven parent POM; microservices architecture.
+- **Reusability** — TBD (shared-library strategy).
+- **Analysability** — structured JSON logs; OpenAPI documentation.
+- **Modifiability** — Flyway migrations; env-based configuration (`.env.example`).
+- **Testability** — service test suites exist; coverage target TBD.
+
+### Flexibility
+
+- **Adaptability** — Docker Compose and Kubernetes deployment paths.
+- **Scalability** — async Kafka pipeline; HPA for parser/analysis.
+- **Installability** — multi-stage Dockerfiles, non-root runtime user.
+- **Replaceability** — Not applicable.
+
+### Safety
+
+All sub-characteristics (Operational constraint, Risk identification, Fail safe, Hazard warning, Safe integration): **Not applicable** — administrative web application with no safety-critical physical processes.
+
+Add ISO/IEC 25010 to System Compliance > Applicable Standards.
 
 ## System Interfaces
 
