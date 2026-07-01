@@ -315,30 +315,40 @@ The system processes university student academic data. PII masking and the prohi
 
 # System Documentation
 
+This section defines the documentation deliverables required for TAMS before and during Release 1 development. The formal document set is maintained under `docs/official/`.
+
 | Document | Status | Audience | Responsibility |
 | --- | --- | --- | --- |
-| OpenAPI / Swagger (springdoc + FastAPI `/docs`) | Implemented | Developers | Development team |
-| `README.md`, `docs/architecture.md` | Implemented | Developers, DevOps | Development team |
-| `docs/official/` formal document set | In progress | Project stakeholders, reviewers | Development team |
-| User Manual for Admins and Teachers | TBD — Release 1 | End users | TBD |
+| Vision Document — [`docs/official/vision.md`](vision.md) | Complete | Stakeholders, reviewers | Development team |
+| System Requirements Specification — [`docs/official/system-requirements.md`](system-requirements.md) | Complete | Developers, QA, reviewers | Development team |
+| Architecture Notebook — [`docs/official/architecture-notebook.md`](architecture-notebook.md) | Complete | Developers, architects | Development team |
+| Use Case Definitions — [`docs/official/use-cases/`](use-cases/) | Complete | Developers, QA | Development team |
+| Graphical User Interface Design — [`docs/official/graphical-user-interface-design.md`](graphical-user-interface-design.md) | Complete | Developers, UX reviewers | Development team |
+| OpenAPI / Swagger API reference (all backend services) | Planned — Release 1 | Developers, integrators | Development team |
+| User Manual for Admins and Teachers | TBD — Release 1 | End users (Admin, Teacher) | TBD |
+| Deployment and operations guide | Planned — Release 1 | DevOps / IT | Development team |
 
 # Traceability Table
 
 | Section | Source | Author | Date |
 | --- | --- | --- | --- |
-| Introduction | `docs/official/vision.md`, `docs/architecture.md` | Agent | 2026-06-30 |
-| System-Wide Functional Requirements | Service controllers, `frontend/src/router/AppRouter.tsx`, `services/api-gateway/src/main/resources/application.yml` | Agent | 2026-06-30 |
-| System Qualities | `.cursor/rules/ui-design.mdc`, `docs/production-deployment.md`, `infrastructure/k8s/` | Agent | 2026-06-30 |
-| System Interfaces | `frontend/src/router/AppRouter.tsx`, `docs/architecture.md` §4 | Agent | 2026-06-30 |
-| Business Rules | `GraduationEngine.java`, `EnrollmentCohortComparator.java`, `docs/graduation-rules-v2-architecture.md`, `docs/category-course-cohort-bounds.md` | Agent | 2026-06-30 |
-| System Constraints | `.cursor/rules/general.mdc`, `pom.xml`, service Dockerfiles | Agent | 2026-06-30 |
-| System Compliance | `docs/architecture.md` §7 | Agent | 2026-06-30 |
-| System Documentation | `docs/todo.md`, springdoc configuration | Agent | 2026-06-30 |
+| Introduction | `docs/official/vision.md` (Introduction, Scope); SRS template | Agent | 2026-07-01 |
+| System-Wide Functional Requirements | `docs/official/vision.md` (Needs and Features, Other Product Requirements) | Agent | 2026-07-01 |
+| System Qualities | `docs/official/vision.md` (User Environment, Other Product Requirements) | Agent | 2026-07-01 |
+| System Interfaces | `docs/official/vision.md` (Stakeholder Descriptions, Product Overview) | Agent | 2026-07-01 |
+| Business Rules | `docs/official/vision.md` (Introduction, Product Overview); detailed rules TBD — pending Use Case Definitions and Architecture Notebook | Agent | 2026-07-01 |
+| System Constraints | `docs/official/vision.md` (Other Product Requirements) | Agent | 2026-07-01 |
+| System Compliance | `docs/official/vision.md` (Introduction — PII/data privacy) | Agent | 2026-07-01 |
+| System Documentation | `docs/official/vision.md` (Other Product Requirements — User Manual, OpenAPI) | Agent | 2026-07-01 |
 
 # Prompts
 
 1. "SRS dokümanına geçebiliriz. Bu noktada oluşturmul olduğun @docs/official/vision.md ve yazılıma bakarak yardım alabilirsin."
 
 2. "Oluşturmuş olduğun @docs/official/system-requirements.md dosyasındaki Business Rules'ları oluştururken son yaptığımız @docs/category-course-cohort-bounds.md dosyasını da hesaba kattın mı? Bu verileri hesaba katmadıysan buna göre güncelleme yap."
+
+3. "@docs/official/system-requirements.md dosyası içerisindeki System Documentation ve Traceability Table başlıklarının altını sanki daha yazılımı yazmamışız gibi doldur. Bu zamana kadar @docs/official/vision.md dokümanını yaptık. Bu sebep ile /docs/architecture.md ya da /docs/official gibi veridiğin path'lerin bir anlamı yok. Normalde SRS dokümanı bu süreçte nasıl doldurulması gerekiyorsa, bu iki başlığın altındaki tablolaro buna göre güncelle."
+
+4. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.

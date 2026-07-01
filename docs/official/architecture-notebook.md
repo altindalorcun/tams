@@ -335,20 +335,22 @@ Formal use case definitions live under [`docs/official/use-cases/`](use-cases/).
 
 | Section | Source | Author | Date |
 | --- | --- | --- | --- |
-| Purpose | Architecture Notebook template; Vision Document | Agent | 2026-06-30 |
-| Architectural Goals and Philosophy | Vision Document; security and PII design (`services/`) | Agent | 2026-06-30 |
-| Assumptions and Dependencies | Vision Document; project README | Agent | 2026-06-30 |
-| Architecturally Significant Requirements | System-Wide Requirements Specification (SRS) | Agent | 2026-06-30 |
-| Decisions, Constraints, and Justifications | TAMS Architecture Document; graduation rule engine v2; category-course cohort bounds design | Agent | 2026-06-30 |
-| Architectural Mechanisms | `services/`, `infrastructure/` | Agent | 2026-06-30 |
-| Key Abstractions | `services/auth-service`, `services/rule-service`, `services/analysis-service` domain entities | Agent | 2026-06-30 |
-| Layers and Architectural Views | `services/`, `infrastructure/k8s/` | Agent | 2026-06-30 |
-| Use Case View | `docs/official/use-cases/` | Agent | 2026-07-01 |
+| Purpose | Architecture Notebook template; `docs/official/vision.md` | Agent | 2026-07-01 |
+| Architectural Goals and Philosophy | `docs/official/vision.md` (Introduction, Other Product Requirements — PII, microservices, peak load) | Agent | 2026-07-01 |
+| Assumptions and Dependencies | `docs/official/vision.md` (User Environment, Other Product Requirements) | Agent | 2026-07-01 |
+| Architecturally Significant Requirements | `docs/official/system-requirements.md` (System-Wide Functional Requirements — FR-*) | Agent | 2026-07-01 |
+| Decisions, Constraints, and Justifications | `docs/official/vision.md` (microservices, Docker/K8s); `docs/official/system-requirements.md` (System Constraints, FR-PII-*, FR-ANAL-002, FR-SYS-002) | Agent | 2026-07-01 |
+| Architectural Mechanisms | `docs/official/system-requirements.md` (FR-AUTH-*, FR-PII-*, FR-ANAL-002, FR-SYS-003); `docs/official/vision.md` (Kafka, PII handling) | Agent | 2026-07-01 |
+| Key Abstractions | `docs/official/vision.md` (Stakeholder Descriptions — Admin rule domains); `docs/official/system-requirements.md` (Glossary, Business Rules) | Agent | 2026-07-01 |
+| Layers and Architectural Views | `docs/official/vision.md` (technology stack); `docs/official/system-requirements.md` (System Interfaces — Software Interfaces) | Agent | 2026-07-01 |
+| Use Case View | `docs/official/vision.md` (Product Overview — Needs and Features); `docs/official/system-requirements.md` (System-Wide Functional Requirements); Use Case Definitions — Planned | Agent | 2026-07-01 |
 
 # Prompts
 
 1. "O zaman şimdi Architecture Notebook'a geçelim. architectural notebook template kullanarak bu dokümanı yaz."
 
 2. "Doküman içerisinde /docs altındaki dosyalardan bahsetme. architecture-notebook dokümanı buna göre güncelle."
+
+3. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.

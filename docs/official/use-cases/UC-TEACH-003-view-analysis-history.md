@@ -37,8 +37,16 @@
 
 ## APPENDIX
 
+### Traceability Table
+
+| Section | Source | Author | Date |
+| --- | --- | --- | --- |
+| Use Case Definition | `docs/official/vision.md` (Needs and Features — Transcript Analysis, Result Display, History); `docs/official/system-requirements.md` (FR-ANAL-001–005); `docs/official/architecture-notebook.md` (AD-002, AD-003; Kafka pipeline) | Agent | 2026-07-01 |
+
 ### Prompts
 
 1. "Tamam şimdi vision.md, system-requirements.md ve architecture-notebook.md dokümanlarını tamamladık. Geriye use-case dokümanı kaldı. Bu dokümanı oluşturmanı istiyorum."
+
+2. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.

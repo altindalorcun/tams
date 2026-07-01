@@ -398,18 +398,21 @@ Sidebar routes (`/admin/departments`, `/admin/courses`, etc.) are the primary na
 
 | Section | Source | Author | Date |
 | --- | --- | --- | --- |
-| Purpose and Word Template Transfer Notes | DEL2 Graphical User Interface Design template | Agent | 2026-06-30 |
-| Authentication and Access Control | `docs/official/use-cases/UC-AUTH-001-login.md`, `UC-AUTH-003-mandatory-password-change.md`, `docs/official/system-requirements.md` § User Interfaces | Agent | 2026-07-01 |
-| Shared Application Shell | `frontend/src/components/AppShell.tsx`, `docs/official/system-requirements.md` § Layout and Navigation | Agent | 2026-06-30 |
-| Admin Area (list views and CRUD dialogs) | `docs/official/use-cases/UC-ADMIN-001` through `UC-ADMIN-005`, `frontend/src/features/admin/`, `docs/official/architecture-notebook.md` AD-007 | Agent | 2026-06-30 |
-| Teacher Area | `docs/official/use-cases/UC-TEACH-001` through `UC-TEACH-003`, `frontend/src/features/teacher/` | Agent | 2026-06-30 |
-| Student Area | `docs/official/use-cases/UC-STUD-001-view-own-analysis-result.md`, `frontend/src/features/student/StudentResultPage.tsx` | Agent | 2026-06-30 |
-| Excluded Flows | `docs/official/use-cases/`, `docs/official/architecture-notebook.md` Use Case View | Agent | 2026-07-01 |
+| Purpose | GUI Design template; `docs/official/vision.md` (User Environment) | Agent | 2026-07-01 |
+| Word Template Transfer Notes | DEL2 Graphical User Interface Design template | Agent | 2026-07-01 |
+| Authentication and Access Control | `docs/official/system-requirements.md` § User Interfaces; `docs/official/use-cases/UC-AUTH-001-login.md`, `UC-AUTH-003-mandatory-password-change.md`, `UC-AUTH-004-logout.md` | Agent | 2026-07-01 |
+| Shared Application Shell | `docs/official/system-requirements.md` § Layout and Navigation; `docs/official/vision.md` (role-specific areas) | Agent | 2026-07-01 |
+| Admin Area | `docs/official/system-requirements.md` § User Interfaces; `docs/official/use-cases/UC-ADMIN-001` through `UC-ADMIN-005` | Agent | 2026-07-01 |
+| Teacher Area | `docs/official/system-requirements.md` § User Interfaces; `docs/official/use-cases/UC-TEACH-001` through `UC-TEACH-003` | Agent | 2026-07-01 |
+| Student Area | `docs/official/system-requirements.md` § User Interfaces; `docs/official/use-cases/UC-STUD-001-view-own-analysis-result.md`; `docs/official/vision.md` (mobile-first student UI) | Agent | 2026-07-01 |
+| Excluded Flows | `docs/official/architecture-notebook.md` § Use Case View; `docs/official/use-cases/UC-AUTH-002-token-refresh.md`, `UC-SYS-001-async-pdf-parsing.md`, `UC-SYS-002-graduation-eligibility-evaluation.md` | Agent | 2026-07-01 |
 
 # Prompts
 
 1. "Şimdi sana bir doküman template'i vereceğim. DEL2.Graphical_User_Interface_Design_Template (2).docx bu dokümanın içerisindeki fotoğrafları ben dolduracağım ancak senden isteğim, docs/official/architecture-notebook.md, docs/official/system-requirements.md ve docs/official/use-cases içerisindeki dosyalara göre hangi ekranları hangi başlıkların altına yazacağımı ve başlıkların ne olduğunu belirle. Bunun için /docs/official klasörünün altına yeni bir .md dosyası oluştur ve bu dosyaya gerekli template'e göre içeriğini doldur."
 
 2. "Eksik olanları ekle ve dosyayı buna göre güncelle."
+
+3. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.

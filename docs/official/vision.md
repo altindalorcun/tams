@@ -95,14 +95,16 @@ TAMS is designed to integrate into the daily academic and administrative process
 
 | Section | Source | Author | Date |
 | --- | --- | --- | --- |
-| Introduction | `docs/architecture.md`, `docs/TAMS Vision Document.docx`, `docs/graduation-rules-v2-architecture.md` | Agent | 2026-06-30 |
-| Positioning | `docs/TAMS Vision Document.docx` | Agent | 2026-06-30 |
-| Stakeholder Descriptions | `docs/architecture.md`, `frontend/src/router/AppRouter.tsx` | Agent | 2026-06-30 |
-| Product Overview | `docs/todo.md`, `docs/architecture.md`, `frontend/src/router/AppRouter.tsx` | Agent | 2026-06-30 |
-| Other Product Requirements | `docs/architecture.md`, `docs/production-deployment.md`, `docs/https-migration-guide.md` | Agent | 2026-06-30 |
+| Introduction | Stakeholder input — `docs/TAMS Vision Document.docx`; Vision template | Agent | 2026-07-01 |
+| Positioning | Stakeholder input — `docs/TAMS Vision Document.docx`; Vision template | Agent | 2026-07-01 |
+| Stakeholder Descriptions | Stakeholder input — `docs/TAMS Vision Document.docx`; Vision template | Agent | 2026-07-01 |
+| Product Overview | Stakeholder input — `docs/TAMS Vision Document.docx`; Vision template | Agent | 2026-07-01 |
+| Other Product Requirements | Stakeholder input — `docs/TAMS Vision Document.docx`; Vision template | Agent | 2026-07-01 |
 
 # Prompts
 
 1. "Tamam şimdi vision dokümanını dolduralım. @docs/templates/vision_template.md dosyasına ve daha önceden yapmış olduğum @docs/TAMS Vision Document.docx dokümanına bakabilirsin. Bana sormak istediğin bir şey olursa başlamadan önce sor."
+
+2. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.

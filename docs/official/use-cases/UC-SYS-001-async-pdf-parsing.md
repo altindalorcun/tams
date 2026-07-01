@@ -37,8 +37,16 @@
 
 ## APPENDIX
 
+### Traceability Table
+
+| Section | Source | Author | Date |
+| --- | --- | --- | --- |
+| Use Case Definition | `docs/official/vision.md` (Other Product Requirements — PII, async pipeline); `docs/official/system-requirements.md` (FR-PII-001–003, FR-ANAL-002); `docs/official/architecture-notebook.md` (AD-002, AD-003; PII Masking Pipeline) | Agent | 2026-07-01 |
+
 ### Prompts
 
 1. "Tamam şimdi vision.md, system-requirements.md ve architecture-notebook.md dokümanlarını tamamladık. Geriye use-case dokümanı kaldı. Bu dokümanı oluşturmanı istiyorum."
+
+2. "Tamam şimdi aynı şekilde vision dokümanının altındaki Traceability Table'ı doldur. Dokümaları hazırlama sıram, Vision, SRS, architectural notebook, use-case ve graphical user interface. Bunların tracebility table'larını güncelle"
 
 Conversation link: Current Cursor session.
